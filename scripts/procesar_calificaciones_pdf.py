@@ -23,7 +23,7 @@ ASIGNATURAS = [
 # Definir las columnas del DataFrame
 COLUMNS = ["Sede", "Estudiante", "Documento de identidad", "Grado", "Grupo", "Periodo", "Año", "Intensidad Horaria", "Asignatura", "Cognitiva", "Procedimental", "Actitudinal", "Axiologica"]
 
-GRADOS = ["Transición", "Jardín", "Pre Jardín", "Párvulos"]
+GRADOS = ["Transición", "Jardín", "Pre Jardín", "Párvulos", '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
 
 class ProcesarCalificacionesPDF:
 
@@ -168,16 +168,29 @@ class ProcesarCalificacionesPDF:
                     return data
 
                 student_data = lines[lines.index(student_info_line) + 1].split()
-                estudiante = ' '.join(student_data[:-5])
-                doc_id = student_data[-5]
-                grado = student_data[-4]
-                grupo = student_data[-3]
                 periodo = student_data[-2]
                 año = student_data[-1]
+                
+                grupo = student_data[-3]
+                
+                if not student_data[-5].isdigit():
+                    doc_id = student_data[-4]
+                    estudiante = ' '.join(student_data[:-4])
+                else:
+                    doc_id = student_data[-5]
+                    estudiante = ' '.join(student_data[:-5])
 
-                if grupo in self.grados:
-                    grado = grupo
+                if student_data[-4] == "Pre":
+                    grado = ' '.join(student_data[-4:-2])
+                if student_data[-3] in self.grados:
                     grupo = "A"
+                    grado = student_data[-3]
+                else:
+                    grado = student_data[-4]
+                    
+                if not doc_id.isdigit():
+                    logging.error(f"Documento de identidad no válido en el archivo {pdf_link}")
+                    return data
 
                 logging.info(f"Procesando estudiante {estudiante} - {doc_id} - Grado: {grado} - Grupo: {grupo} - Periodo: {periodo} - Año: {año}")
 
@@ -214,5 +227,5 @@ if __name__ == '__main__':
     procesador = ProcesarCalificacionesPDF()
     procesador.procesar_carpeta(carpeta_pdf)
 
-    #pdf_file_path = 'path'
+    #pdf_file_path = ''
     #procesador.procesar_pdf(pdf_file_path, 'Fusagasugá')
