@@ -165,5 +165,5 @@ data/calificaciones/*.pdf
 *.csv
 datos/*.xlsx
 notebooks/parquet_exports/**/*.parquet
-notebooks/filtered_users.parquet
-notebooks/conteo_filas_por_tabla_y_grupos.xlsx
+notebooks/*.parquet
+notebooks/*.xlsx
