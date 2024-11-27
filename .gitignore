@@ -165,4 +165,3 @@ data/calificaciones/*.pdf
 *.csv
 datos/*.xlsx
 notebooks/parquet_exports/**/*.parquet
-notebooks/*.parquet
