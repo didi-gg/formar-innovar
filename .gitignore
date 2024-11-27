@@ -164,3 +164,4 @@ data/calificaciones/*.pdf
 .DS_Store
 *.csv
 datos/*.xlsx
+notebooks/parquet_exports/**/*.parquet
