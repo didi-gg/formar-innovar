@@ -21,10 +21,8 @@ sql = f"""
         ue.userid,
         e.courseid AS course_id
     FROM '{enrolments_file}' ue
-    JOIN '{enrol_file}' e
-        ON ue.enrolid = e.id
-    JOIN '{students_file}' s
-        ON ue.userid = s.UserID
+    JOIN '{enrol_file}' e ON ue.enrolid = e.id
+    JOIN '{students_file}' s ON ue.userid = s.UserID
 """
 
 # Ejecutar la consulta y convertir a DataFrame
