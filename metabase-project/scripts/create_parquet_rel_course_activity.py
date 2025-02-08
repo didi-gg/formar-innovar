@@ -7,8 +7,8 @@ import duckdb
 import pandas as pd
 
 # Configuración de archivos Parquet
-sections_file = "data/parquets/Course/mdlvf_course_sections.parquet"
-output_file = "data/parquets/Course/activities_section_mapping.parquet"
+sections_file = "metabase-project/data/parquets/Course/mdlvf_course_sections.parquet"
+output_file = "metabase-project/data/parquets/Course/activities_section_mapping.parquet"
 
 # Conexión DuckDB
 con = duckdb.connect()
