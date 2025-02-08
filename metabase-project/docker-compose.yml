@@ -1,0 +1,19 @@
+version: '3.9'
+
+services:
+  metabase:
+    build:
+      context: ./docker
+    container_name: metabase
+    ports:
+      - "3000:3000"
+    volumes:
+      - metabase_data:/home/metabase-data
+      - ./data:/app/data
+    environment:
+      - MB_PLUGINS_DIR=/home/plugins/
+      - MB_DB_FILE=/home/metabase-data/metabase.db
+
+volumes:
+  metabase_data:
+    driver: local
