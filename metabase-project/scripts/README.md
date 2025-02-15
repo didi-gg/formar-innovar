@@ -3,10 +3,10 @@
 ## Tabla de Contenido
 
 - [Mapeo de Secciones y Módulos en Moodle](#mapeo-de-secciones-y-módulos-en-moodle)
+- [Relación entre Estudiantes y Actividades en Moodle](#relación-entre-estudiantes-y-actividades-en-moodle)
 
 ## Mapeo de Secciones y Módulos en Moodle
 [create_parquet_rel_course_activity](create_parquet_rel_course_activity.py)
-
 
 ### Descripción
 Este script procesa los datos de secciones de cursos en Moodle y extrae los **IDs de módulos** (module_id) almacenados en la columna sequence. Luego, transforma esta información para generar un mapeo detallado de la relación **sección-módulo**, estructurándolo en un nuevo archivo Parquet.
@@ -29,7 +29,7 @@ Este script procesa los datos de secciones de cursos en Moodle y extrae los **ID
 
 ### Estructura de las Tablas
 
-1. **Tabla Original (mdlvf_course_sections.parquet)**
+1. **Tabla Original (`mdlvf_course_sections.parquet`)**
 Esta tabla almacena información sobre las secciones de los cursos y los módulos asignados.
 
 | **Columna** | **Descripción** | **Ejemplo** |
@@ -38,7 +38,7 @@ Esta tabla almacena información sobre las secciones de los cursos y los módulo
 | course (course_id) | ID del curso al que pertenece la sección. | 101 |
 | name (section_name) | Nombre de la sección del curso. | "Introducción" |
 | sequence | Lista de módulos en la sección (IDs separados por comas). | "201,202,203" |
-2. **Tabla Transformada (activities_section_mapping.parquet)**
+2. **Tabla Transformada (`activities_section_mapping.parquet`)**
 Después de la transformación, la información queda estructurada con una fila por cada **relación sección-módulo**.
 
 | **Columna** | **Antes (Original)** | **Después (Transformado)** |
@@ -60,3 +60,111 @@ Después de la transformación, la información queda estructurada con una fila 
    │    ├── 🧩 Módulo (module_id) → 204
    │    ├── 🧩 Módulo (module_id) → 205
 ```
+
+## Relación entre Estudiantes y Actividades en Moodle
+
+### Descripción
+Este script genera un archivo **Parquet** con información sobre las **actividades de los cursos en los que están inscritos los estudiantes** en Moodle. Se integra información de múltiples fuentes para crear un mapeo detallado de la relación **estudiante ↔ curso ↔ sección ↔ actividad**.
+
+### Funcionamiento
+1. **Carga de Datos**:
+   * Se leen cuatro archivos Parquet:
+     * `activities_section_mapping.parquet` → Relación de secciones y módulos en cada curso.
+     * `student_courses.parquet` → Relación de estudiantes y los cursos en los que están inscritos.
+     * `mdlvf_course_modules.parquet` → Información detallada sobre los módulos (actividades) en Moodle.
+     * `mdlvf_modules.parquet` → Relación de módulos con sus nombres (tipos de actividad).
+2. **Transformación de Datos**:
+   * Se unen los **estudiantes con sus cursos inscritos** (`student_courses.parquet`).
+   * Se asocian las **secciones del curso y sus actividades** (`activities_section_mapping.parquet`).
+   * Se extraen detalles adicionales sobre los **módulos** (`mdlvf_course_modules.parquet`), como su instance y su module_id.
+   * Se obtiene el **nombre del tipo de actividad** (`mdlvf_modules.parquet`).
+
+3. **Generación de la Tabla de Relación**:
+   * Se guarda el resultado en un **archivo Parquet**(`student_course_activities.parquet`) para su posterior análisis.
+
+
+### Estructura de las Tablas
+
+1. **Tabla de Secciones y Actividades (`activities_section_mapping.parquet`)**
+Esta tabla almacena información sobre las secciones de los cursos y los módulos asignados.
+
+| **Columna** | **Descripción** | **Ejemplo** |
+|:-:|:-:|:-:|
+| course_id | ID del curso al que pertenece la sección. | 101 |
+| section_id | ID único de la sección dentro del curso. | 10 |
+| module_id | ID del módulo (actividad) dentro de la sección. | 201 |
+
+2. **Tabla de Inscripciones de Estudiantes (`student_courses.parquet`)**
+
+| **Columna** | **Descripción** | **Ejemplo** |
+|:-:|:-:|:-:|
+| userid | ID único del estudiante. | 5001 |
+| course_id | ID del curso en el que está inscrito el estudiante. | 101 |
+3. **Tabla de Módulos del Curso (`mdlvf_course_modules.parquet`)**
+
+| **Columna** | **Descripción** | **Ejemplo** |
+|:-:|:-:|:-:|
+| id | ID del módulo (actividad). | 201 |
+| module | ID del tipo de módulo. | 3 |
+| instance | Identificador de la instancia del módulo. | 500 |
+4. **Tabla de Tipos de Módulos (`mdlvf_modules.parquet`)**
+
+| id | name |
+|---|---|
+| 1 | assign |
+| 2 | assignment |
+| 3 | book |
+| 4 | chat |
+| 5 | choice |
+| 6 | data |
+| 7 | feedback |
+| 8 | folder |
+| 9 | forum |
+| 10 | glossary |
+| 11 | imscp |
+| 12 | label |
+| 13 | lesson |
+| 14 | lti |
+| 15 | page |
+| 16 | quiz |
+| 17 | resource |
+| 18 | scorm |
+| 19 | survey |
+| 20 | url |
+| 21 | wiki |
+| 22 | workshop |
+| 23 | bootstrapelements |
+| 24 | hvp |
+| 26 | h5pactivity |
+
+### Estructura de la Tabla de Salida (`student_course_activities.parquet`)
+Después de la transformación, la información se organiza en la siguiente estructura:
+
+| **Columna** | **Descripción** | **Ejemplo** |
+|:-:|:-:|:-:|
+| userid | ID único del estudiante. | 5001 |
+| course_id | ID del curso en el que está inscrito el estudiante. | 101 |
+| section_id | ID de la sección donde se encuentra la actividad. | 10 |
+| module_id | ID del módulo (actividad) dentro de la sección. | 201 |
+| activity_type | Tipo de actividad (Ej. "quiz", "forum"). | "quiz" |
+| instance | Identificador único de la instancia del módulo. | 500 |
+
+
+### Representación Gráfica de la Jerarquía
+
+```
+🎓 Estudiante (userid) → 5001
+   ├── 📚 Curso (course_id) → 101
+   │    ├── 📂 Sección (section_id) → 10
+   │    │    ├── 🧩 Módulo (module_id) → 201
+   │    │    │    ├── 📌 Tipo de Actividad (activity_type) → "quiz"
+   │    │    │    ├── 🔢 Instancia de la actividad (instance) → 500
+   │    │    ├── 🧩 Módulo (module_id) → 202
+   │    │    │    ├── 📌 Tipo de Actividad (activity_type) → "forum"
+   │    │    │    ├── 🔢 Instancia de la actividad (instance) → 501
+   │    ├── 📂 Sección (section_id) → 11
+   │    │    ├── 🧩 Módulo (module_id) → 203
+   │    │    │    ├── 📌 Tipo de Actividad (activity_type) → "assignment"
+   │    │    │    ├── 🔢 Instancia de la actividad (instance) → 502
+```
+
