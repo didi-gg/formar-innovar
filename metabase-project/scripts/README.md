@@ -50,11 +50,13 @@ Después de la transformación, la información queda estructurada con una fila 
 
 ### Representación Gráfica de la Jerarquía
 
-📚 Curso (course_id) → 101  
-   ├── 📂 Sección (section_id) → 10  
-   │    ├── 🧩 Módulo (module_id) → 201  
-   │    ├── 🧩 Módulo (module_id) → 202  
-   │    ├── 🧩 Módulo (module_id) → 203  
-   ├── 📂 Sección (section_id) → 11  
-   │    ├── 🧩 Módulo (module_id) → 204  
-   │    ├── 🧩 Módulo (module_id) → 205  s
+```
+📚 Curso (course_id) → 101
+   ├── 📂 Sección (section_id) → 10
+   │    ├── 🧩 Módulo (module_id) → 201
+   │    ├── 🧩 Módulo (module_id) → 202
+   │    ├── 🧩 Módulo (module_id) → 203
+   ├── 📂 Sección (section_id) → 11
+   │    ├── 🧩 Módulo (module_id) → 204
+   │    ├── 🧩 Módulo (module_id) → 205
+```
