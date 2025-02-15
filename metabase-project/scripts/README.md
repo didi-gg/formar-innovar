@@ -3,6 +3,7 @@
 ## Tabla de Contenido
 
 - [Mapeo de Secciones y Módulos en Moodle](#mapeo-de-secciones-y-módulos-en-moodle)
+- [Relación entre Estudiantes y Cursos en Moodle](#relación-entre-estudiantes-y-cursos-en-moodle)
 - [Relación entre Estudiantes y Actividades en Moodle](#relación-entre-estudiantes-y-actividades-en-moodle)
 
 ## Mapeo de Secciones y Módulos en Moodle
@@ -38,7 +39,8 @@ Esta tabla almacena información sobre las secciones de los cursos y los módulo
 | course (course_id) | ID del curso al que pertenece la sección. | 101 |
 | name (section_name) | Nombre de la sección del curso. | "Introducción" |
 | sequence | Lista de módulos en la sección (IDs separados por comas). | "201,202,203" |
-2. **Tabla Transformada (`activities_section_mapping.parquet`)**
+
+### Estructura de la Tabla de Salida (`activities_section_mapping.parquet`)
 Después de la transformación, la información queda estructurada con una fila por cada **relación sección-módulo**.
 
 | **Columna** | **Antes (Original)** | **Después (Transformado)** |
@@ -61,7 +63,72 @@ Después de la transformación, la información queda estructurada con una fila 
    │    ├── 🧩 Módulo (module_id) → 205
 ```
 
+## Relación entre Estudiantes y Cursos en Moodle
+[create_parquet_student_courses](create_parquet_student_courses.py)
+
+### Descripción
+Este script genera un archivo **Parquet** que contiene la relación entre **estudiantes y los cursos en los que están inscritos** en Moodle. Utiliza los datos de inscripciones y métodos de matrícula para extraer la información y normalizarla en una tabla estructurada.
+
+### Funcionamiento
+1. **Carga de Datos**:
+* Se leen los archivos Parquet con información de inscripciones y estudiantes:
+  * `mdlvf_user_enrolments.parquet` → Contiene los usuarios inscritos y sus IDs de inscripción (enrolid).
+  * `mdlvf_enrol.parquet` → Conecta los IDs de inscripción (enrolid) con los cursos (courseid).
+  * `students.parquet` → Lista de usuarios registrados como estudiantes.
+
+2. **Transformación de Datos**:
+   * Se realiza un **JOIN** entre `mdlvf_user_enrolments` y `mdlvf_enrol` para obtener los cursos a los que está inscrito cada usuario.
+   * Se filtran solo los estudiantes válidos cruzando con `students.parquet` (para evitar incluir usuarios que no sean estudiantes activos).
+   * Se eliminan duplicados, dejando solo **una relación única por estudiante y curso**.
+
+3. **Generación de la Tabla de Relación**:
+   * Se guarda el resultado en un **archivo Parquet** (`student_courses.parquet`) para análisis y visualización.
+
+### Estructura de las Tablas
+
+1. **Tabla de Inscripciones de Usuarios (`mdlvf_user_enrolments.parquet`)**
+Contiene la relación de usuarios con sus inscripciones.
+
+| **Columna** | **Descripción** | **Ejemplo** |
+|---|---|---|
+| userid | ID único del usuario (estudiante). | 5001 |
+| enrolid | ID de la inscripción que conecta con mdlvf_enrol. | 201 |
+2. **Tabla de Métodos de Inscripción (`mdlvf_enrol.parquet`)**
+Asocia las inscripciones con los cursos.
+
+| **Columna** | **Descripción** | **Ejemplo** |
+|:-:|:-:|:-:|
+| id | ID del método de inscripción. | 201 |
+| courseid | ID del curso asociado a la inscripción. | 101 |
+3. **Tabla de Estudiantes (`students.parquet`)**
+Lista de usuarios que están registrados como estudiantes en Moodle.
+
+| **Columna** | **Descripción** | **Ejemplo** |
+|:-:|:-:|:-:|
+| UserID | ID único del estudiante. | 5001 |
+| FullName | Nombre del estudiante. | "Juan Pérez" |
+
+### Estructura de la Tabla de Salida (`student_courses.parquet`)
+Después de la transformación, la información se organiza en la siguiente estructura:
+| **Columna** | **Descripción** | **Ejemplo** |
+|:-:|:-:|:-:|
+| userid | ID único del estudiante. | 5001 |
+| course_id | ID del curso en el que está inscrito el estudiante. | 101 |
+
+### Representación Gráfica de la Jerarquía
+
+```
+🎓 Estudiante (userid) → 5001
+   ├── 📜 Inscripción (enrolid) → 201
+   │    ├── 📚 Curso (course_id) → 101
+   ├── 📜 Inscripción (enrolid) → 202
+   │    ├── 📚 Curso (course_id) → 102
+   ├── 📜 Inscripción (enrolid) → 203
+   │    ├── 📚 Curso (course_id) → 103 
+```
+
 ## Relación entre Estudiantes y Actividades en Moodle
+[create_parquet_rel_course_activity](create_parquet_rel_course_activity.py)
 
 ### Descripción
 Este script genera un archivo **Parquet** con información sobre las **actividades de los cursos en los que están inscritos los estudiantes** en Moodle. Se integra información de múltiples fuentes para crear un mapeo detallado de la relación **estudiante ↔ curso ↔ sección ↔ actividad**.
