@@ -12,7 +12,7 @@ import sys
 
 # Agregar el directorio raíz al path para importar MoodleMetrics
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from utils.data_transformation import DataTransformation
+from scripts.utils.hash_utility import DataTransformation
 
 # Cargar datos usando DuckDB
 con = duckdb.connect()

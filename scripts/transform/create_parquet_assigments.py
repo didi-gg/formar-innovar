@@ -95,7 +95,7 @@ def generate_assignment_metrics():
     assign_metrics.columns = [col.replace("_common", "") if "_common" in col else col for col in assign_metrics.columns]
 
     # Guardar como archivo CSV
-    # assign_metrics.to_csv("metrics_assignments_filtered.csv", index=False)
+    assign_metrics.to_csv("metrics_assignments_filtered_2.csv", index=False)
 
     # Guardar como archivo Parquet (opcional)
     assign_metrics.to_parquet(output_file, index=False)

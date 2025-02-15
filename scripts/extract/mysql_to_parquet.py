@@ -310,7 +310,7 @@ tables_by_group = {
 }
 
 # Carpeta base de salida
-output_base_dir = "../data/parquets/"
+output_base_dir = "data/processed/parquets"
 
 # Crear la carpeta base si no existe
 os.makedirs(output_base_dir, exist_ok=True)
@@ -334,9 +334,7 @@ try:
                 columns = [col[0] for col in cursor.description]
 
                 # Convertir a PyArrow Table
-                arrow_table = pa.Table.from_pydict(
-                    {col: [row[i] for row in rows] for i, col in enumerate(columns)}
-                )
+                arrow_table = pa.Table.from_pydict({col: [row[i] for row in rows] for i, col in enumerate(columns)})
 
                 # Ruta del archivo Parquet
                 output_file = os.path.join(group_dir, f"{table}.parquet")

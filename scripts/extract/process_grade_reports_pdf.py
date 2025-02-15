@@ -5,28 +5,77 @@ import logging
 import re
 
 # Configuración del logging
-logging.basicConfig(filename='errores_procesamiento.log', level=logging.ERROR, 
-                    format='%(asctime)s %(levelname)s: %(message)s')
+logging.basicConfig(filename="errores_procesamiento.log", level=logging.ERROR, format="%(asctime)s %(levelname)s: %(message)s")
 
 # Array de asignaturas
 ASIGNATURAS = [
-    "Ciencias Naturales", "Ciencias Sociales", "Matemáticas", "Lengua Castellana", "Inglés", "Innovación y Emprendimiento",
-    "Aprendizaje Basado en Investigación", "Educación Física", "Lectura Crítica", "Artes", "Robótica y TICS",
-    "Inteligencia emocional e Integralidad", "Creatividad e Innovación", "Aprendizaje Basado en Proyectos",
-    "Ciencias Políticas y Económicas", "Filosofía", "Trigonometría", "Francés", "Educación Ambiental", "Proyecto de inversión",
-    "Pre Naturales", "Pre Sociales", "Lectoescritura", "Aprendizaje Basado en Retos", "Lectoescritura 6", "Pre Sociales 6",
-    "Ciencias Naturales Integradas", "Ciencias Políticas y Económicas", "Trigonometría", "Lengua Castellana","Lectura Crítica","English",
-    "Français", "Filosofía", "Educación Física y Deportes", "Plan de inversión", "Artes", "Tecnologías Informáticas", "Integralidad", "Inteligencia emocional",
-    "Aprendizaje Basado en Proyectos", "Creatividad e innovación", "Lectura Crítica", "Formación Integral"
+    "Ciencias Naturales",
+    "Ciencias Sociales",
+    "Matemáticas",
+    "Lengua Castellana",
+    "Inglés",
+    "Innovación y Emprendimiento",
+    "Aprendizaje Basado en Investigación",
+    "Educación Física",
+    "Lectura Crítica",
+    "Artes",
+    "Robótica y TICS",
+    "Inteligencia emocional e Integralidad",
+    "Creatividad e Innovación",
+    "Aprendizaje Basado en Proyectos",
+    "Ciencias Políticas y Económicas",
+    "Filosofía",
+    "Trigonometría",
+    "Francés",
+    "Educación Ambiental",
+    "Proyecto de inversión",
+    "Pre Naturales",
+    "Pre Sociales",
+    "Lectoescritura",
+    "Aprendizaje Basado en Retos",
+    "Lectoescritura 6",
+    "Pre Sociales 6",
+    "Ciencias Naturales Integradas",
+    "Ciencias Políticas y Económicas",
+    "Trigonometría",
+    "Lengua Castellana",
+    "Lectura Crítica",
+    "English",
+    "Français",
+    "Filosofía",
+    "Educación Física y Deportes",
+    "Plan de inversión",
+    "Artes",
+    "Tecnologías Informáticas",
+    "Integralidad",
+    "Inteligencia emocional",
+    "Aprendizaje Basado en Proyectos",
+    "Creatividad e innovación",
+    "Lectura Crítica",
+    "Formación Integral",
 ]
 
 # Definir las columnas del DataFrame
-COLUMNS = ["Sede", "Estudiante", "Documento de identidad", "Grado", "Grupo", "Periodo", "Año", "Intensidad Horaria", "Asignatura", "Cognitiva", "Procedimental", "Actitudinal", "Axiologica"]
+COLUMNS = [
+    "Sede",
+    "Estudiante",
+    "Documento de identidad",
+    "Grado",
+    "Grupo",
+    "Periodo",
+    "Año",
+    "Intensidad Horaria",
+    "Asignatura",
+    "Cognitiva",
+    "Procedimental",
+    "Actitudinal",
+    "Axiologica",
+]
 
-GRADOS = ["Transición", "Jardín", "Pre Jardín", "Párvulos", '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+GRADOS = ["Transición", "Jardín", "Pre Jardín", "Párvulos", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
+
 
 class ProcesarCalificacionesPDF:
-
     def __init__(self):
         self.asignaturas = ASIGNATURAS
         self.grados = GRADOS
@@ -42,12 +91,12 @@ class ProcesarCalificacionesPDF:
             pdf_link = f"file://{os.path.abspath(pdf_path).replace(' ', '%20')}"
             # Si contiene números pero no se encuentra la asignatura, registrar en el log
             logging.error(f"Asignatura no encontrada en la línea: {linea} - Archivo: {pdf_link}")
-        
+
         # Devolver "Asignatura no encontrada" si no se encuentra la asignatura
         return "Asignatura no encontrada"
 
     def es_linea_de_parada(self, linea):
-        patron = r'\b(Bajo|Básico|Alto|Superior)\b.*\d{1,2}\s*-\s*\d{1,2}'
+        patron = r"\b(Bajo|Básico|Alto|Superior)\b.*\d{1,2}\s*-\s*\d{1,2}"
         if re.search(patron, linea):
             logging.debug(f"Línea de parada encontrada: {linea}")
             return True
@@ -56,19 +105,19 @@ class ProcesarCalificacionesPDF:
     def procesar_datos_preescolar(self, pdf_path, estudiante, doc_id, lines, grado, grupo, periodo, año, student_data_line, sede):
         data = []
         asignaturas_start_index = lines.index(student_data_line) + 4
-        
+
         for i in range(asignaturas_start_index, len(lines)):
             line = lines[i]
             if self.es_linea_de_parada(line):
                 break
 
-            axiologica = ''
-            intensidad_horaria = ''
+            axiologica = ""
+            intensidad_horaria = ""
 
             asignatura_data = line.split()
             asignatura = self.extraer_asignatura(line, pdf_path)
-            
-            if (asignatura in ['Asignatura no encontrada', 'Inteligencia emocional', 'Formación Integral']):
+
+            if asignatura in ["Asignatura no encontrada", "Inteligencia emocional", "Formación Integral"]:
                 continue
 
             cognitiva = asignatura_data[-5] if len(asignatura_data) > 4 and asignatura_data[-5].isdigit() else None
@@ -77,21 +126,23 @@ class ProcesarCalificacionesPDF:
 
             # Verificar si todos los valores son válidos (numéricos)
             if None not in [cognitiva, procedimental, actitudinal]:
-                data.append([
-                    sede,
-                    estudiante,
-                    doc_id,
-                    grado,
-                    grupo,
-                    periodo,
-                    año,
-                    intensidad_horaria,
-                    asignatura,
-                    cognitiva,
-                    procedimental,
-                    actitudinal,
-                    axiologica
-                ])
+                data.append(
+                    [
+                        sede,
+                        estudiante,
+                        doc_id,
+                        grado,
+                        grupo,
+                        periodo,
+                        año,
+                        intensidad_horaria,
+                        asignatura,
+                        cognitiva,
+                        procedimental,
+                        actitudinal,
+                        axiologica,
+                    ]
+                )
             else:
                 pdf_link = f"file://{os.path.abspath(pdf_path).replace(' ', '%20')}"
                 logging.error(f"Asignatura:{asignatura} Valores no válidos encontrados en la línea: {line} en el archivo {pdf_link}")
@@ -114,7 +165,7 @@ class ProcesarCalificacionesPDF:
 
             asignatura = self.extraer_asignatura(line, pdf_path)
 
-            if (asignatura in ['Asignatura no encontrada', 'Inteligencia emocional', 'Formación Integral']):
+            if asignatura in ["Asignatura no encontrada", "Inteligencia emocional", "Formación Integral"]:
                 continue
 
             try:
@@ -128,21 +179,23 @@ class ProcesarCalificacionesPDF:
                 if None in [cognitiva, procedimental, actitudinal, axiologica, intensidad_horaria]:
                     logging.error(f"Asignatura:{asignatura} Valores no válidos encontrados en la línea: {line} en el archivo {pdf_link}")
                 else:
-                    data.append([
-                        sede,
-                        estudiante,
-                        doc_id,
-                        grado,
-                        grupo,
-                        periodo,
-                        año,
-                        intensidad_horaria,
-                        asignatura,
-                        cognitiva,
-                        procedimental,
-                        actitudinal,
-                        axiologica
-                    ])
+                    data.append(
+                        [
+                            sede,
+                            estudiante,
+                            doc_id,
+                            grado,
+                            grupo,
+                            periodo,
+                            año,
+                            intensidad_horaria,
+                            asignatura,
+                            cognitiva,
+                            procedimental,
+                            actitudinal,
+                            axiologica,
+                        ]
+                    )
             except IndexError:
                 logging.error(f"Error de índice al procesar la línea: {line} en el archivo {pdf_link}")
         return data
@@ -160,8 +213,9 @@ class ProcesarCalificacionesPDF:
 
                 lines = text.splitlines()
                 student_info_line = next((line for line in lines if "Documento Identidad" in line), None)
-                student_data_line = next((line for line in lines if "Asignatura Docente" in line), None) or \
-                                    next((line for line in lines if "Asignatura Nivel" in line), None)
+                student_data_line = next((line for line in lines if "Asignatura Docente" in line), None) or next(
+                    (line for line in lines if "Asignatura Nivel" in line), None
+                )
 
                 if not student_info_line or not student_data_line:
                     logging.error(f"No se encontraron líneas necesarias en el archivo {pdf_link}")
@@ -170,24 +224,24 @@ class ProcesarCalificacionesPDF:
                 student_data = lines[lines.index(student_info_line) + 1].split()
                 periodo = student_data[-2]
                 año = student_data[-1]
-                
+
                 grupo = student_data[-3]
-                
+
                 if not student_data[-5].isdigit():
                     doc_id = student_data[-4]
-                    estudiante = ' '.join(student_data[:-4])
+                    estudiante = " ".join(student_data[:-4])
                 else:
                     doc_id = student_data[-5]
-                    estudiante = ' '.join(student_data[:-5])
+                    estudiante = " ".join(student_data[:-5])
 
                 if student_data[-4] == "Pre":
-                    grado = ' '.join(student_data[-4:-2])
+                    grado = " ".join(student_data[-4:-2])
                 if student_data[-3] in self.grados:
                     grupo = "A"
                     grado = student_data[-3]
                 else:
                     grado = student_data[-4]
-                    
+
                 if not doc_id.isdigit():
                     logging.error(f"Documento de identidad no válido en el archivo {pdf_link}")
                     return data
@@ -197,7 +251,9 @@ class ProcesarCalificacionesPDF:
                 if "Asignatura Nivel" in student_data_line:
                     data = self.procesar_datos_preescolar(pdf_path, estudiante, doc_id, lines, grado, grupo, periodo, año, student_data_line, sede)
                 else:
-                    data = self.procesar_datos_primaria_secundaria(pdf_path, estudiante, doc_id, lines, grado, grupo, periodo, año, student_data_line, sede)
+                    data = self.procesar_datos_primaria_secundaria(
+                        pdf_path, estudiante, doc_id, lines, grado, grupo, periodo, año, student_data_line, sede
+                    )
 
         except Exception as e:
             logging.error(f"Error procesando el archivo {pdf_link}: {e}")
@@ -215,17 +271,17 @@ class ProcesarCalificacionesPDF:
 
         if all_data:
             df = pd.DataFrame(all_data, columns=COLUMNS)
-            csv_path = os.path.join(carpeta_path, 'resultado.csv')
+            csv_path = os.path.join(carpeta_path, "resultado.csv")
             df.to_csv(csv_path, index=False)
             logging.info(f"CSV guardado en {csv_path}")
         else:
             logging.info("No se encontraron datos para procesar.")
 
 
-if __name__ == '__main__':
-    carpeta_pdf = os.path.abspath('data/calificaciones')
+if __name__ == "__main__":
+    carpeta_pdf = os.path.abspath("data/raw/calificaciones")
     procesador = ProcesarCalificacionesPDF()
     procesador.procesar_carpeta(carpeta_pdf)
 
-    #pdf_file_path = ''
-    #procesador.procesar_pdf(pdf_file_path, 'Fusagasugá')
+    # pdf_file_path = ''
+    # procesador.procesar_pdf(pdf_file_path, 'Fusagasugá')

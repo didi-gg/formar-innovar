@@ -163,8 +163,9 @@ cython_debug/
 data/calificaciones/*.pdf
 .DS_Store
 *.csv
-datos/*.xlsx
 notebooks/parquet_exports/**/*.parquet
 notebooks/*.parquet
 notebooks/*.xlsx
 pyproject.toml
+
+data/**/**/*.*
