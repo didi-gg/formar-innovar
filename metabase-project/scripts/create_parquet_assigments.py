@@ -15,7 +15,7 @@ import sys
 
 # Agregar el directorio raíz al path para importar MoodleMetrics
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from analytics.moodle_metrics import MoodleMetrics
+from utils.moodle_metrics import MoodleMetrics
 
 # Archivos Parquet de entrada
 activities_file = "metabase-project/data/parquets/Generated/student_course_activities.parquet"

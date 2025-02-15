@@ -10,7 +10,7 @@ import sys
 
 # Agregar la ruta del proyecto para importar MoodleMetrics
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from analytics.moodle_metrics import MoodleMetrics
+from utils.moodle_metrics import MoodleMetrics
 
 # Archivos Parquet de entrada
 logs_file = "metabase-project/data/parquets/Log/mdlvf_logstore_standard_log.parquet"
