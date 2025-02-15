@@ -169,3 +169,4 @@ notebooks/*.xlsx
 pyproject.toml
 
 data/**/**/*.*
+!data/**/dummy.txt
