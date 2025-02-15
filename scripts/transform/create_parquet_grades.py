@@ -9,11 +9,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.moodle_metrics import MoodleMetrics
 
 # Archivos Parquet de entrada
-activities_file = "metabase-project/data/parquets/Generated/student_course_activities.parquet"
-grades_file = "metabase-project/data/parquets/Course/mdlvf_grade_grades.parquet"
-
-# Archivo de salida
-output_file = "metabase-project/data/parquets/Generated/metrics_grades.parquet"
+activities_file = "../../data/processed/parquets/Generated/student_course_activities.parquet"
+grades_file = "../../data/processed/parquets/Course/mdlvf_grade_grades.parquet"
+output_file = "../../data/processed/parquets/Generated/metrics_grades.parquet"
 
 # Conexión a DuckDB
 con = duckdb.connect()
@@ -77,5 +75,5 @@ def generate_all_metrics():
     print("Métricas de notas generadas correctamente.")
 
 
-# Ejecutar el script
-generate_all_metrics()
+if __name__ == "__main__":
+    generate_all_metrics()

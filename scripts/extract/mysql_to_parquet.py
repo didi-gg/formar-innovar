@@ -310,7 +310,7 @@ tables_by_group = {
 }
 
 # Carpeta base de salida
-output_base_dir = "data/processed/parquets"
+output_base_dir = "../../data/processed/parquets"
 
 # Crear la carpeta base si no existe
 os.makedirs(output_base_dir, exist_ok=True)

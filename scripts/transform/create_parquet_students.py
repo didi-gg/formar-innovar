@@ -19,10 +19,10 @@ def create_parquet_students():
     # Cargar datos usando DuckDB
     con = duckdb.connect()
 
-    parquet_users_path = "data/processed/parquets/Users/mdlvf_user.parquet"
-    parquet_user_info_path = "data/processed/parquets/Users/mdlvf_user_info_data.parquet"
-    excel_students_path = "data/raw/excel/Estudiantes.xlsx"
-    output_path = "data/processed/parquets/Generated/students.parquet"
+    parquet_users_path = "../../data/processed/parquets/Users/mdlvf_user.parquet"
+    parquet_user_info_path = "../../data/processed/parquets/Users/mdlvf_user_info_data.parquet"
+    excel_students_path = "../../data/processed/excel/Estudiantes.xlsx"
+    output_path = "../../data/processed/parquets/Generated/students.parquet"
 
     # Consulta SQL sobre los datos de Moodle para obtener información de los estudiantes
     sql = f"""

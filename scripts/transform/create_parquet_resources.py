@@ -9,14 +9,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.moodle_metrics import MoodleMetrics
 
 # Archivos Parquet de entrada
-activities_file = "metabase-project/data/parquets/Generated/student_course_activities.parquet"
-resources_file = "metabase-project/data/parquets/Course/mdlvf_resource.parquet"
-books_file = "metabase-project/data/parquets/Book/mdlvf_book.parquet"
-urls_file = "metabase-project/data/parquets/Content/mdlvf_url.parquet"
-logs_file = "metabase-project/data/parquets/Log/mdlvf_logstore_standard_log.parquet"
-
-# Archivo de salida
-output_file = "metabase-project/data/parquets/Generated/metrics_resources.parquet"
+activities_file = "../../data/processed/parquets/Generated/student_course_activities.parquet"
+resources_file = "../../data/processed/parquets/Course/mdlvf_resource.parquet"
+books_file = "../../data/processed/parquets/Book/mdlvf_book.parquet"
+urls_file = "../../data/processed/parquets/Content/mdlvf_url.parquet"
+logs_file = "../../data/processed/parquets/Log/mdlvf_logstore_standard_log.parquet"
+output_file = "../../data/processed/parquets/Generated/metrics_resources.parquet"
 
 # Conexión a DuckDB
 con = duckdb.connect()
@@ -149,5 +147,5 @@ def generate_all_metrics():
     print("Métricas de resources generadas y guardadas correctamente.")
 
 
-# Ejecutar el script
-generate_all_metrics()
+if __name__ == "__main__":
+    generate_all_metrics()

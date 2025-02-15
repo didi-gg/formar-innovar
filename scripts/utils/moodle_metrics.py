@@ -8,8 +8,8 @@ class MoodleMetrics:
         """
         Constructor de la clase MoodleMetrics.
         """
-        self.logs_file = "metabase-project/data/parquets/Log/mdlvf_logstore_standard_log.parquet"
-        self.activities_file = "metabase-project/data/parquets/Generated/student_course_activities.parquet"
+        self.logs_file = "../../data/processed/parquets/Log/mdlvf_logstore_standard_log.parquet"
+        self.activities_file = "../../data/processed/parquets/Generated/student_course_activities.parquet"
         self.con = duckdb.connect()
 
     def calculate_common_metrics(self, activity_type):

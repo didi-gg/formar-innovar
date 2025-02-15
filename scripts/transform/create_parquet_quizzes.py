@@ -13,11 +13,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.moodle_metrics import MoodleMetrics
 
 # Archivos Parquet de entrada
-logs_file = "metabase-project/data/parquets/Log/mdlvf_logstore_standard_log.parquet"
-activities_file = "metabase-project/data/parquets/Generated/student_course_activities.parquet"
-quizzes_file = "metabase-project/data/parquets/Quiz/mdlvf_quiz.parquet"
-quiz_attempts_file = "metabase-project/data/parquets/Quiz/mdlvf_quiz_attempts.parquet"
-output_file = "metabase-project/data/parquets/Generated/metrics_quizzes_filtered.parquet"
+logs_file = "../../data/processed/parquets/Log/mdlvf_logstore_standard_log.parquet"
+activities_file = "../../data/processed/parquets/Generated/student_course_activities.parquet"
+quizzes_file = "../../data/processed/parquets/Quiz/mdlvf_quiz.parquet"
+quiz_attempts_file = "../../data/processed/parquets/Quiz/mdlvf_quiz_attempts.parquet"
+output_file = "../../data/processed/parquets/Generated/metrics_quizzes.parquet"
 
 # Conexión a DuckDB
 con = duckdb.connect()
@@ -90,4 +90,5 @@ def generate_quiz_metrics():
     print(f"Métricas de quizzes generadas y guardadas en: {output_file}")
 
 
-generate_quiz_metrics()
+if __name__ == "__main__":
+    generate_quiz_metrics()

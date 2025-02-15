@@ -279,7 +279,7 @@ class ProcesarCalificacionesPDF:
 
 
 if __name__ == "__main__":
-    carpeta_pdf = os.path.abspath("data/raw/calificaciones")
+    carpeta_pdf = os.path.abspath("../../data/raw/calificaciones")
     procesador = ProcesarCalificacionesPDF()
     procesador.procesar_carpeta(carpeta_pdf)
 

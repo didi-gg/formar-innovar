@@ -9,10 +9,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.moodle_metrics import MoodleMetrics
 
 # Archivos Parquet de entrada
-activities_file = "metabase-project/data/parquets/Generated/student_course_activities.parquet"
-forums_file = "metabase-project/data/parquets/Forum/mdlvf_forum.parquet"
-forum_posts_file = "metabase-project/data/parquets/Forum/mdlvf_forum_posts.parquet"
-output_file = "metabase-project/data/parquets/Generated/metrics_forums.parquet"
+activities_file = "../../data/processed/parquets/Generated/student_course_activities.parquet"
+forums_file = "../../data/processed/parquets/Forum/mdlvf_forum.parquet"
+forum_posts_file = "../../data/processed/parquets/Forum/mdlvf_forum_posts.parquet"
+forum_discussions_file = "../../data/processed/parquets/Forum/mdlvf_forum_discussions.parquet"
+output_file = "../../data/processed/parquets/Generated/metrics_forums.parquet"
 
 # Conexión a DuckDB
 con = duckdb.connect()
@@ -40,7 +41,7 @@ def calculate_forum_metrics_sql():
         FROM '{activities_file}' a
         LEFT JOIN '{forums_file}' f
             ON a.instance = f.id
-        LEFT JOIN 'metabase-project/data/parquets/Forum/mdlvf_forum_discussions.parquet' fd
+        LEFT JOIN '{forum_discussions_file}' fd
             ON f.id = fd.forum
         LEFT JOIN '{forum_posts_file}' fp
             ON fd.id = fp.discussion
@@ -88,5 +89,5 @@ def generate_all_metrics():
     print("Métricas de foros generadas y guardadas correctamente.")
 
 
-# Ejecutar el script
-generate_all_metrics()
+if __name__ == "__main__":
+    generate_all_metrics()

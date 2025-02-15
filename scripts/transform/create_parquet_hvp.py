@@ -8,10 +8,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.moodle_metrics import MoodleMetrics
 
 # Archivos Parquet de entrada
-logs_file = "metabase-project/data/parquets/Log/mdlvf_logstore_standard_log.parquet"
-hvp_file = "metabase-project/data/parquets/h5/mdlvf_hvp.parquet"
-activities_file = "metabase-project/data/parquets/Generated/student_course_activities.parquet"
-output_file = "metabase-project/data/parquets/Generated/metrics_hvp.parquet"
+logs_file = "../../data/processed/parquets/Log/mdlvf_logstore_standard_log.parquet"
+hvp_file = "../../data/processed/parquets/h5/mdlvf_hvp.parquet"
+activities_file = "../../data/processed/parquets/Generated/student_course_activities.parquet"
+output_file = "../../data/processed/parquets/Generated/metrics_hvp.parquet"
 
 # Conexión a DuckDB
 con = duckdb.connect()
@@ -63,14 +63,14 @@ def generate_hvp_metrics():
         hvp_specific_metrics,
         on=["userid", "course_id", "section_id", "module_id", "instance", "activity_type"],
         how="left",
-        suffixes=("_common", "_specific"),  # Evitar duplicados
+        suffixes=("_common", "_specific"),
     )
 
-    # Guardar como archivo Parquet (opcional)
+    # Guardar como archivo Parquet
     hvp_metrics.to_parquet(output_file, index=False)
 
     print("Métricas de HVP generadas y guardadas correctamente.")
 
 
-# Ejecutar el script
-generate_hvp_metrics()
+if __name__ == "__main__":
+    generate_hvp_metrics()

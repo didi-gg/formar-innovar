@@ -18,10 +18,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.moodle_metrics import MoodleMetrics
 
 # Archivos Parquet de entrada
-activities_file = "metabase-project/data/parquets/Generated/student_course_activities.parquet"
-assignments_file = "metabase-project/data/parquets/Assignments/mdlvf_assign.parquet"
-submissions_file = "metabase-project/data/parquets/Assignments/mdlvf_assign_submission.parquet"
-output_file = "metabase-project/data/parquets/Generated/metrics_assignments.parquet"
+activities_file = "../../data/processed/parquets/Generated/student_course_activities.parquet"
+assignments_file = "../../data/processed/parquets/Assignments/mdlvf_assign.parquet"
+submissions_file = "../../data/processed/parquets/Assignments/mdlvf_assign_submission.parquet"
+output_file = "../../data/processed/parquets/Generated/metrics_assignments.parquet"
 
 # Conexión a DuckDB
 con = duckdb.connect()
@@ -94,13 +94,10 @@ def generate_assignment_metrics():
     # Renombrar las columnas "_common" para quitar el sufijo
     assign_metrics.columns = [col.replace("_common", "") if "_common" in col else col for col in assign_metrics.columns]
 
-    # Guardar como archivo CSV
-    assign_metrics.to_csv("metrics_assignments_filtered_2.csv", index=False)
-
     # Guardar como archivo Parquet (opcional)
     assign_metrics.to_parquet(output_file, index=False)
     print("Métricas de tareas generadas correctamente.")
 
 
-# Ejecutar el script para generar métricas
-generate_assignment_metrics()
+if __name__ == "__main__":
+    generate_assignment_metrics()
