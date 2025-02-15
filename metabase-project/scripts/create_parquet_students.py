@@ -41,14 +41,14 @@ WHERE
 result_df = con.execute(sql).df()
 
 # Aplicar hashing al DocumentID y eliminar la columna original
-result_df["HashedDocumentID"] = result_df["DocumentID"].apply(DataTransformation.hash_with_salt)
+result_df["HashedDocumentID"] = result_df["DocumentID"].apply(DataTransformation.hash_stable)
 result_df.drop(columns=["DocumentID"], inplace=True)
 
 # Carga del archivo Excel
 excel_df = pd.read_excel("metabase-project/data/excel/Estudiantes.xlsx")
 
 # Aplicar hashing al DocumentID del Excel para hacer el merge correctamente
-excel_df["HashedDocumentID"] = excel_df["Documento de Identificación"].astype(str).apply(DataTransformation.hash_with_salt)
+excel_df["HashedDocumentID"] = excel_df["Documento de Identificación"].astype(str).apply(DataTransformation.hash_stable)
 excel_df.drop(columns=["Documento de Identificación"], inplace=True)
 
 # Realizar el merge entre Moodle y Excel usando el ID hasheado
