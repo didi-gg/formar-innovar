@@ -32,7 +32,6 @@ def calculate_resource_metrics_sql():
             a.userid,
             a.course_id,
             a.section_id,
-            a.activity_id,
             a.module_id,
             a.instance,
             'resource' AS activity_type,
@@ -44,7 +43,7 @@ def calculate_resource_metrics_sql():
             ON r.id = log.contextinstanceid
             AND a.userid = log.userid
         WHERE a.activity_type = 'resource'
-        GROUP BY a.userid, a.course_id, a.section_id, a.activity_id, a.module_id, a.instance
+        GROUP BY a.userid, a.course_id, a.section_id, a.module_id, a.instance
     """
     return con.execute(sql).df()
 
@@ -59,7 +58,6 @@ def calculate_book_metrics_sql():
             a.userid,
             a.course_id,
             a.section_id,
-            a.activity_id,
             a.module_id,
             a.instance,
             'book' AS activity_type,
@@ -71,7 +69,7 @@ def calculate_book_metrics_sql():
             ON b.id = log.contextinstanceid
             AND a.userid = log.userid
         WHERE a.activity_type = 'book'
-        GROUP BY a.userid, a.course_id, a.section_id, a.activity_id, a.module_id, a.instance
+        GROUP BY a.userid, a.course_id, a.section_id, a.module_id, a.instance
     """
     return con.execute(sql).df()
 
@@ -86,7 +84,6 @@ def calculate_url_metrics_sql():
             a.userid,
             a.course_id,
             a.section_id,
-            a.activity_id,
             a.module_id,
             a.instance,
             'url' AS activity_type,
@@ -98,7 +95,7 @@ def calculate_url_metrics_sql():
             ON u.id = log.contextinstanceid
             AND a.userid = log.userid
         WHERE a.activity_type = 'url'
-        GROUP BY a.userid, a.course_id, a.section_id, a.activity_id, a.module_id, a.instance
+        GROUP BY a.userid, a.course_id, a.section_id, a.module_id, a.instance
     """
     return con.execute(sql).df()
 
@@ -128,7 +125,6 @@ def generate_all_metrics():
                 "userid",
                 "course_id",
                 "section_id",
-                "activity_id",
                 "module_id",
                 "instance",
             ],

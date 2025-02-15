@@ -22,13 +22,12 @@ student_course_activities_sql = f"""
         sc.userid,
         a.course_id,
         a.section_id,
-        a.activity_id,
         m.id AS module_id,
         mod.name AS activity_type,
         m.instance AS instance
     FROM '{activities_file}' a
     JOIN '{student_courses_file}' sc ON a.course_id = sc.course_id
-    LEFT JOIN '{modules_file}' m ON a.activity_id = m.id
+    LEFT JOIN '{modules_file}' m ON a.module_id = m.id
     LEFT JOIN '{module_names_file}' mod ON m.module = mod.id
 """
 

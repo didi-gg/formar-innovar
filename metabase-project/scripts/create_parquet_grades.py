@@ -29,7 +29,6 @@ def calculate_grades_metrics_sql():
             a.userid,
             a.course_id,
             a.section_id,
-            a.activity_id,
             a.module_id,
             a.instance,
             'grades' AS activity_type,
@@ -37,9 +36,9 @@ def calculate_grades_metrics_sql():
         FROM '{activities_file}' a
         LEFT JOIN '{grades_file}' gg
             ON a.userid = gg.userid
-            AND a.activity_id = gg.itemid
+            AND a.module_id = gg.itemid
         WHERE a.activity_type = 'grades'
-        GROUP BY a.userid, a.course_id, a.section_id, a.activity_id, a.module_id, a.instance
+        GROUP BY a.userid, a.course_id, a.section_id, a.module_id, a.instance
     """
     return con.execute(sql).df()
 
@@ -59,7 +58,6 @@ def generate_all_metrics():
             "userid",
             "course_id",
             "section_id",
-            "activity_id",
             "module_id",
             "instance",
         ],

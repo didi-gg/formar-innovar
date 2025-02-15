@@ -36,7 +36,7 @@ def calculate_quiz_metrics_sql():
             a.userid,
             a.course_id,
             a.section_id,
-            a.activity_id,
+            a.module_id,
             a.instance,
             'quiz' AS activity_type,
             COUNT(qa.id) AS total_attempts,
@@ -53,7 +53,7 @@ def calculate_quiz_metrics_sql():
         LEFT JOIN '{quizzes_file}' quiz ON a.instance = quiz.id
         LEFT JOIN '{quiz_attempts_file}' qa ON quiz.id = qa.quiz AND a.userid = qa.userid
         WHERE a.activity_type = 'quiz'
-        GROUP BY a.userid, a.course_id, a.section_id, a.activity_id, a.instance
+        GROUP BY a.userid, a.course_id, a.section_id, a.module_id, a.instance
     """
     return con.execute(sql).df()
 
@@ -73,7 +73,7 @@ def generate_quiz_metrics():
     quiz_metrics = pd.merge(
         quiz_common_metrics,
         quiz_specific_metrics,
-        on=["userid", "course_id", "section_id", "activity_id", "instance", "activity_type"],
+        on=["userid", "course_id", "section_id", "module_id", "instance", "activity_type"],
         how="left",
         suffixes=("_common", "_specific"),
     )

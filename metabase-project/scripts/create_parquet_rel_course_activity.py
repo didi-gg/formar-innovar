@@ -22,21 +22,19 @@ sections_df = con.execute(f"SELECT * FROM '{sections_file}'").df()
 # 1. Eliminar filas con 'sequence' nulo
 sections_df = sections_df.dropna(subset=["sequence"])
 # 2. Dividir la columna 'sequence' en una lista de IDs de actividades
-sections_df["activity_id"] = sections_df["sequence"].str.split(",")
+sections_df["module_id"] = sections_df["sequence"].str.split(",")
 # 3. Explotar la lista de IDs de actividades en filas separadas
 # Esto da como resultado una fila por cada ID de actividad en la lista
-sections_exploded = sections_df.explode("activity_id")
+sections_exploded = sections_df.explode("module_id")
 
-# Asegurar que 'activity_id' sea numérico y eliminar nulos
-sections_exploded["activity_id"] = pd.to_numeric(
-    sections_exploded["activity_id"], errors="coerce"
-)
+# Asegurar que 'module_id' sea numérico y eliminar nulos
+sections_exploded["module_id"] = pd.to_numeric(sections_exploded["module_id"], errors="coerce")
 
-# Eliminar filas con 'activity_id' nulo
-sections_exploded = sections_exploded.dropna(subset=["activity_id"])
+# Eliminar filas con 'module_id' nulo
+sections_exploded = sections_exploded.dropna(subset=["module_id"])
 
-# Convertir 'activity_id' a entero
-sections_exploded["activity_id"] = sections_exploded["activity_id"].astype(int)
+# Convertir 'module_id' a entero
+sections_exploded["module_id"] = sections_exploded["module_id"].astype(int)
 
 # Crear una tabla simplificada para las relaciones
 result_df = sections_exploded[
@@ -44,7 +42,7 @@ result_df = sections_exploded[
         "course",  # ID del curso
         "id",  # ID de la sección
         "name",  # Nombre de la sección
-        "activity_id",  # ID de la actividad
+        "module_id",  # ID de la actividad
     ]
 ].rename(columns={"course": "course_id", "id": "section_id", "name": "section_name"})
 

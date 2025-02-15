@@ -42,7 +42,6 @@ def calculate_assignment_metrics_sql():
             a.userid,
             a.course_id,
             a.section_id,
-            a.activity_id,
             a.module_id,
             a.instance,
             'assign' AS activity_type,
@@ -59,7 +58,7 @@ def calculate_assignment_metrics_sql():
             AND a.userid = s.userid
         WHERE a.activity_type = 'assign'
         GROUP BY
-            a.userid, a.course_id, a.section_id, a.activity_id, a.module_id, a.instance
+            a.userid, a.course_id, a.section_id, a.module_id, a.instance
     """
     return con.execute(sql).df()
 
@@ -81,7 +80,6 @@ def generate_assignment_metrics():
             "userid",
             "course_id",
             "section_id",
-            "activity_id",
             "module_id",
             "instance",
         ],

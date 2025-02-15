@@ -24,7 +24,7 @@ def calculate_hvp_metrics_sql():
             a.userid,
             a.course_id,
             a.section_id,
-            a.activity_id,
+            a.module_id,
             a.instance,
             'hvp' AS activity_type,
             COUNT(log.id) AS total_interactions, -- Total de interacciones registradas
@@ -43,7 +43,7 @@ def calculate_hvp_metrics_sql():
             AND a.userid = log.userid
         WHERE a.activity_type = 'hvp'
         GROUP BY
-            a.userid, a.course_id, a.section_id, a.activity_id, a.instance
+            a.userid, a.course_id, a.section_id, a.module_id, a.instance
     """
     return con.execute(sql).df()
 
@@ -61,7 +61,7 @@ def generate_hvp_metrics():
     hvp_metrics = pd.merge(
         hvp_common_metrics,
         hvp_specific_metrics,
-        on=["userid", "course_id", "section_id", "activity_id", "instance", "activity_type"],
+        on=["userid", "course_id", "section_id", "module_id", "instance", "activity_type"],
         how="left",
         suffixes=("_common", "_specific"),  # Evitar duplicados
     )
@@ -70,6 +70,7 @@ def generate_hvp_metrics():
     hvp_metrics.to_parquet(output_file, index=False)
 
     print("Métricas de HVP generadas y guardadas correctamente.")
+
 
 # Ejecutar el script
 generate_hvp_metrics()
