@@ -5,14 +5,16 @@ services:
     build:
       context: ./docker
     container_name: metabase
+    restart: always
     ports:
       - "3000:3000"
     volumes:
       - metabase_data:/home/metabase-data
-      - ./data:/app/data
+      - ../data/processed/parquets:/app/data
     environment:
-      - MB_PLUGINS_DIR=/home/plugins/
-      - MB_DB_FILE=/home/metabase-data/metabase.db
+      MB_PLUGINS_DIR: "/home/plugins/"
+      MB_DB_FILE: "/home/metabase-data/metabase.db"
+      MB_ENABLE_NATIVE_QUERY_EXECUTION: "true"
 
 volumes:
   metabase_data:
