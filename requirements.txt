@@ -6,3 +6,4 @@ seaborn==0.13.2
 scikit-learn==1.5.1
 PyMySQL==1.1.1
 pyarrow==18.0.0
+plotly==6.0.1
