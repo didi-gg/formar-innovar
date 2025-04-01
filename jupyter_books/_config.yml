@@ -1,0 +1,32 @@
+title: Predicción del Bajo Rendimiento Académico con datos del colegio FICC
+author: Diana Marcela Gómez Gamez - Angie Catherine Ovalle Molina
+logo: images/FICC.png
+only_build_toc_files: true
+description: Este sitio presenta la métodología para la evaluación de modelos de machine learning para la predicción del bajo rendimiento académico
+
+execute:
+  execute_notebooks: false
+
+sphinx:
+  recursive_update: true
+  config:
+    html_theme_options: 
+      use_download_button: false
+    html_favicon: images/favicon.ico
+    html_js_files:
+      - "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
+    suppress_warnings:
+      - mystnb.unknown_mime_type
+
+parse:
+  myst_enable_extensions:
+    - amsmath
+    - colon_fence
+    - deflist
+    - dollarmath
+    - html_admonition
+    - html_image
+    - linkify
+    - replacements
+    - smartquotes
+    - substitution

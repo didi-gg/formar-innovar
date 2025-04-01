@@ -170,3 +170,6 @@ pyproject.toml
 
 data/**/**/*.*
 !data/**/dummy.txt
+jupyter_book/_build/**/*.*
+jupyter_books/_build/**/**/**/**/**/**.*
+jupyter_books/notebooks/**/**.ipynb
