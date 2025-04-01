@@ -1,5 +1,10 @@
 import pandas as pd
 import plotly.express as px
+from IPython.display import HTML
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import math
+
 
 class EDAAnalyzer:
     def plot_null_heatmap(self, dataframe):
@@ -25,33 +30,80 @@ class EDAAnalyzer:
             labels=dict(x="Mapa de Calor de Valores Nulos", y="", color=""),
             x=null_matrix_numeric.columns,
             color_continuous_scale=["white", "#13678A"],
-            title=''
+            title="",
         )
 
-        fig.update_layout(
-            coloraxis_showscale=False,
-            xaxis=dict(side="top", tickangle=-90),
-            yaxis=dict(autorange="reversed")
-        )
+        fig.update_layout(coloraxis_showscale=False, xaxis=dict(side="top", tickangle=-90), yaxis=dict(autorange="reversed"))
 
-        fig.show()
+        html = fig.to_html(include_plotlyjs="cdn")
+        return HTML(html)
 
     def plot_boxplots(self, dataframe, columns):
-            for col in columns:
-                fig = px.box(dataframe, y=col, title=f'Boxplot - {col}')
-                fig.show()
+        for col in columns:
+            fig = px.box(dataframe, y=col, title=f"Boxplot - {col}")
+            html = fig.to_html(include_plotlyjs="cdn")
+            return HTML(html)
 
     def plot_histograms(self, dataframe, columns, bins=20):
         for col in columns:
-            fig = px.histogram(dataframe, x=col, nbins=bins, title=f'Histograma - {col}')
-            fig.show()
+            fig = px.histogram(dataframe, x=col, nbins=bins, title=f"Histograma - {col}")
+            html = fig.to_html(include_plotlyjs="cdn")
+            return HTML(html)
 
-    def plot_barplots(self, dataframe, columns):
-        for col in columns:
+    def plot_single_barplot(self, dataframe, column):
+        data = dataframe[column].value_counts().reset_index()
+        data.columns = [column, "conteo"]
+
+        fig = px.bar(
+            data,
+            x=column,
+            y="conteo",
+            title=column.replace("_", " ").title(),
+        )
+
+        fig.update_layout(
+            height=500,
+            title_x=0.5,
+            margin=dict(l=50, r=50, t=80, b=50),
+        )
+
+        html = fig.to_html(include_plotlyjs="cdn")
+        return HTML(html)
+
+    def plot_barplots(self, title, dataframe, columns):
+        cols_per_row = 2
+        num_plots = len(columns)
+        rows = math.ceil(num_plots / cols_per_row)
+
+        max_spacing = 1 / max(rows - 1, 1)
+        vertical_spacing = min(0.2, max_spacing - 0.01) if rows > 1 else 0.0
+
+        fig = make_subplots(
+            rows=rows,
+            cols=cols_per_row,
+            subplot_titles=[col.replace("_", " ").title() for col in columns],
+            horizontal_spacing=0.15,
+            vertical_spacing=vertical_spacing,
+        )
+
+        for i, col in enumerate(columns):
+            row = i // cols_per_row + 1
+            col_pos = i % cols_per_row + 1
             data = dataframe[col].value_counts().reset_index()
-            data.columns = [col, 'conteo']
-            fig = px.bar(data, x=col, y='conteo', title=f'{col}')
-            fig.show()
+            data.columns = [col, "conteo"]
+
+            fig.add_trace(go.Bar(x=data[col], y=data["conteo"], name=col), row=row, col=col_pos)
+
+        fig.update_layout(
+            height=350 * rows,
+            width=1200,
+            title_text=title,
+            showlegend=False,
+            title_x=0.5,
+        )
+
+        html = fig.to_html(include_plotlyjs="cdn")
+        return HTML(html)
 
     def plot_ecdf(self, dataframe, columns):
         """
@@ -59,8 +111,9 @@ class EDAAnalyzer:
         para columnas numéricas seleccionadas.
         """
         for col in columns:
-            fig = px.ecdf(dataframe, x=col, title=f'ECDF - {col}')
-            fig.show()
+            fig = px.ecdf(dataframe, x=col, title=f"ECDF - {col}")
+            html = fig.to_html(include_plotlyjs="cdn")
+            return HTML(html)
 
     def detect_outliers(self, dataframe, columns):
         """
@@ -74,13 +127,11 @@ class EDAAnalyzer:
             limite_inferior = Q1 - 1.5 * IQR
             limite_superior = Q3 + 1.5 * IQR
             outliers = dataframe[(dataframe[col] < limite_inferior) | (dataframe[col] > limite_superior)]
-            atipicos[col] = outliers[col]
 
-            print(f"\n{col} - Atípicos detectados: {len(outliers)}")
-            fig = px.box(dataframe, y=col, title=f'Boxplot con Atípicos - {col}')
-            fig.show()
+            if len(outliers) > 0:
+                atipicos[col] = outliers[col]
         return atipicos
-    
+
     def detect_rare_categories(self, dataframe, columns, threshold=5):
         """
         Detecta categorías poco frecuentes (atípicos) en columnas categóricas.
@@ -92,17 +143,8 @@ class EDAAnalyzer:
         """
         categorias_raras = {}
         for col in columns:
-            print(col)
             frecuencia = dataframe[col].value_counts()
             raras = frecuencia[frecuencia < threshold].index.tolist()
-            categorias_raras[col] = raras
-
-            print(f"\n{col} - Categorías raras (< {threshold} apariciones):")
-            print(raras)
-
-        self.plot_barplots(dataframe, list(categorias_raras.keys()))
+            if len(raras) > 0:
+                categorias_raras[col] = raras
         return categorias_raras
-
-# Ejemplo de uso:
-# eda = EDAAnalyzer()
-# eda.plot_null_heatmap(df)
