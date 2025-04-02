@@ -162,3 +162,14 @@ cython_debug/
 #.idea/
 data/calificaciones/*.pdf
 .DS_Store
+*.csv
+notebooks/parquet_exports/**/*.parquet
+notebooks/*.parquet
+notebooks/*.xlsx
+pyproject.toml
+
+data/**/**/*.*
+!data/**/dummy.txt
+jupyter_books/notebooks/**/**.ipynb
+jupyter_books/_build/jupyter_execute/notebooks/**/**.ipynb
+jupyter_books/_build/html/_sources/notebooks/**/**.ipynb
