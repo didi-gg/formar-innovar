@@ -1,0 +1,1378 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>1. Limpieza y Transformación del Dataset de Estudiantes &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'notebooks/pre_processing/data_cleaning_students';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <link rel="icon" href="../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="2. Manejo de valores nulos y atípicos" href="data_imputer_students.html" />
+    <link rel="prev" title="Predicción del bajo rendimiento académico" href="../../intro.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../intro.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/FICC.png" class="logo__image only-light" alt="Predicción del Bajo Rendimiento Académico con datos del colegio FICC - Home"/>
+    <script>document.write(`<img src="../../_static/FICC.png" class="logo__image only-dark" alt="Predicción del Bajo Rendimiento Académico con datos del colegio FICC - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../../intro.html">
+                    Predicción del bajo rendimiento académico
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Procesamiento del conjunto de datos Estudiantes</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">1. Limpieza y Transformación del Dataset de Estudiantes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_imputer_students.html">2. Manejo de valores nulos y atípicos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_encoding_students.html">3. Convertir variables categóricas a numéricas</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Limpieza y Transformación del Dataset de Estudiantes</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#descripcion-del-dataset">1.1. Descripción del Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anonimizacion-de-los-datos">1.2. Anonimización de los datos</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#limpieza-del-texto">1.3. Limpieza del texto</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#estandarizar-antiguedad">1.3.1. Estandarizar Antigüedad</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pais-de-origen">1.3.2. País de Origen</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tipo-de-vivienda">1.3.3. Tipo de vivienda</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#zona-de-vivienda">1.3.4. Zona de vivienda</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interes-en-estudios-superiores">1.3.5. Interés en estudios superiores</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#apoyo-familiar-en-el-proceso-educativo">1.3.6. Apoyo Familiar en el proceso educativo</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#participacion-en-clase">1.3.7. Participación en clase</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nee">1.3.8. NEE</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#enfermedades">1.3.9. Enfermedades</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#medio-de-transporte">1.3.10. Medio de transporte</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nivel-motivacion">1.3.11. Nivel motivación</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#proyeccion-vocacional">1.3.12. Proyección vocacional</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#actividades-extracurriculares">1.3.13. Actividades extracurriculares</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#familia">1.3.14. Familia</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="limpieza-y-transformacion-del-dataset-de-estudiantes">
+<h1><span class="section-number">1. </span>Limpieza y Transformación del Dataset de Estudiantes<a class="headerlink" href="#limpieza-y-transformacion-del-dataset-de-estudiantes" title="Link to this heading">#</a></h1>
+<p>En este notebook se trabaja la limpieza de datos y categorización para dejar valores estándar en las variables categóricas, debido a los datos con valores tan variados.</p>
+<section id="descripcion-del-dataset">
+<h2><span class="section-number">1.1. </span>Descripción del Dataset<a class="headerlink" href="#descripcion-del-dataset" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p><strong>id</strong>: <em>Identificador único del estudiante en el dataset. Es es nombre completo del estudiante sin espacios concatenado con la sede. Útil para la únion de datos que no contienen el documento de identidad.</em></p></li>
+<li><p><strong>sede</strong>: <em>Sede educativa a la que pertenece el estudiante. Girardot o Fusagasugá</em></p></li>
+<li><p><strong>nivel</strong>: <em>Nivel académico (por ejemplo, primaria, secundaria, bachillerato) al momento de recibir la información año 2024.</em></p></li>
+<li><p><strong>grado</strong>: <em>Grado escolar específico en el que está matriculado el estudiante.</em></p></li>
+<li><p><strong>orden_grado</strong>: <em>Orden numérico correspondiente al grado escolar (útil para ordenar o comparar grados).</em></p></li>
+<li><p><strong>año_ingreso</strong>: <em>Año en que el estudiante ingresó a la institución educativa.</em></p></li>
+<li><p><strong>antigüedad</strong>: <em>Categoría que describe si el estudiante es “Nuevo” o “Antiguo” en la institución.</em></p></li>
+<li><p><strong>género</strong>: <em>Género del estudiante (masculino, femenino u otro).</em></p></li>
+<li><p><strong>documento_identificación</strong>: <em>Número de documento de identidad del estudiante.</em></p></li>
+<li><p><strong>primer_apellido</strong>: <em>Primer apellido del estudiante.</em></p></li>
+<li><p><strong>segundo_apellido</strong>: <em>Segundo apellido del estudiante.</em></p></li>
+<li><p><strong>nombres</strong>: <em>Nombres del estudiante.</em></p></li>
+<li><p><strong>fecha_nacimiento</strong>: <em>Fecha de nacimiento del estudiante.</em></p></li>
+<li><p><strong>demuestra_confianza</strong>: <em>Percepción o valoración sobre el nivel de confianza mostrado por el estudiante.</em></p></li>
+<li><p><strong>país_origen</strong>: <em>País de nacimiento u origen del estudiante.</em></p></li>
+<li><p><strong>estrato</strong>: <em>Estrato socioeconómico del estudiante (usualmente del 1 al 6 en el contexto colombiano).</em></p></li>
+<li><p><strong>tipo_vivienda</strong>: <em>Tipo de propiedad o vivienda donde reside el estudiante (propia, alquilada, familiar).</em></p></li>
+<li><p><strong>zona_vivienda</strong>: <em>Ubicación geográfica del estudiante (zona urbana o rural).</em></p></li>
+<li><p><strong>dirección</strong>: Dirección de residencia del estudiante.</p></li>
+<li><p><strong>horas_semana_estudio_casa</strong> <em>Cantidad aproximada de horas semanales dedicadas al estudio en casa.</em></p></li>
+<li><p><strong>interés_estudios_superiores</strong>: <em>Nivel de interés que muestra el estudiante hacia continuar estudios superiores (alto, medio, bajo).</em></p></li>
+<li><p><strong>medio_transporte</strong>: <em>Medio utilizado por el estudiante para trasladarse hasta la institución educativa.</em></p></li>
+<li><p><strong>apoyo_familiar</strong>: <em>Nivel de apoyo familiar percibido en relación con el proceso educativo (alto, medio, bajo).</em></p></li>
+<li><p><strong>total_hermanos</strong>: <em>Número total de hermanos que tiene el estudiante.</em></p></li>
+<li><p><strong>familia</strong>: <em>Composición familiar con la que convive el estudiante (categorías simples como “Mamá y papá”, “Solo mamá”, etc.).</em></p></li>
+<li><p><strong>actividades_extracurriculares</strong>: <em>Actividades que realiza el estudiante fuera del horario escolar (deportes, artes, idiomas, tecnología, ninguna).</em></p></li>
+<li><p><strong>enfermedades</strong>: <em>Indica si el estudiante presenta o no alguna enfermedad diagnosticada.</em></p></li>
+<li><p><strong>proyección_vocacional</strong>: Profesión o área vocacional en la que el estudiante muestra interés o preferencia.</p></li>
+<li><p><strong>participación_clase</strong>: <em>Nivel de participación en clase que tiene el estudiante (alta, media, baja).</em></p></li>
+<li><p><strong>nee</strong>: <em>Indica si el estudiante presenta Necesidades Educativas Especiales (Sí o No).</em></p></li>
+<li><p><strong>valoración_emocional</strong>: <em>Evaluación emocional general del estudiante.</em></p></li>
+<li><p><strong>nivel_motivación</strong>: <em>Nivel general de motivación del estudiante en relación con el estudio (alto, medio, bajo).</em></p></li>
+</ol>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">current_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;__file__&#39;</span><span class="p">))</span>
+<span class="n">project_root</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">current_dir</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">))</span>
+<span class="k">if</span> <span class="n">project_root</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">project_root</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">scripts.transform.data_cleaning_students</span> <span class="kn">import</span> <span class="n">StudentsDataCleaner</span>
+<span class="kn">from</span> <span class="nn">scripts.eda_analyzer</span> <span class="kn">import</span> <span class="n">EDAAnalyzer</span>
+<span class="kn">from</span> <span class="nn">scripts.utils.hash_utility</span> <span class="kn">import</span> <span class="n">HashUtility</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;../../data/raw/Estudiantes.csv&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span> <span class="o">=</span> <span class="n">StudentsDataCleaner</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+<span class="n">eda</span> <span class="o">=</span> <span class="n">EDAAnalyzer</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Conteo de valores nulos</span>
+<span class="n">df</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>ID                                0
+sede                              0
+nivel                             0
+grado                             0
+orden_grado                       0
+año_ingreso                       0
+antigüedad                        0
+género                            0
+documento_identificación          0
+primer_apellido                   0
+segundo_apellido                  0
+nombres                           0
+fecha_nacimiento                  0
+demuestra_confianza              51
+país_origen                       0
+estrato                          86
+tipo_vivienda                    86
+zona_vivienda                     0
+dirección                        86
+horas_semana_estudio_casa        86
+interés_estudios_superiores      86
+medio_transporte                  0
+apoyo_familiar                    0
+total_hermanos                   86
+familia                          86
+actividades_extracurriculares    86
+enfermedades                      0
+proyección_vocacional            86
+participación_clase               0
+nee                               0
+valoración_emocional              0
+nivel_motivación                  0
+dtype: int64
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">eda</span><span class="o">.</span><span class="n">plot_null_heatmap</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><html>
+<head><meta charset="utf-8" /></head>
+<body>
+    <div>                        <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>                <div id="8d424457-fb47-4f72-930e-17e95fbf900c" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("8d424457-fb47-4f72-930e-17e95fbf900c")) {                    Plotly.newPlot(                        "8d424457-fb47-4f72-930e-17e95fbf900c",                        [{"coloraxis":"coloraxis","name":"0","x":["demuestra_confianza","estrato","tipo_vivienda","direcci\u00f3n","horas_semana_estudio_casa","inter\u00e9s_estudios_superiores","total_hermanos","familia","actividades_extracurriculares","proyecci\u00f3n_vocacional"],"y":{"dtype":"i2","bdata":"AAABAAIAAwAEAAUABgAHAAgACQAKAAsADAANAA4ADwAQABEAEgATABQAFQAWABcAGAAZABoAGwAcAB0AHgAfACAAIQAiACMAJAAlACYAJwAoACkAKgArACwALQAuAC8AMAAxADIAMwA0ADUANgA3ADgAOQA6ADsAPAA9AD4APwBAAEEAQgBDAEQARQBGAEcASABJAEoASwBMAE0ATgBPAFAAUQBSAFMAVABVAFYAVwBYAFkAWgBbAFwAXQBeAF8AYABhAGIAYwBkAGUAZgBnAGgAaQBqAGsAbABtAG4AbwBwAHEAcgBzAHQAdQB2AHcAeAB5AHoAewB8AH0AfgB\u002fAIAAgQCCAIMAhACFAIYAhwCIAIkAigCLAIwAjQCOAI8AkACRAJIAkwCUAJUAlgCXAJgAmQCaAJsAnACdAJ4AnwCgAKEAogCjAKQApQCmAKcAqACpAKoAqwCsAK0ArgCvALAAsQCyALMAtAC1ALYAtwC4ALkAugC7ALwAvQC+AL8AwADBAMIAwwDEAMUAxgDHAMgAyQDKAMsAzADNAM4AzwDQANEA0gDTANQA1QDWANcA2ADZANoA2wDcAN0A3gDfAOAA4QDiAOMA5ADlAOYA5wDoAOkA6gDrAOwA7QDuAO8A8ADxAPIA8wD0APUA9gD3APgA+QD6APsA\u002fAD9AP4A\u002fwAAAQEBAgEDAQQBBQEGAQcBCAEJAQoBCwEMAQ0BDgEPARABEQESARMBFAEVARYBFwEYARkBGgEbARwBHQEeAR8BIAEhASIBIwEkASUBJgEnASgBKQEqASsBLAEtAS4BLwEwATEBMgEzATQBNQE2ATcBOAE5AToBOwE8AT0BPgE\u002fAUABQQFCAUMBRAFFAUYBRwFIAUkBSgFLAUwBTQFOAU8BUAFRAVIBUwFUAVUBVgFXAVgBWQFaAVsBXAFdAV4BXwFgAWEBYgFjAWQBZQFmAWcBaAFpAWoBawFsAW0BbgE="},"z":{"dtype":"i1","bdata":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAEBAQEBAQEBAQEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAA==","shape":"367, 10"},"type":"heatmap","xaxis":"x","yaxis":"y","hovertemplate":"Mapa de Calor de Valores Nulos: %{x}\u003cbr\u003ey: %{y}\u003cbr\u003ecolor: %{z}\u003cextra\u003e\u003c\u002fextra\u003e"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"scaleanchor":"y","constrain":"domain","title":{"text":"Mapa de Calor de Valores Nulos"},"side":"top","tickangle":-90},"yaxis":{"anchor":"x","domain":[0.0,1.0],"autorange":"reversed","constrain":"domain"},"coloraxis":{"colorscale":[[0.0,"white"],[1.0,"#13678A"]],"showscale":false},"margin":{"t":60}},                        {"responsive": true}                    )                };            </script>        </div>
+</body>
+</html></div></div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span><span class="o">.</span><span class="n">info</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;class &#39;pandas.core.frame.DataFrame&#39;&gt;
+RangeIndex: 367 entries, 0 to 366
+Data columns (total 32 columns):
+ #   Column                         Non-Null Count  Dtype  
+---  ------                         --------------  -----  
+ 0   ID                             367 non-null    object 
+ 1   sede                           367 non-null    object 
+ 2   nivel                          367 non-null    object 
+ 3   grado                          367 non-null    object 
+ 4   orden_grado                    367 non-null    int64  
+ 5   año_ingreso                    367 non-null    int64  
+ 6   antigüedad                     367 non-null    object 
+ 7   género                         367 non-null    object 
+ 8   documento_identificación       367 non-null    int64  
+ 9   primer_apellido                367 non-null    object 
+ 10  segundo_apellido               367 non-null    object 
+ 11  nombres                        367 non-null    object 
+ 12  fecha_nacimiento               367 non-null    object 
+ 13  demuestra_confianza            316 non-null    object 
+ 14  país_origen                    367 non-null    object 
+ 15  estrato                        281 non-null    float64
+ 16  tipo_vivienda                  281 non-null    object 
+ 17  zona_vivienda                  367 non-null    object 
+ 18  dirección                      281 non-null    object 
+ 19  horas_semana_estudio_casa      281 non-null    float64
+ 20  interés_estudios_superiores    281 non-null    object 
+ 21  medio_transporte               367 non-null    object 
+ 22  apoyo_familiar                 367 non-null    object 
+ 23  total_hermanos                 281 non-null    float64
+ 24  familia                        281 non-null    object 
+ 25  actividades_extracurriculares  281 non-null    object 
+ 26  enfermedades                   367 non-null    object 
+ 27  proyección_vocacional          281 non-null    object 
+ 28  participación_clase            367 non-null    object 
+ 29  nee                            367 non-null    object 
+ 30  valoración_emocional           367 non-null    object 
+ 31  nivel_motivación               367 non-null    object 
+dtypes: float64(3), int64(3), object(26)
+memory usage: 91.9+ KB
+</pre></div>
+</div>
+</div>
+</div>
+<p>Definimos las columnas para trabajar, exluyendo las columnas con la información personal del estudiante</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Excluir las columnas: sede, nivel, grado, orden_grado, año_ingreso, género, documento_identificación, primer_apellido, segundo_apellido, nombres, fecha_nacimiento, dirección, valoración_emocional</span>
+<span class="n">cols_to_search</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ID&#39;</span><span class="p">,</span><span class="s1">&#39;sede&#39;</span><span class="p">,</span> <span class="s1">&#39;nivel&#39;</span><span class="p">,</span> <span class="s1">&#39;grado&#39;</span><span class="p">,</span> <span class="s1">&#39;orden_grado&#39;</span><span class="p">,</span> <span class="s1">&#39;año_ingreso&#39;</span><span class="p">,</span> <span class="s1">&#39;género&#39;</span><span class="p">,</span> <span class="s1">&#39;documento_identificación&#39;</span><span class="p">,</span> <span class="s1">&#39;primer_apellido&#39;</span><span class="p">,</span> <span class="s1">&#39;segundo_apellido&#39;</span><span class="p">,</span> <span class="s1">&#39;nombres&#39;</span><span class="p">,</span> <span class="s1">&#39;fecha_nacimiento&#39;</span><span class="p">,</span> <span class="s1">&#39;dirección&#39;</span><span class="p">,</span> <span class="s1">&#39;valoración_emocional&#39;</span><span class="p">]]</span>
+
+<span class="n">cleaner</span><span class="o">.</span><span class="n">display_unique_values</span><span class="p">(</span><span class="n">cols_to_search</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Valores únicos y su cantidad en cada columna:
+antigüedad: 3 valores únicos
+demuestra_confianza: 5 valores únicos
+país_origen: 5 valores únicos
+estrato: 6 valores únicos
+tipo_vivienda: 11 valores únicos
+zona_vivienda: 5 valores únicos
+horas_semana_estudio_casa: 19 valores únicos
+interés_estudios_superiores: 9 valores únicos
+medio_transporte: 11 valores únicos
+apoyo_familiar: 12 valores únicos
+total_hermanos: 8 valores únicos
+familia: 179 valores únicos
+actividades_extracurriculares: 107 valores únicos
+enfermedades: 25 valores únicos
+proyección_vocacional: 190 valores únicos
+participación_clase: 21 valores únicos
+nee: 7 valores únicos
+nivel_motivación: 12 valores únicos
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="anonimizacion-de-los-datos">
+<h2><span class="section-number">1.2. </span>Anonimización de los datos<a class="headerlink" href="#anonimizacion-de-los-datos" title="Link to this heading">#</a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Aplicar hashing al documento de identificación y eliminar la columna original</span>
+<span class="n">df</span><span class="p">[</span><span class="s2">&quot;documento_identificación&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;documento_identificación&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">HashUtility</span><span class="o">.</span><span class="n">hash_stable</span><span class="p">)</span>
+
+<span class="c1"># Aplicar hashing a los nombres y apellidos y eliminar las columnas originales</span>
+<span class="n">df</span><span class="p">[</span><span class="s2">&quot;primer_apellido&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;primer_apellido&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">HashUtility</span><span class="o">.</span><span class="n">hash_stable</span><span class="p">)</span>
+<span class="n">df</span><span class="p">[</span><span class="s2">&quot;segundo_apellido&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;segundo_apellido&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">HashUtility</span><span class="o">.</span><span class="n">hash_stable</span><span class="p">)</span>
+<span class="n">df</span><span class="p">[</span><span class="s2">&quot;nombres&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;nombres&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">HashUtility</span><span class="o">.</span><span class="n">hash_stable</span><span class="p">)</span>
+<span class="n">df</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">HashUtility</span><span class="o">.</span><span class="n">hash_stable</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="limpieza-del-texto">
+<h2><span class="section-number">1.3. </span>Limpieza del texto<a class="headerlink" href="#limpieza-del-texto" title="Link to this heading">#</a></h2>
+<section id="estandarizar-antiguedad">
+<h3><span class="section-number">1.3.1. </span>Estandarizar Antigüedad<a class="headerlink" href="#estandarizar-antiguedad" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;antigüedad&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Antiguo&#39;, &#39;Nuevo&#39;, &#39;nuevo&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;antigüedad&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;antigüedad&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Antiguo&#39;, &#39;Nuevo&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="pais-de-origen">
+<h3><span class="section-number">1.3.2. </span>País de Origen<a class="headerlink" href="#pais-de-origen" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;país_origen&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Colombia&#39;, &#39;Colombia &#39;, &#39;Argentina&#39;, &#39;España&#39;,
+       &#39;República Dominicana&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;país_origen&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;país_origen&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Colombia&#39;, &#39;Argentina&#39;, &#39;España&#39;, &#39;República dominicana&#39;],
+      dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="tipo-de-vivienda">
+<h3><span class="section-number">1.3.3. </span>Tipo de vivienda<a class="headerlink" href="#tipo-de-vivienda" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;tipo_vivienda&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Alquilada&#39;, &#39;Propia&#39;, &#39;Alquilada  &#39;, &#39;Familiar&#39;, &#39;Familiar &#39;,
+       &#39;Propia &#39;, &#39;Alquilada &#39;, &#39; Propia&#39;, &#39;Alquilada    &#39;, &#39;propia&#39;,
+       &#39;alquilada&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;tipo_vivienda&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;tipo_vivienda&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Alquilada&#39;, &#39;Propia&#39;, &#39;Familiar&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="zona-de-vivienda">
+<h3><span class="section-number">1.3.4. </span>Zona de vivienda<a class="headerlink" href="#zona-de-vivienda" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;zona_vivienda&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Urbana&#39;, &#39;Rural&#39;, &#39;Urbana &#39;, &#39;RURAL&#39;, &#39;Urbano&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;zona_vivienda&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;zona_vivienda&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Urbana&#39;, &#39;Rural&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="interes-en-estudios-superiores">
+<h3><span class="section-number">1.3.5. </span>Interés en estudios superiores<a class="headerlink" href="#interes-en-estudios-superiores" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;interés_estudios_superiores&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Alto&#39;, &#39;Medio&#39;, &#39;Bajo&#39;, &#39;Alto &#39;, &#39;BAJO&#39;, &#39;medio&#39;, &#39;bajo&#39;, &#39;MEDIO&#39;,
+       &#39;Medio &#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;interés_estudios_superiores&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;interés_estudios_superiores&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Alto&#39;, &#39;Medio&#39;, &#39;Bajo&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="apoyo-familiar-en-el-proceso-educativo">
+<h3><span class="section-number">1.3.6. </span>Apoyo Familiar en el proceso educativo<a class="headerlink" href="#apoyo-familiar-en-el-proceso-educativo" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;apoyo_familiar&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Medio&#39;, &#39;Alta&#39;, &#39;Alto &#39;, &#39;alto&#39;, &#39;Bajo&#39;, &#39;Alto&#39;, &#39;ALTO&#39;, &#39;medio&#39;,
+       &#39;bajo&#39;, &#39;slto&#39;, &#39;MEDIO&#39;, &#39;alta&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;apoyo_familiar&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;apoyo_familiar&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Medio&#39;, &#39;Alto&#39;, &#39;Bajo&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="participacion-en-clase">
+<h3><span class="section-number">1.3.7. </span>Participación en clase<a class="headerlink" href="#participacion-en-clase" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;participación_clase&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;alta&#39;, &#39;Alta&#39;, &#39;Media &#39;, &#39;media&#39;, &#39;Media&#39;, &#39;Alta &#39;, &#39;MEDIO&#39;,
+       &#39;alto&#39;, &#39;Baja&#39;, &#39;bajo&#39;, &#39;BAJA&#39;, &#39;medio&#39;, &#39;baja&#39;, &#39;Alto&#39;, &#39;Bajo&#39;,
+       &#39;ALTA&#39;, &#39;Medio&#39;, &#39;MEDIA&#39;, &#39;ALTA &#39;, &#39;ALTO&#39;, &#39;MEDIO &#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;participación_clase&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;participación_clase&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Alta&#39;, &#39;Media&#39;, &#39;Baja&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="nee">
+<h3><span class="section-number">1.3.8. </span>NEE<a class="headerlink" href="#nee" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;nee&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;No&#39;, &#39;NO&#39;, &#39;No &#39;, &#39;Si&#39;, &#39;no&#39;, &#39;si&#39;, &#39;SI&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;nee&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;nee&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;No&#39;, &#39;Si&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="enfermedades">
+<h3><span class="section-number">1.3.9. </span>Enfermedades<a class="headerlink" href="#enfermedades" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;enfermedades&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;no&#39;, &#39;NO&#39;, &#39;No &#39;, &#39;No&#39;, &#39;SI&#39;, &#39;Rinitis&#39;, &#39;Cardiopatia congenita&#39;,
+       &#39;rinitis&#39;, &#39;Si&#39;, &#39;Migraña&#39;, &#39;NO &#39;, &#39;si&#39;, &#39;dislexia&#39;, &#39; no&#39;,
+       &#39;Epilepsia&#39;, &#39;HIPERLAXITUD &#39;, &#39;renitis&#39;, &#39;CIA &#39;,
+       &#39;Problemas en el riñon&#39;, &#39;asma&#39;, &#39;PREASMATICO Y RINITICO ALERGICO&#39;,
+       &#39;Diabetes&#39;, &#39;RINITIS &#39;, &#39;Riñitis&#39;, &#39;no &#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;enfermedades&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;enfermedades&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;No&#39;, &#39;Si&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="medio-de-transporte">
+<h3><span class="section-number">1.3.10. </span>Medio de transporte<a class="headerlink" href="#medio-de-transporte" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;medio_transporte&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Vehículo privado&#39;, &#39;Transporte escolar&#39;, &#39;Moto&#39;,
+       &#39;Vehiculo privado&#39;, &#39;Motocicleta&#39;, &#39;A pie&#39;, &#39;Transporte público&#39;,
+       &#39;Bicicleta&#39;, &#39;transporte publico&#39;, &#39;motocicleta &#39;,
+       &#39;Tranporte privado&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;medio_transporte&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;medio_transporte&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Vehículo privado&#39;, &#39;Transporte escolar&#39;, &#39;A pie&#39;,
+       &#39;Transporte público&#39;, &#39;Bicicleta&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="nivel-motivacion">
+<h3><span class="section-number">1.3.11. </span>Nivel motivación<a class="headerlink" href="#nivel-motivacion" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;nivel_motivación&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>np.int64(0)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;nivel_motivación&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Alto&#39;, &#39;Medio&#39;, &#39;Bajo&#39;, &#39;alto&#39;, &#39;alta&#39;, &#39;Media&#39;, &#39;ALTO&#39;, &#39;media&#39;,
+       &#39;Media &#39;, &#39;Alta&#39;, &#39;medio&#39;, &#39;baja&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;nivel_motivación&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;nivel_motivación&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Alto&#39;, &#39;Medio&#39;, &#39;Bajo&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;nivel_motivación&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>np.int64(0)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="proyeccion-vocacional">
+<h3><span class="section-number">1.3.12. </span>Proyección vocacional<a class="headerlink" href="#proyeccion-vocacional" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;proyección_vocacional&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;deportista &#39;, &#39;Astronauta&#39;, &#39;Youtuber &#39;, &#39;diseño indsutrial&#39;,
+       &#39;Gimnasta &#39;, &#39;Empresario y futbolista&#39;, &#39;Doctor y futbolista &#39;,
+       &#39;Futbolista &#39;, &#39;abogado&#39;, &#39;Veterinaria &#39;, &#39;Medicina &#39;, &#39;Actor &#39;,
+       &#39;Doctora&#39;, &#39;Doctora &#39;, &#39;Patinadora&#39;, &#39;MILITAR &#39;, &#39;Futbolista&#39;,
+       &#39;Profesora&#39;, &#39;Mago&#39;, &#39;Artista&#39;, &#39;Emprearia&#39;, &#39;yotuber&#39;,
+       &#39;Gastronomia&#39;, &#39;Veterinaria&#39;, &#39;piloto de carreras&#39;, &#39;Patinador&#39;,
+       &#39;Comunicadora Social &#39;, &#39;Publicista&#39;, &#39;Contador Público&#39;,
+       &#39;Militar&#39;, &#39;Youtober&#39;, &#39;Profesor &#39;, &#39;Futbolista profesional&#39;,
+       &#39;veterinario&#39;, &#39;Docente de deportes&#39;,
+       &#39;negocios internacionales o diseño grafico&#39;, &#39;AUN NO SABE&#39;,
+       &#39;veterinaria&#39;, &#39;No sabe&#39;, &#39;futbolista&#39;, &#39;diseñador grafico&#39;,
+       &#39;youtuber&#39;, &#39;medicina&#39;, &#39;atletismo&#39;, &#39;Veterinario&#39;, &#39;doctor&#39;,
+       &#39;Youtuber&#39;, &#39;Jugadora de ping pong &#39;, &#39;Biologa marina&#39;,
+       &#39;Diseñadora de modas&#39;, &#39;artista&#39;, &#39;Abogado&#39;, &#39;comerciante&#39;,
+       &#39;arquitecto&#39;, &#39;Génetica&#39;, &#39;bombero&#39;, &#39;Ninguna&#39;,
+       &#39;diseñadora de modas&#39;, &#39;pintora&#39;, &#39;Bailarina&#39;, &#39;cantante&#39;,
+       &#39;violinista&#39;, &#39;Ing en sistemas&#39;, &#39;no definido&#39;, &#39;zootecnista&#39;,
+       &#39;ingeniero de sistema&#39;, &#39;Chef&#39;, &#39;Ingeniero Forestal&#39;, &#39;abogada&#39;,
+       &#39;No sabe aún&#39;, &#39;Cantante&#39;, &#39;chef&#39;, &#39;Medico&#39;, &#39;Investigadora&#39;,
+       &#39;biologa marina&#39;, &#39;Reportera&#39;, &#39;DISEÑADORA DE MODAS&#39;, &#39;COCINERO&#39;,
+       &#39;INGENIERO DE SISTEMAS&#39;, &#39;GASTRÓNOMO &#39;, &#39;Ingeniero civil, militar&#39;,
+       &#39;Ciclista&#39;, &#39;PROGRAMADOR&#39;, &#39;FUTBOLISTA&#39;, &#39;CIENTÍFICA&#39;, &#39;PROFESORA&#39;,
+       &#39;ABOGADA&#39;, &#39;Empresaria&#39;, &#39;NO SABE&#39;, &#39;VETERINARIA POSIBLEMENTE&#39;,
+       &#39;TENISTA&#39;, &#39;Diseñadora de modas o psicológa&#39;, &#39;Pediatria &#39;,
+       &#39;PALEONTÓLOGO &#39;, &#39;VETERIANARIA &#39;, &#39;ARQUITECTO &#39;, &#39;Aún no sabe&#39;,
+       &#39;Empresaria &#39;, &#39;Economista&#39;, &#39;Robótica y baile&#39;,
+       &#39;Militar o astrofísico &#39;, &#39;Futbolista y youtuber&#39;,
+       &#39;arqueologa marina&#39;, &#39;Artísta músical&#39;, &#39;Artísta &#39;, &#39;Pintora&#39;,
+       &#39;PILOTO &#39;, &#39;Ingeniero o arquitecto &#39;, &#39;Ingeniería de sistemas&#39;,
+       &#39;NO&#39;, &#39;MÉDICO&#39;, &#39;No sabe aun&#39;, &#39;EMPRESARIO&#39;,
+       &#39;ABOGADA/INGIERA/ MODELO&#39;, &#39;Artísta plástica &#39;, &#39;Ingenieria&#39;,
+       &#39;Ingenieria industrial&#39;, &#39;pediatra&#39;, &#39;Biólogo&#39;,
+       &#39;administrado de empresas&#39;, &#39;Diseño industrial&#39;, &#39;deportista&#39;,
+       &#39;Ingeniero mecatrónico&#39;, &#39;MEDICO CARDIOLOGO&#39;, &#39;Artes escenicas &#39;,
+       &#39;Karate profesional &#39;, &#39;Policia &#39;, &#39;Negocios Iinternacionales&#39;,
+       &#39;CIENTIFICO&#39;, &#39;Cantante, policia&#39;, &#39;CRIMINALISTICA&#39;, &#39;Psicóloga&#39;,
+       &#39;PEDIATRA&#39;, &#39;FUTBOLISTA &#39;, &#39;Derecho o psicología &#39;, &#39;bailarina&#39;,
+       &#39;MODELO&#39;, &#39;Arquitecto &#39;, &#39;Medicina y adm de empresas&#39;, &#39;Psiciloga&#39;,
+       &#39;Medicina (Traumatología)&#39;, &#39;Diseño Industrial&#39;,
+       &#39;No lo tiene definido &#39;, &#39;Actriz o bailarina profesional&#39;,
+       &#39;Azafata &#39;, &#39;Derecho&#39;, &#39;Diseñadora de Interiores, Arquitecta&#39;,
+       &#39;musica&#39;, &#39;biologia marina&#39;, &#39;medica o ingenieria civil&#39;,
+       &#39;independiente&#39;, &#39;futbolista o veterinario&#39;, &#39;ACTRIZ&#39;, &#39;idiomas&#39;,
+       &#39;Diseñador industrial&#39;, &#39;artes visulaes&#39;, &#39;Arquitecta&#39;,
+       &#39;ingenieria mecanica&#39;, &#39;Diseñador gráfico&#39;, &#39;Paleontologo&#39;,
+       &#39;Músico&#39;, &#39;Auxiliar de vuelo&#39;, &#39;Diseñadora gráfica&#39;, &#39;Docente&#39;,
+       &#39;Musico&#39;, &#39;Empresario&#39;, &#39;programacion de sistemas&#39;, &#39;Tatuadora&#39;,
+       &#39;actriz&#39;, &#39;Publicidad digital&#39;, &#39;Criminalista&#39;, &#39;Policia&#39;,
+       &#39;VETERINARIA&#39;, &#39;profesor&#39;, &#39;taxista&#39;, &#39;CIENTÍFICO&#39;,
+       &#39;Ingenieria Multimedia &#39;, &#39;policia&#39;, &#39;enfermera&#39;, &#39;Cantante &#39;,
+       &#39;ARQUITECTCA &#39;, &#39;Futbolista y policia &#39;, &#39;Ingeniero de sistemas&#39;,
+       &#39;Ingeniero&#39;, &#39;NO SABES &#39;, &#39;Entrenadora de voleibol&#39;,
+       &#39;Fiscal de menores&#39;, &#39;Pediatra&#39;, &#39;CHEF&#39;,
+       &#39;Diseñadora de interiores&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;proyección_vocacional&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;proyección_vocacional&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Deportes&#39;, &#39;STEM&#39;, &#39;Arte y Entretenimiento&#39;,
+       &#39;Diseño y Arquitectura&#39;, &#39;Sociales y Humanidades&#39;,
+       &#39;Ciencias de la Salud&#39;, &#39;Seguridad y Fuerzas Armadas&#39;,
+       &#39;Negocios y Emprendimiento&#39;, &#39;Indefinido o No Sabe&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="actividades-extracurriculares">
+<h3><span class="section-number">1.3.13. </span>Actividades extracurriculares<a class="headerlink" href="#actividades-extracurriculares" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;actividades_extracurriculares&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;ninguna&#39;, &#39;Karate&#39;, &#39;No &#39;, &#39;ningunma&#39;, &#39;Patinaje&#39;, &#39;Futbol&#39;,
+       &#39;futbol y cicla&#39;, &#39;tennis&#39;, &#39;Gimnasia &#39;, &#39;Natación &#39;, &#39;niguna&#39;,
+       &#39;Ninguna&#39;, &#39;Patinaje &#39;, &#39;NINGUNA&#39;, &#39;Fútbol, inglés&#39;,
+       &#39;Actividades fisicas&#39;, &#39;Gimnasia y violin &#39;, &#39;atletismo&#39;,
+       &#39;Ciclismo y danzas&#39;, &#39;musica y bicicleta&#39;,
+       &#39;Patinaje, futbol, musica&#39;, &#39;ningunna&#39;, &#39;Patinaje - Fútbol&#39;,
+       &#39;Ciclismo&#39;, &#39;Fútbol&#39;, &#39;Ninguno.&#39;, &#39;tenis de mesa, futbol&#39;,
+       &#39;Natación&#39;, &#39;volleyboll y danza&#39;, &#39;danzas y modelaje &#39;, &#39;futbol&#39;,
+       &#39;dibujo&#39;, &#39;natacion&#39;, &#39;gimnasio&#39;, &#39;patinaje&#39;, &#39;voleibol&#39;,
+       &#39;música, inglés, tenis&#39;, &#39;golf, ajedrez, gimnasio&#39;, &#39;música&#39;,
+       &#39;danzas&#39;, &#39;danzas y patinaje &#39;, &#39;fútbol, piano&#39;, &#39;Danza&#39;, &#39;fútbol&#39;,
+       &#39;natación, francés&#39;, &#39;Ninguno&#39;, &#39;patinaje, gimnasia&#39;, &#39;Natacion&#39;,
+       &#39;ARTES&#39;, &#39;FUTBOL&#39;, &#39;PATINAJE&#39;, &#39;Montar cicla&#39;, &#39;CLASES DE INGLÉS&#39;,
+       &#39;Voleibol&#39;, &#39;BALONCESTO&#39;, &#39;VOLLEYBALL&#39;, &#39;TENNIS&#39;,
+       &#39;Karate, toca Violonchelo y dibuja&#39;, &#39;CURSO DE INGLÉS Y EJERCICIO&#39;,
+       &#39;ACADEMIA DE BAILE&#39;, &#39;Gimnasio&#39;, &#39;Ciclismo &#39;, &#39;Música&#39;, &#39;Piano &#39;,
+       &#39;fútbol &#39;, &#39;NATACIÓN&#39;,
+       &#39;Danza Urbana e Idiomas extranjeros(Inglés)&#39;, &#39;Tenis&#39;, &#39;Voleyball&#39;,
+       &#39;futbol &#39;, &#39;Aprender idiomas en duolingo&#39;, &#39;CAMPAMENTO &#39;,
+       &#39;dibujo &#39;, &#39;Ninguna &#39;, &#39;Dibujo&#39;, &#39;futbol, tenis&#39;, &#39;Nninguna&#39;,
+       &#39;Tennis de campo&#39;, &#39;Patinaje, Clses de inglés&#39;, &#39;musica &#39;,
+       &#39;futbol y natacion &#39;, &#39;CURSO DE INGLÉS Y PIANO&#39;, &#39;INGLÉS Y ARTES &#39;,
+       &#39;musica&#39;, &#39;Voleybol &#39;, &#39;ingles&#39;, &#39;Diseño digital&#39;, &#39;Equitación&#39;,
+       &#39;Idiomas&#39;, &#39;Patinaje - Básquetbol&#39;, &#39;Musica&#39;, &#39;Básquetbol&#39;,
+       &#39;Pilates  y baile&#39;, &#39;Patinaje - Voleibol&#39;, &#39;Voleybol&#39;,
+       &#39;Patinaje de velocidad&#39;, &#39;gimnasia&#39;, &#39;BICICLETA&#39;, &#39;Ninguno &#39;,
+       &#39;Aprender idiomas en Duolingo, patinaje&#39;, &#39;Taekwondo&#39;,
+       &#39;EQUITACIÓN Y VOLLEYBALL &#39;, &#39;Patinae&#39;, &#39;Danzas&#39;, &#39;MOTOCROSS&#39;,
+       &#39;Motocross, Gimnasio&#39;, &#39;NInguna&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;actividades_extracurriculares&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;actividades_extracurriculares&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Ninguna&#39;, &#39;Deporte&#39;, &#39;Deporte, Idiomas&#39;, &#39;Artes, Deporte&#39;,
+       &#39;Artes&#39;, &#39;Artes, Deporte, Idiomas&#39;, &#39;Idiomas&#39;, &#39;Artes, Idiomas&#39;,
+       &#39;Tecnología / Diseño&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="familia">
+<h3><span class="section-number">1.3.14. </span>Familia<a class="headerlink" href="#familia" title="Link to this heading">#</a></h3>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;familia&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;mama, papa, hermana y abuela.&#39;, &#39;mamá y papá&#39;, &#39;Mamá &#39;,
+       &#39;mama papa hermana&#39;, &#39;Mamá, papá y hermana&#39;,
+       &#39;mamá, papá y hermana &#39;, &#39;Abuelos, mamá, tios&#39;,
+       &#39;Abuelita, tio, primo y hermana &#39;, &#39;Mamá y hermana &#39;,
+       &#39;mama, papa y hermano&#39;, &#39;mama y papa &#39;,
+       &#39;Mamá, papá y hermano, abuela&#39;, &#39;mamá, papá, hermano&#39;,
+       &#39;Papá, mamá y hermano &#39;, &#39;Mamá&#39;, &#39;Mamá y papá&#39;,
+       &#39;Mamá. papá, hermana &#39;, &#39;Mamá, papá, abuela y hermana &#39;,
+       &#39;Mamá, papá y hermano&#39;, &#39;3&#39;, &#39;Mamá, padrastro y hermano&#39;,
+       &#39;Mamá, papá y hemana&#39;, &#39;mamá, hermano&#39;, &#39;Mamá y hermana&#39;,
+       &#39;Papá, hermano y abuelos&#39;, &#39;mam,a, aguelo, hermana&#39;,
+       &#39;abuelo, abuela, mamá, hermano&#39;, &#39;Papá, mamá, hermano y abuela&#39;,
+       &#39;mamá, papá y hermano &#39;, &#39;Mamá, hermana y abuelos&#39;, &#39;Papá&#39;,
+       &#39;Mamá - Papá - Abuela&#39;, &#39;Mamá - Papá&#39;,
+       &#39;Mamá- Tía - Abuela - Abuelastro&#39;, &#39;Mamá - Hermanos&#39;,
+       &#39;mamá´, papá y hermano &#39;, &#39;Mama, papa.&#39;, &#39;Mamá y papá &#39;,
+       &#39;Mamá - Papá- Hermanos&#39;, &#39;mama, abuelo, abuela&#39;, &#39;mama&#39;,
+       &#39;PAPA, MAMA HERMANO &#39;, &#39;mamá, papá, abuela, hermano&#39;, &#39;Mamá, papá&#39;,
+       &#39;papa, tio, abuela, hermana&#39;, &#39;mamá, papá&#39;, &#39;papa, mama&#39;,
+       &#39;papa, mama, hermano&#39;, &#39;papa mama hermano&#39;, &#39;hermana, mama, papa&#39;,
+       &#39;mamá, abuela, hermana&#39;, &#39;mamá, papá, hermano, tio&#39;,
+       &#39;Mamá, papá, hermano, abuela.&#39;, &#39;mamá &#39;, &#39;mama, papa, abuela&#39;,
+       &#39;mamá, papá, hermana&#39;, &#39;Mamá, papá, hermana&#39;,
+       &#39;abuelo, mama, hermana&#39;, &#39;mama, papa, hermano&#39;,
+       &#39;Mamá, Papá  y hermano &#39;, &#39;mamá, papá y abuela paterna&#39;,
+       &#39;mamá y tía&#39;, &#39;papá, hermano, auelo, abuela&#39;, &#39;mamá, padrastro&#39;,
+       &#39;mama, papa, abuela.&#39;, &#39;mamá&#39;, &#39;Mama y papa&#39;, &#39;mama, papa, tia.&#39;,
+       &#39;mamá, papá, hermano,abuela&#39;, &#39;Mama, papa, hermanos.&#39;,
+       &#39;mamá, abuela&#39;, &#39;mamá, papá, hermano, abuela&#39;,
+       &#39;Mama, papa, hemana&#39;, &#39;Papa, mama, hermano&#39;, &#39;papá &#39;, &#39;Mama.&#39;,
+       &#39;papá, mamá, hermana, abuela&#39;, &#39;mamá, papá,hermano&#39;,
+       &#39;Abuela y madre&#39;, &#39;Mama, papa, hermana, tio y abuela.&#39;,
+       &#39;Mamá, padrastro.&#39;, &#39;Mamá, Papá, hermano.&#39;, &#39;mama, papa.&#39;,
+       &#39;Mama, papa, hemanos&#39;, &#39;MAMÁ, PAPÁ Y HERMANO&#39;,
+       &#39;MAMÁ, PAPÁ Y HERMANA&#39;, &#39;MAMÁ, 3 PRIMOS, ABUELA Y TÍA &#39;,
+       &#39;MAMÁ, HERMANO Y PAPÁ&#39;, &#39;2&#39;, &#39;MAMÁ, PAPÁ , HERMANA Y ABUELA&#39;,
+       &#39;MAMÁ , PAPÁ Y HERMANO&#39;, &#39;MAMÁ, HERMANO Y HERMANA&#39;, &#39;MAMÁ Y PAPÁ&#39;,
+       &#39;Papá, mamá y hermana&#39;, &#39;MAMÁ, PAPÁ, HERMANO Y TÍA&#39;,
+       &#39;MAMÁ, HERMANO Y ABUELOS&#39;, &#39;PAPÁ &#39;,
+       &#39;Mamá. padrastro, hermana y abuela materna&#39;,
+       &#39;Mamá, papá y hermanos&#39;, &#39;Mamá, hermano y abuela materna&#39;, &#39;6&#39;,
+       &#39;Mamá, Abuela, Tía abuela&#39;,
+       &#39;Mamá, papá, hermana y abuelos paternos&#39;, &#39;5&#39;,
+       &#39;mamá, papá y hermanos &#39;, &#39;Mamá y hermano&#39;,
+       &#39;Mamá, papá, hermana y abuela materna&#39;, &#39;papas y dos hermanos&#39;,
+       &#39;Papá - Mamá - Hermana&#39;, &#39;Papá y hermano&#39;, &#39;mamá y abuela&#39;, &#39;4&#39;,
+       &#39;Mamá, Padrastro&#39;, &#39;abuelos, papá&#39;, &#39;abuelos&#39;,
+       &#39;PAPA, MAMA, HERMANO Y ABUELA&#39;, &#39;papá, hermano, abuelo&#39;,
+       &#39;mamá, hermana, papá&#39;, &#39;PAPA Y HERMANOS&#39;, &#39;ABUELOS&#39;,
+       &#39;Mamá y Hermano&#39;, &#39;mamá y hermano &#39;, &#39;Papá, mamá y hermanos&#39;,
+       &#39;PAPA, MAMA HERMANA&#39;, &#39;MAMA, PAPA HERMANA&#39;, &#39;Papás&#39;,
+       &#39;ABUELO, TIA, HERMANOS, PRIMO&#39;, &#39;MAMA Y ABUELA&#39;,
+       &#39;MAMA, PAPA Y PRIMO&#39;, &#39;Mamá hermano sobrino&#39;,
+       &#39;Mamá, papá, hermano&#39;, &#39;Abuelos&#39;, &#39;PAPA&#39;, &#39;papa,abuelo,tia&#39;,
+       &#39;Mamá, papá y hermanas&#39;, &#39;mama papa &#39;, &#39;Mamá, Padrastro, Hermana&#39;,
+       &#39;papa mama hermana&#39;, &#39;mama y abuelos&#39;, &#39;mama papa&#39;,
+       &#39;mama abuelo abuela padrastro&#39;, &#39;Mamá - Papá- Hermana&#39;,
+       &#39;mama papa hermano&#39;, &#39;Mamá, Padrastro, Hermano&#39;,
+       &#39;mama papa abuelos hermana&#39;, &#39;abuela abuelo mamá tio hermana&#39;,
+       &#39;Mamá, Papá&#39;, &#39;Mamá, Abuela&#39;, &#39;Mamá, Papá, Hermana&#39;,
+       &#39;Mamá, Papá, Hermano&#39;, &#39;Mamá - Papá - Hermana&#39;,
+       &#39;Mamá, Papá, Hermana, Abuela&#39;, &#39;Mamá, Hermano&#39;,
+       &#39;mama, abuelita, hermano&#39;, &#39;Mamá - Hermano&#39;, &#39;Mamá, Papá.&#39;,
+       &#39;mamá, hermano, hermana, cuñado&#39;, &#39;Mamá , abuelita y hermano &#39;,
+       &#39;Mamá, papá y abuela materna&#39;, &#39;Mamá, Hermanos, Cuñada&#39;,
+       &#39;Mamá- Papá - Hermano&#39;, &#39;Papá, abuelos paternos y un tío&#39;, &#39;MAMÁ&#39;,
+       &#39;mama, hermano&#39;, &#39;mamá, hermana&#39;, &#39;MAMÁ Y HERMANA&#39;, &#39;Papá y Mamá&#39;,
+       &#39;mama &#39;, &#39;mamá, padrastro, &#39;, &#39;abuela y abuelo&#39;,
+       &#39;mama, papa y hermanos&#39;, &#39;mamá, papá y hermano&#39;,
+       &#39;MAMA, PAPA HERMANOS&#39;, &#39;maá, papá y hermana&#39;,
+       &#39;mamá, papá, hermano, abuelos y tia &#39;, &#39;MAMA, HERMANA Y ABUELA&#39;,
+       &#39;Mamá, Hermano, Abuela.&#39;, &#39;mama, abuelos.&#39;, &#39;abuela&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean_column</span><span class="p">(</span><span class="s1">&#39;familia&#39;</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="o">.</span><span class="n">unique_values_by_column</span><span class="p">(</span><span class="s1">&#39;familia&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>array([&#39;Mamá, papá y otros&#39;, &#39;Mamá y papá&#39;, &#39;Solo mamá&#39;,
+       &#39;Otros familiares&#39;, &#39;Solo papá&#39;], dtype=object)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cleaner</span><span class="o">.</span><span class="n">display_unique_values</span><span class="p">(</span><span class="n">cols_to_search</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Valores únicos y su cantidad en cada columna:
+antigüedad: 2 valores únicos
+demuestra_confianza: 5 valores únicos
+país_origen: 4 valores únicos
+estrato: 6 valores únicos
+tipo_vivienda: 3 valores únicos
+zona_vivienda: 2 valores únicos
+horas_semana_estudio_casa: 19 valores únicos
+interés_estudios_superiores: 3 valores únicos
+medio_transporte: 5 valores únicos
+apoyo_familiar: 3 valores únicos
+total_hermanos: 8 valores únicos
+familia: 5 valores únicos
+actividades_extracurriculares: 9 valores únicos
+enfermedades: 2 valores únicos
+proyección_vocacional: 9 valores únicos
+participación_clase: 3 valores únicos
+nee: 2 valores únicos
+nivel_motivación: 3 valores únicos
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># conteo nulos</span>
+<span class="n">df</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>ID                                0
+sede                              0
+nivel                             0
+grado                             0
+orden_grado                       0
+año_ingreso                       0
+antigüedad                        0
+género                            0
+documento_identificación          0
+primer_apellido                   0
+segundo_apellido                  0
+nombres                           0
+fecha_nacimiento                  0
+demuestra_confianza              51
+país_origen                       0
+estrato                          86
+tipo_vivienda                    86
+zona_vivienda                     0
+dirección                        86
+horas_semana_estudio_casa        86
+interés_estudios_superiores      86
+medio_transporte                  0
+apoyo_familiar                    0
+total_hermanos                   86
+familia                          86
+actividades_extracurriculares    86
+enfermedades                      0
+proyección_vocacional            86
+participación_clase               0
+nee                               0
+valoración_emocional              0
+nivel_motivación                  0
+dtype: int64
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">eda</span><span class="o">.</span><span class="n">plot_null_heatmap</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><html>
+<head><meta charset="utf-8" /></head>
+<body>
+    <div>                        <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>                <div id="7b9b2ee7-c435-4c6d-b5e6-d30b77324010" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("7b9b2ee7-c435-4c6d-b5e6-d30b77324010")) {                    Plotly.newPlot(                        "7b9b2ee7-c435-4c6d-b5e6-d30b77324010",                        [{"coloraxis":"coloraxis","name":"0","x":["demuestra_confianza","estrato","tipo_vivienda","direcci\u00f3n","horas_semana_estudio_casa","inter\u00e9s_estudios_superiores","total_hermanos","familia","actividades_extracurriculares","proyecci\u00f3n_vocacional"],"y":{"dtype":"i2","bdata":"AAABAAIAAwAEAAUABgAHAAgACQAKAAsADAANAA4ADwAQABEAEgATABQAFQAWABcAGAAZABoAGwAcAB0AHgAfACAAIQAiACMAJAAlACYAJwAoACkAKgArACwALQAuAC8AMAAxADIAMwA0ADUANgA3ADgAOQA6ADsAPAA9AD4APwBAAEEAQgBDAEQARQBGAEcASABJAEoASwBMAE0ATgBPAFAAUQBSAFMAVABVAFYAVwBYAFkAWgBbAFwAXQBeAF8AYABhAGIAYwBkAGUAZgBnAGgAaQBqAGsAbABtAG4AbwBwAHEAcgBzAHQAdQB2AHcAeAB5AHoAewB8AH0AfgB\u002fAIAAgQCCAIMAhACFAIYAhwCIAIkAigCLAIwAjQCOAI8AkACRAJIAkwCUAJUAlgCXAJgAmQCaAJsAnACdAJ4AnwCgAKEAogCjAKQApQCmAKcAqACpAKoAqwCsAK0ArgCvALAAsQCyALMAtAC1ALYAtwC4ALkAugC7ALwAvQC+AL8AwADBAMIAwwDEAMUAxgDHAMgAyQDKAMsAzADNAM4AzwDQANEA0gDTANQA1QDWANcA2ADZANoA2wDcAN0A3gDfAOAA4QDiAOMA5ADlAOYA5wDoAOkA6gDrAOwA7QDuAO8A8ADxAPIA8wD0APUA9gD3APgA+QD6APsA\u002fAD9AP4A\u002fwAAAQEBAgEDAQQBBQEGAQcBCAEJAQoBCwEMAQ0BDgEPARABEQESARMBFAEVARYBFwEYARkBGgEbARwBHQEeAR8BIAEhASIBIwEkASUBJgEnASgBKQEqASsBLAEtAS4BLwEwATEBMgEzATQBNQE2ATcBOAE5AToBOwE8AT0BPgE\u002fAUABQQFCAUMBRAFFAUYBRwFIAUkBSgFLAUwBTQFOAU8BUAFRAVIBUwFUAVUBVgFXAVgBWQFaAVsBXAFdAV4BXwFgAWEBYgFjAWQBZQFmAWcBaAFpAWoBawFsAW0BbgE="},"z":{"dtype":"i1","bdata":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQAAAAAAAAAAAAAAAQEBAQEBAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAQEBAQABAQEBAQEBAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAEBAQEBAQEBAQABAQEBAQEBAQEAAQEBAQEBAQEBAAEBAQEBAQEBAQEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAAEAAAAAAAAAAAABAAAAAAAAAAAAAQAAAAAAAAAAAA==","shape":"367, 10"},"type":"heatmap","xaxis":"x","yaxis":"y","hovertemplate":"Mapa de Calor de Valores Nulos: %{x}\u003cbr\u003ey: %{y}\u003cbr\u003ecolor: %{z}\u003cextra\u003e\u003c\u002fextra\u003e"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"scaleanchor":"y","constrain":"domain","title":{"text":"Mapa de Calor de Valores Nulos"},"side":"top","tickangle":-90},"yaxis":{"anchor":"x","domain":[0.0,1.0],"autorange":"reversed","constrain":"domain"},"coloraxis":{"colorscale":[[0.0,"white"],[1.0,"#13678A"]],"showscale":false},"margin":{"t":60}},                        {"responsive": true}                    )                };            </script>        </div>
+</body>
+</html></div></div>
+</div>
+<p>Guardar el archivo</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;../../data/raw/Estudiantes_clean.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./notebooks/pre_processing"
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../../intro.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Predicción del bajo rendimiento académico</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="data_imputer_students.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">2. </span>Manejo de valores nulos y atípicos</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#descripcion-del-dataset">1.1. Descripción del Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anonimizacion-de-los-datos">1.2. Anonimización de los datos</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#limpieza-del-texto">1.3. Limpieza del texto</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#estandarizar-antiguedad">1.3.1. Estandarizar Antigüedad</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pais-de-origen">1.3.2. País de Origen</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tipo-de-vivienda">1.3.3. Tipo de vivienda</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#zona-de-vivienda">1.3.4. Zona de vivienda</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interes-en-estudios-superiores">1.3.5. Interés en estudios superiores</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#apoyo-familiar-en-el-proceso-educativo">1.3.6. Apoyo Familiar en el proceso educativo</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#participacion-en-clase">1.3.7. Participación en clase</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nee">1.3.8. NEE</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#enfermedades">1.3.9. Enfermedades</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#medio-de-transporte">1.3.10. Medio de transporte</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nivel-motivacion">1.3.11. Nivel motivación</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#proyeccion-vocacional">1.3.12. Proyección vocacional</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#actividades-extracurriculares">1.3.13. Actividades extracurriculares</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#familia">1.3.14. Familia</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Diana Marcela Gómez Gamez - Angie Catherine Ovalle Molina
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
