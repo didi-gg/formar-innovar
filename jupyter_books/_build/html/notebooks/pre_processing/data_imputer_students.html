@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>2. Manejo de valores nulos y atípicos &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
+    <title>2. Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
   
   
   
@@ -62,7 +62,7 @@
     <link rel="icon" href="../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="3. Convertir variables categóricas a numéricas" href="data_encoding_students.html" />
+    <link rel="next" title="3. Codificación de Variables Categóricas a Numéricas" href="data_encoding_students.html" />
     <link rel="prev" title="1. Limpieza y Transformación del Dataset de Estudiantes" href="data_cleaning_students.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -177,15 +177,19 @@
         <ul class="nav bd-sidenav bd-sidenav__home-link">
             <li class="toctree-l1">
                 <a class="reference internal" href="../../intro.html">
-                    Predicción del bajo rendimiento académico
+                    Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico
                 </a>
             </li>
         </ul>
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Procesamiento del conjunto de datos Estudiantes</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="data_cleaning_students.html">1. Limpieza y Transformación del Dataset de Estudiantes</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">2. Manejo de valores nulos y atípicos</a></li>
-<li class="toctree-l1"><a class="reference internal" href="data_encoding_students.html">3. Convertir variables categóricas a numéricas</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">2. Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_encoding_students.html">3. Codificación de Variables Categóricas a Numéricas</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Calificaciones 2021 - 2022</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="data_build_historic_grades.html">4. Construcción del dataset de calificaciones</a></li>
 </ul>
 
     </div>
@@ -227,6 +231,54 @@
         <div class="header-article-item">
 
 <div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/notebooks/pre_processing/data_imputer_students.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
 
 
 
@@ -276,7 +328,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Manejo de valores nulos y atípicos</h1>
+    <h1>Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -286,21 +338,25 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#analizar-variables-categoricas">2.1. Analizar variables categóricas</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#estrato">2.1.1. Estrato</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tipo-de-vivienda">2.1.2. Tipo de vivienda</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interes-en-estudios-superiores">2.1.3. Interés en estudios superiores</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#composicion-familiar">2.1.4. Composición familiar</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#actividades-extracurriculares">2.1.5. Actividades extracurriculares</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#proyeccion-vocacional">2.1.6. Proyección vocacional</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eliminacion-de-variables-no-utiles">2.1. Eliminación de Variables No Útiles</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#imputacion-de-valores-faltantes">2.2. Imputación de Valores Faltantes</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#variables-categoricas">2.2.1. Variables Categóricas</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#estrato">2.2.1.1. Estrato</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tipo-de-vivienda">2.2.1.2. Tipo de vivienda</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#interes-en-estudios-superiores">2.2.1.3. Interés en estudios superiores</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#composicion-familiar">2.2.1.4. Composición familiar</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#actividades-extracurriculares">2.2.1.5. Actividades extracurriculares</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#proyeccion-vocacional">2.2.1.6. Proyección vocacional</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#analizar-variables-numericas">2.2. Analizar variables numéricas</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#horas-de-estudio-en-casa">2.2.1. Horas de estudio en casa</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#numero-de-hermanos">2.2.2. Número de hermanos</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#variables-numericas">2.2.2. Variables Numéricas</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#horas-de-estudio-en-casa">2.2.2.1. Horas de estudio en casa</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#numero-de-hermanos">2.2.2.2. Número de hermanos</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#manejo-de-valores-atipicos">2.3. Manejo de valores atípicos</a><ul class="nav section-nav flex-column">
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deteccion-y-manejo-de-valores-atipicos">2.3. Detección y Manejo de Valores Atípicos</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">2.3.1. Horas de estudio en casa</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">2.3.2. Número de hermanos</a></li>
 </ul>
@@ -317,8 +373,9 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="manejo-de-valores-nulos-y-atipicos">
-<h1><span class="section-number">2. </span>Manejo de valores nulos y atípicos<a class="headerlink" href="#manejo-de-valores-nulos-y-atipicos" title="Link to this heading">#</a></h1>
+  <section class="tex2jax_ignore mathjax_ignore" id="manejo-de-valores-nulos-y-atipicos-en-el-dataset-de-estudiantes">
+<h1><span class="section-number">2. </span>Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes<a class="headerlink" href="#manejo-de-valores-nulos-y-atipicos-en-el-dataset-de-estudiantes" title="Link to this heading">#</a></h1>
+<p>Este notebook documenta el proceso de <strong>imputación de valores faltantes</strong> y el <strong>tratamiento de datos atípicos</strong> en el conjunto de datos de estudiantes del Colegio Formar Innovar, como paso previo al análisis exploratorio y la modelación predictiva del rendimiento académico.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
@@ -360,7 +417,9 @@ document.write(`
 </body>
 </html></div></div>
 </div>
-<p>Eliminar la columna ‘demuestra_confianza’ porque tiene muy pocos valores llenos</p>
+<section id="eliminacion-de-variables-no-utiles">
+<h2><span class="section-number">2.1. </span>Eliminación de Variables No Útiles<a class="headerlink" href="#eliminacion-de-variables-no-utiles" title="Link to this heading">#</a></h2>
+<p>La variable <code class="docutils literal notranslate"><span class="pre">demuestra_confianza</span></code> fue eliminada debido a su <strong>alta proporción de valores faltantes</strong> (más del 85%). Esta decisión se tomó para evitar sesgos y problemas en los modelos posteriores.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;demuestra_confianza&#39;</span><span class="p">])</span>
@@ -368,8 +427,12 @@ document.write(`
 </div>
 </div>
 </div>
-<section id="analizar-variables-categoricas">
-<h2><span class="section-number">2.1. </span>Analizar variables categóricas<a class="headerlink" href="#analizar-variables-categoricas" title="Link to this heading">#</a></h2>
+</section>
+<section id="imputacion-de-valores-faltantes">
+<h2><span class="section-number">2.2. </span>Imputación de Valores Faltantes<a class="headerlink" href="#imputacion-de-valores-faltantes" title="Link to this heading">#</a></h2>
+<p>La imputación se aplicó según el tipo de variable:</p>
+<section id="variables-categoricas">
+<h3><span class="section-number">2.2.1. </span>Variables Categóricas<a class="headerlink" href="#variables-categoricas" title="Link to this heading">#</a></h3>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cols_categoricas</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;estrato&#39;</span><span class="p">,</span> <span class="s1">&#39;tipo_vivienda&#39;</span><span class="p">,</span> <span class="s1">&#39;interés_estudios_superiores&#39;</span><span class="p">,</span> <span class="s1">&#39;familia&#39;</span><span class="p">,</span> <span class="s1">&#39;actividades_extracurriculares&#39;</span><span class="p">,</span> <span class="s1">&#39;proyección_vocacional&#39;</span><span class="p">]</span>
@@ -378,7 +441,7 @@ document.write(`
 </div>
 </div>
 <section id="estrato">
-<h3><span class="section-number">2.1.1. </span>Estrato<a class="headerlink" href="#estrato" title="Link to this heading">#</a></h3>
+<h4><span class="section-number">2.2.1.1. </span>Estrato<a class="headerlink" href="#estrato" title="Link to this heading">#</a></h4>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">eda</span><span class="o">.</span><span class="n">plot_single_barplot</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s1">&#39;estrato&#39;</span><span class="p">)</span>
@@ -403,7 +466,7 @@ document.write(`
 </div>
 </section>
 <section id="tipo-de-vivienda">
-<h3><span class="section-number">2.1.2. </span>Tipo de vivienda<a class="headerlink" href="#tipo-de-vivienda" title="Link to this heading">#</a></h3>
+<h4><span class="section-number">2.2.1.2. </span>Tipo de vivienda<a class="headerlink" href="#tipo-de-vivienda" title="Link to this heading">#</a></h4>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">eda</span><span class="o">.</span><span class="n">plot_single_barplot</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s1">&#39;tipo_vivienda&#39;</span><span class="p">)</span>
@@ -428,7 +491,7 @@ document.write(`
 </div>
 </section>
 <section id="interes-en-estudios-superiores">
-<h3><span class="section-number">2.1.3. </span>Interés en estudios superiores<a class="headerlink" href="#interes-en-estudios-superiores" title="Link to this heading">#</a></h3>
+<h4><span class="section-number">2.2.1.3. </span>Interés en estudios superiores<a class="headerlink" href="#interes-en-estudios-superiores" title="Link to this heading">#</a></h4>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">eda</span><span class="o">.</span><span class="n">plot_single_barplot</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s1">&#39;interés_estudios_superiores&#39;</span><span class="p">)</span>
@@ -453,7 +516,7 @@ document.write(`
 </div>
 </section>
 <section id="composicion-familiar">
-<h3><span class="section-number">2.1.4. </span>Composición familiar<a class="headerlink" href="#composicion-familiar" title="Link to this heading">#</a></h3>
+<h4><span class="section-number">2.2.1.4. </span>Composición familiar<a class="headerlink" href="#composicion-familiar" title="Link to this heading">#</a></h4>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">eda</span><span class="o">.</span><span class="n">plot_single_barplot</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s1">&#39;familia&#39;</span><span class="p">)</span>
@@ -478,7 +541,7 @@ document.write(`
 </div>
 </section>
 <section id="actividades-extracurriculares">
-<h3><span class="section-number">2.1.5. </span>Actividades extracurriculares<a class="headerlink" href="#actividades-extracurriculares" title="Link to this heading">#</a></h3>
+<h4><span class="section-number">2.2.1.5. </span>Actividades extracurriculares<a class="headerlink" href="#actividades-extracurriculares" title="Link to this heading">#</a></h4>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">eda</span><span class="o">.</span><span class="n">plot_single_barplot</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s1">&#39;actividades_extracurriculares&#39;</span><span class="p">)</span>
@@ -503,7 +566,7 @@ document.write(`
 </div>
 </section>
 <section id="proyeccion-vocacional">
-<h3><span class="section-number">2.1.6. </span>Proyección vocacional<a class="headerlink" href="#proyeccion-vocacional" title="Link to this heading">#</a></h3>
+<h4><span class="section-number">2.2.1.6. </span>Proyección vocacional<a class="headerlink" href="#proyeccion-vocacional" title="Link to this heading">#</a></h4>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">eda</span><span class="o">.</span><span class="n">plot_single_barplot</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s1">&#39;proyección_vocacional&#39;</span><span class="p">)</span>
@@ -528,8 +591,8 @@ document.write(`
 </div>
 </section>
 </section>
-<section id="analizar-variables-numericas">
-<h2><span class="section-number">2.2. </span>Analizar variables numéricas<a class="headerlink" href="#analizar-variables-numericas" title="Link to this heading">#</a></h2>
+<section id="variables-numericas">
+<h3><span class="section-number">2.2.2. </span>Variables Numéricas<a class="headerlink" href="#variables-numericas" title="Link to this heading">#</a></h3>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">variables_numericas</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;horas_semana_estudio_casa&#39;</span><span class="p">,</span> <span class="s1">&#39;total_hermanos&#39;</span><span class="p">]</span>
@@ -643,7 +706,7 @@ document.write(`
 </html></div></div>
 </div>
 <section id="horas-de-estudio-en-casa">
-<h3><span class="section-number">2.2.1. </span>Horas de estudio en casa<a class="headerlink" href="#horas-de-estudio-en-casa" title="Link to this heading">#</a></h3>
+<h4><span class="section-number">2.2.2.1. </span>Horas de estudio en casa<a class="headerlink" href="#horas-de-estudio-en-casa" title="Link to this heading">#</a></h4>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Llenamos los valores nulos con la media</span>
@@ -654,7 +717,7 @@ document.write(`
 </div>
 </section>
 <section id="numero-de-hermanos">
-<h3><span class="section-number">2.2.2. </span>Número de hermanos<a class="headerlink" href="#numero-de-hermanos" title="Link to this heading">#</a></h3>
+<h4><span class="section-number">2.2.2.2. </span>Número de hermanos<a class="headerlink" href="#numero-de-hermanos" title="Link to this heading">#</a></h4>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Llenamos los valores nulos con la mediana</span>
@@ -665,8 +728,9 @@ document.write(`
 </div>
 </section>
 </section>
-<section id="manejo-de-valores-atipicos">
-<h2><span class="section-number">2.3. </span>Manejo de valores atípicos<a class="headerlink" href="#manejo-de-valores-atipicos" title="Link to this heading">#</a></h2>
+</section>
+<section id="deteccion-y-manejo-de-valores-atipicos">
+<h2><span class="section-number">2.3. </span>Detección y Manejo de Valores Atípicos<a class="headerlink" href="#deteccion-y-manejo-de-valores-atipicos" title="Link to this heading">#</a></h2>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cols_to_search</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ID&#39;</span><span class="p">,</span><span class="s1">&#39;sede&#39;</span><span class="p">,</span> <span class="s1">&#39;nivel&#39;</span><span class="p">,</span> <span class="s1">&#39;grado&#39;</span><span class="p">,</span> <span class="s1">&#39;orden_grado&#39;</span><span class="p">,</span> <span class="s1">&#39;año_ingreso&#39;</span><span class="p">,</span> <span class="s1">&#39;género&#39;</span><span class="p">,</span> <span class="s1">&#39;documento_identificación&#39;</span><span class="p">,</span> <span class="s1">&#39;primer_apellido&#39;</span><span class="p">,</span> <span class="s1">&#39;segundo_apellido&#39;</span><span class="p">,</span> <span class="s1">&#39;nombres&#39;</span><span class="p">,</span> <span class="s1">&#39;fecha_nacimiento&#39;</span><span class="p">,</span> <span class="s1">&#39;dirección&#39;</span><span class="p">,</span> <span class="s1">&#39;valoración_emocional&#39;</span><span class="p">]]</span>
@@ -859,7 +923,8 @@ document.write(`
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Guardamos el dataframe limpio</span>
-<span class="n">df_imputed</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;../../data/raw/Estudiantes_imputed.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">project_root</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;raw&#39;</span><span class="p">,</span> <span class="s1">&#39;Estudiantes_imputed.csv&#39;</span><span class="p">)</span>
+<span class="n">df_imputed</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -911,7 +976,7 @@ document.write(`
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">3. </span>Convertir variables categóricas a numéricas</p>
+        <p class="prev-next-title"><span class="section-number">3. </span>Codificación de Variables Categóricas a Numéricas</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -931,21 +996,25 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#analizar-variables-categoricas">2.1. Analizar variables categóricas</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#estrato">2.1.1. Estrato</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tipo-de-vivienda">2.1.2. Tipo de vivienda</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interes-en-estudios-superiores">2.1.3. Interés en estudios superiores</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#composicion-familiar">2.1.4. Composición familiar</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#actividades-extracurriculares">2.1.5. Actividades extracurriculares</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#proyeccion-vocacional">2.1.6. Proyección vocacional</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eliminacion-de-variables-no-utiles">2.1. Eliminación de Variables No Útiles</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#imputacion-de-valores-faltantes">2.2. Imputación de Valores Faltantes</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#variables-categoricas">2.2.1. Variables Categóricas</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#estrato">2.2.1.1. Estrato</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tipo-de-vivienda">2.2.1.2. Tipo de vivienda</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#interes-en-estudios-superiores">2.2.1.3. Interés en estudios superiores</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#composicion-familiar">2.2.1.4. Composición familiar</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#actividades-extracurriculares">2.2.1.5. Actividades extracurriculares</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#proyeccion-vocacional">2.2.1.6. Proyección vocacional</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#analizar-variables-numericas">2.2. Analizar variables numéricas</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#horas-de-estudio-en-casa">2.2.1. Horas de estudio en casa</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#numero-de-hermanos">2.2.2. Número de hermanos</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#variables-numericas">2.2.2. Variables Numéricas</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#horas-de-estudio-en-casa">2.2.2.1. Horas de estudio en casa</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#numero-de-hermanos">2.2.2.2. Número de hermanos</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#manejo-de-valores-atipicos">2.3. Manejo de valores atípicos</a><ul class="nav section-nav flex-column">
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deteccion-y-manejo-de-valores-atipicos">2.3. Detección y Manejo de Valores Atípicos</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">2.3.1. Horas de estudio en casa</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">2.3.2. Número de hermanos</a></li>
 </ul>

@@ -7,3 +7,8 @@ parts:
     - file: notebooks/pre_processing/data_cleaning_students
     - file: notebooks/pre_processing/data_imputer_students
     - file: notebooks/pre_processing/data_encoding_students
+
+- caption: Calificaciones 2021 - 2022
+  numbered: true
+  chapters:
+    - file: notebooks/pre_processing/data_build_historic_grades
