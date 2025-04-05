@@ -62,8 +62,8 @@
     <link rel="icon" href="../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="2. Manejo de valores nulos y atípicos" href="data_imputer_students.html" />
-    <link rel="prev" title="Predicción del bajo rendimiento académico" href="../../intro.html" />
+    <link rel="next" title="2. Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes" href="data_imputer_students.html" />
+    <link rel="prev" title="Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico" href="../../intro.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -177,15 +177,19 @@
         <ul class="nav bd-sidenav bd-sidenav__home-link">
             <li class="toctree-l1">
                 <a class="reference internal" href="../../intro.html">
-                    Predicción del bajo rendimiento académico
+                    Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico
                 </a>
             </li>
         </ul>
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Procesamiento del conjunto de datos Estudiantes</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">1. Limpieza y Transformación del Dataset de Estudiantes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="data_imputer_students.html">2. Manejo de valores nulos y atípicos</a></li>
-<li class="toctree-l1"><a class="reference internal" href="data_encoding_students.html">3. Convertir variables categóricas a numéricas</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_imputer_students.html">2. Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_encoding_students.html">3. Codificación de Variables Categóricas a Numéricas</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Calificaciones 2021 - 2022</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="data_build_historic_grades.html">4. Construcción del dataset de calificaciones</a></li>
 </ul>
 
     </div>
@@ -227,6 +231,54 @@
         <div class="header-article-item">
 
 <div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/notebooks/pre_processing/data_cleaning_students.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
 
 
 
@@ -305,6 +357,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#familia">1.3.14. Familia</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guardar-el-archivo">1.4. Guardar el archivo</a></li>
 </ul>
             </nav>
         </div>
@@ -318,9 +371,11 @@ document.write(`
                   
   <section class="tex2jax_ignore mathjax_ignore" id="limpieza-y-transformacion-del-dataset-de-estudiantes">
 <h1><span class="section-number">1. </span>Limpieza y Transformación del Dataset de Estudiantes<a class="headerlink" href="#limpieza-y-transformacion-del-dataset-de-estudiantes" title="Link to this heading">#</a></h1>
-<p>En este notebook se trabaja la limpieza de datos y categorización para dejar valores estándar en las variables categóricas, debido a los datos con valores tan variados.</p>
+<p>Este notebook describe el proceso de limpieza y transformación del dataset de estudiantes.</p>
+<p>El objetivo es garantizar que los datos sean <strong>consistentes, estandarizados, anónimos y útiles</strong> para el análisis posterior y la construcción de modelos de machine learning.</p>
 <section id="descripcion-del-dataset">
 <h2><span class="section-number">1.1. </span>Descripción del Dataset<a class="headerlink" href="#descripcion-del-dataset" title="Link to this heading">#</a></h2>
+<p>El conjunto de datos original incluye información académica, demográfica y emocional de los estudiantes matriculados en las sedes <strong>Girardot</strong> y <strong>Fusagasugá</strong> en 2024 y 2025.</p>
 <ol class="arabic simple">
 <li><p><strong>id</strong>: <em>Identificador único del estudiante en el dataset. Es es nombre completo del estudiante sin espacios concatenado con la sede. Útil para la únion de datos que no contienen el documento de identidad.</em></p></li>
 <li><p><strong>sede</strong>: <em>Sede educativa a la que pertenece el estudiante. Girardot o Fusagasugá</em></p></li>
@@ -529,6 +584,13 @@ nivel_motivación: 12 valores únicos
 </section>
 <section id="anonimizacion-de-los-datos">
 <h2><span class="section-number">1.2. </span>Anonimización de los datos<a class="headerlink" href="#anonimizacion-de-los-datos" title="Link to this heading">#</a></h2>
+<p>Se aplicó <strong>hashing seguro</strong> a las variables sensibles:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">documento_identificación</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nombres</span></code>, <code class="docutils literal notranslate"><span class="pre">primer_apellido</span></code>, <code class="docutils literal notranslate"><span class="pre">segundo_apellido</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ID</span></code> (identificador único basado en nombre y sede)</p></li>
+</ul>
+<p>Estas columnas fueron eliminadas posteriormente para preservar la privacidad de los estudiantes.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Aplicar hashing al documento de identificación y eliminar la columna original</span>
@@ -546,6 +608,27 @@ nivel_motivación: 12 valores únicos
 </section>
 <section id="limpieza-del-texto">
 <h2><span class="section-number">1.3. </span>Limpieza del texto<a class="headerlink" href="#limpieza-del-texto" title="Link to this heading">#</a></h2>
+<p>Muchas variables contenían valores escritos con inconsistencias, como diferencias en mayúsculas/minúsculas, espacios adicionales o errores tipográficos.</p>
+<blockquote>
+<div><p><strong>Estandarizar</strong>, en este contexto, significa <strong>reducir la variabilidad en los valores categóricos para que se limiten a un conjunto definido de opciones válidas</strong>. Esto es esencial para asegurar consistencia en el análisis y evitar que categorías mal escritas sean tratadas como distintas.</p>
+</div></blockquote>
+<p>Ejemplos:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tipo_vivienda</span></code>:<br />
+De: <code class="docutils literal notranslate"><span class="pre">&quot;Propia&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;propia&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;</span> <span class="pre">Propia&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;propia</span> <span class="pre">&quot;</span></code><br />
+A: <code class="docutils literal notranslate"><span class="pre">&quot;Propia&quot;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zona_vivienda</span></code>:<br />
+De: <code class="docutils literal notranslate"><span class="pre">&quot;Urbana&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;URBANA&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;urbano&quot;</span></code><br />
+A: <code class="docutils literal notranslate"><span class="pre">&quot;Urbana&quot;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">interés_estudios_superiores</span></code>:<br />
+De: <code class="docutils literal notranslate"><span class="pre">&quot;alto&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;ALTO&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;Alto</span> <span class="pre">&quot;</span></code><br />
+A: <code class="docutils literal notranslate"><span class="pre">&quot;Alto&quot;</span></code></p></li>
+</ul>
+<p>También se agruparon categorías altamente dispersas para facilitar su análisis:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">proyección_vocacional</span></code> → agrupada en 9 macroáreas (STEM, Arte, Salud, etc.)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">actividades_extracurriculares</span></code> → clasificadas en 9 categorías generales</p></li>
+</ul>
 <section id="estandarizar-antiguedad">
 <h3><span class="section-number">1.3.1. </span>Estandarizar Antigüedad<a class="headerlink" href="#estandarizar-antiguedad" title="Link to this heading">#</a></h3>
 <div class="cell docutils container">
@@ -1226,15 +1309,19 @@ dtype: int64
 </body>
 </html></div></div>
 </div>
-<p>Guardar el archivo</p>
+</section>
+</section>
+<section id="guardar-el-archivo">
+<h2><span class="section-number">1.4. </span>Guardar el archivo<a class="headerlink" href="#guardar-el-archivo" title="Link to this heading">#</a></h2>
+<p>Este archivo está listo para las siguientes fases del proyecto: <strong>imputación de datos</strong>, <strong>codificación</strong>, y <strong>análisis exploratorio</strong>.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;../../data/raw/Estudiantes_clean.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">project_root</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;raw&#39;</span><span class="p">,</span> <span class="s1">&#39;Estudiantes_clean.csv&#39;</span><span class="p">)</span>
+<span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 </div>
-</section>
 </section>
 </section>
 
@@ -1274,7 +1361,7 @@ dtype: int64
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Predicción del bajo rendimiento académico</p>
+        <p class="prev-next-title">Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico</p>
       </div>
     </a>
     <a class="right-next"
@@ -1282,7 +1369,7 @@ dtype: int64
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">2. </span>Manejo de valores nulos y atípicos</p>
+        <p class="prev-next-title"><span class="section-number">2. </span>Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1321,6 +1408,7 @@ dtype: int64
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#familia">1.3.14. Familia</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guardar-el-archivo">1.4. Guardar el archivo</a></li>
 </ul>
   </nav></div>
 

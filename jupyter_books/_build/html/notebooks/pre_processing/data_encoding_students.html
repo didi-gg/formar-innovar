@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>3. Convertir variables categóricas a numéricas &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
+    <title>3. Codificación de Variables Categóricas a Numéricas &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
   
   
   
@@ -62,7 +62,8 @@
     <link rel="icon" href="../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="prev" title="2. Manejo de valores nulos y atípicos" href="data_imputer_students.html" />
+    <link rel="next" title="4. Construcción del dataset de calificaciones" href="data_build_historic_grades.html" />
+    <link rel="prev" title="2. Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes" href="data_imputer_students.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -176,15 +177,19 @@
         <ul class="nav bd-sidenav bd-sidenav__home-link">
             <li class="toctree-l1">
                 <a class="reference internal" href="../../intro.html">
-                    Predicción del bajo rendimiento académico
+                    Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico
                 </a>
             </li>
         </ul>
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Procesamiento del conjunto de datos Estudiantes</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="data_cleaning_students.html">1. Limpieza y Transformación del Dataset de Estudiantes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="data_imputer_students.html">2. Manejo de valores nulos y atípicos</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">3. Convertir variables categóricas a numéricas</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_imputer_students.html">2. Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">3. Codificación de Variables Categóricas a Numéricas</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Calificaciones 2021 - 2022</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="data_build_historic_grades.html">4. Construcción del dataset de calificaciones</a></li>
 </ul>
 
     </div>
@@ -226,6 +231,54 @@
         <div class="header-article-item">
 
 <div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/notebooks/pre_processing/data_encoding_students.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
 
 
 
@@ -275,7 +328,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Convertir variables categóricas a numéricas</h1>
+    <h1>Codificación de Variables Categóricas a Numéricas</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -285,7 +338,7 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mapear-variables-con-categorias-alto-medio-bajo-a-1-2-3">3.1. Mapear variables con categorías: Alto - Medio - Bajo a 1,2,3</a><ul class="nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mapeo-de-variables-ordinales-alto-medio-bajo">3.1. Mapeo de Variables Ordinales: “Alto - Medio - Bajo”</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interes-estudios-superiores">3.1.1. Interés estudios superiores</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nivel-de-motivacion">3.1.2. Nivel de motivación</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#apoyo-familiar">3.1.3. Apoyo familiar</a></li>
@@ -296,7 +349,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ano-ingreso">3.2.1. Año Ingreso</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#codificacion-binaria">3.3. Codificación binaria</a><ul class="nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#codificacion-binaria-de-variables-nominales">3.3. Codificación Binaria de Variables Nominales</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pais-de-origen">3.3.1. País de origen</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tipo-de-vivienda">3.3.2. Tipo de vivienda</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#zona-vivienda">3.3.3. Zona vivienda</a></li>
@@ -311,6 +364,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#actividades-extrcurriculares">3.3.12. Actividades Extrcurrículares</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guardado-del-dataset-codificado">3.4. Guardado del Dataset Codificado</a></li>
 </ul>
             </nav>
         </div>
@@ -322,8 +376,9 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="convertir-variables-categoricas-a-numericas">
-<h1><span class="section-number">3. </span>Convertir variables categóricas a numéricas<a class="headerlink" href="#convertir-variables-categoricas-a-numericas" title="Link to this heading">#</a></h1>
+  <section class="tex2jax_ignore mathjax_ignore" id="codificacion-de-variables-categoricas-a-numericas">
+<h1><span class="section-number">3. </span>Codificación de Variables Categóricas a Numéricas<a class="headerlink" href="#codificacion-de-variables-categoricas-a-numericas" title="Link to this heading">#</a></h1>
+<p>Este notebook documenta el proceso de <strong>transformación de variables categóricas</strong> en representaciones numéricas para su uso en algoritmos de machine learning.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
@@ -379,8 +434,9 @@ document.write(`
 </div>
 </div>
 </div>
-<section id="mapear-variables-con-categorias-alto-medio-bajo-a-1-2-3">
-<h2><span class="section-number">3.1. </span>Mapear variables con categorías: Alto - Medio - Bajo a 1,2,3<a class="headerlink" href="#mapear-variables-con-categorias-alto-medio-bajo-a-1-2-3" title="Link to this heading">#</a></h2>
+<section id="mapeo-de-variables-ordinales-alto-medio-bajo">
+<h2><span class="section-number">3.1. </span>Mapeo de Variables Ordinales: “Alto - Medio - Bajo”<a class="headerlink" href="#mapeo-de-variables-ordinales-alto-medio-bajo" title="Link to this heading">#</a></h2>
+<p>Se identificaron variables en las que las categorías tienen un <strong>orden implícito</strong>, por ejemplo: “Alto”, “Medio”, “Bajo”. En estos casos se utilizó <strong>codificación por pesos ordinales</strong>, asignando valores 1, 2 y 3 respectivamente.</p>
 <section id="interes-estudios-superiores">
 <h3><span class="section-number">3.1.1. </span>Interés estudios superiores<a class="headerlink" href="#interes-estudios-superiores" title="Link to this heading">#</a></h3>
 <div class="cell docutils container">
@@ -880,8 +936,9 @@ document.write(`
 </div>
 </section>
 </section>
-<section id="codificacion-binaria">
-<h2><span class="section-number">3.3. </span>Codificación binaria<a class="headerlink" href="#codificacion-binaria" title="Link to this heading">#</a></h2>
+<section id="codificacion-binaria-de-variables-nominales">
+<h2><span class="section-number">3.3. </span>Codificación Binaria de Variables Nominales<a class="headerlink" href="#codificacion-binaria-de-variables-nominales" title="Link to this heading">#</a></h2>
+<p>Se aplicó codificación binaria a variables sin orden inherente, convirtiéndolas en valores 0 y 1</p>
 <section id="pais-de-origen">
 <h3><span class="section-number">3.3.1. </span>País de origen<a class="headerlink" href="#pais-de-origen" title="Link to this heading">#</a></h3>
 <div class="cell docutils container">
@@ -968,6 +1025,18 @@ document.write(`
 <h3><span class="section-number">3.3.12. </span>Actividades Extrcurrículares<a class="headerlink" href="#actividades-extrcurriculares" title="Link to this heading">#</a></h3>
 </section>
 </section>
+<section id="guardado-del-dataset-codificado">
+<h2><span class="section-number">3.4. </span>Guardado del Dataset Codificado<a class="headerlink" href="#guardado-del-dataset-codificado" title="Link to this heading">#</a></h2>
+<p>Este dataset ya está listo para su uso en la fase de análisis exploratorio multivariable y entrenamiento de modelos predictivos.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">project_root</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;processed&#39;</span><span class="p">,</span> <span class="s1">&#39;Estudiantes_imputed_encoded.csv&#39;</span><span class="p">)</span>
+<span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
 </section>
 
     <script type="text/x-thebe-config">
@@ -1006,8 +1075,17 @@ document.write(`
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">2. </span>Manejo de valores nulos y atípicos</p>
+        <p class="prev-next-title"><span class="section-number">2. </span>Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes</p>
       </div>
+    </a>
+    <a class="right-next"
+       href="data_build_historic_grades.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">4. </span>Construcción del dataset de calificaciones</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
     </a>
 </div>
                 </footer>
@@ -1025,7 +1103,7 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mapear-variables-con-categorias-alto-medio-bajo-a-1-2-3">3.1. Mapear variables con categorías: Alto - Medio - Bajo a 1,2,3</a><ul class="nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mapeo-de-variables-ordinales-alto-medio-bajo">3.1. Mapeo de Variables Ordinales: “Alto - Medio - Bajo”</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#interes-estudios-superiores">3.1.1. Interés estudios superiores</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nivel-de-motivacion">3.1.2. Nivel de motivación</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#apoyo-familiar">3.1.3. Apoyo familiar</a></li>
@@ -1036,7 +1114,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ano-ingreso">3.2.1. Año Ingreso</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#codificacion-binaria">3.3. Codificación binaria</a><ul class="nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#codificacion-binaria-de-variables-nominales">3.3. Codificación Binaria de Variables Nominales</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pais-de-origen">3.3.1. País de origen</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tipo-de-vivienda">3.3.2. Tipo de vivienda</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#zona-vivienda">3.3.3. Zona vivienda</a></li>
@@ -1051,6 +1129,7 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#actividades-extrcurriculares">3.3.12. Actividades Extrcurrículares</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guardado-del-dataset-codificado">3.4. Guardado del Dataset Codificado</a></li>
 </ul>
   </nav></div>
 

@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Predicción del bajo rendimiento académico &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
+    <title>Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
   
   
   
@@ -178,15 +178,19 @@
         <ul class="nav bd-sidenav bd-sidenav__home-link">
             <li class="toctree-l1 current active">
                 <a class="reference internal" href="#">
-                    Predicción del bajo rendimiento académico
+                    Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico
                 </a>
             </li>
         </ul>
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Procesamiento del conjunto de datos Estudiantes</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="notebooks/pre_processing/data_cleaning_students.html">1. Limpieza y Transformación del Dataset de Estudiantes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/pre_processing/data_imputer_students.html">2. Manejo de valores nulos y atípicos</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/pre_processing/data_encoding_students.html">3. Convertir variables categóricas a numéricas</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/pre_processing/data_imputer_students.html">2. Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/pre_processing/data_encoding_students.html">3. Codificación de Variables Categóricas a Numéricas</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Calificaciones 2021 - 2022</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="notebooks/pre_processing/data_build_historic_grades.html">4. Construcción del dataset de calificaciones</a></li>
 </ul>
 
     </div>
@@ -231,6 +235,54 @@
 
 
 
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/intro.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
 <button onclick="toggleFullScreen()"
   class="btn btn-sm btn-fullscreen-button"
   title="Fullscreen mode"
@@ -264,7 +316,9 @@ document.write(`
   </button>
 `);
 </script>
-
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
 </div></div>
       
     </div>
@@ -275,11 +329,22 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Predicción del bajo rendimiento académico</h1>
+    <h1>Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
             
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objetivo-del-proyecto">Objetivo del Proyecto</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contenido-del-sitio">Contenido del sitio</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sobre-el-colegio">Sobre el Colegio</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#autoras">Autoras</a></li>
+</ul>
+            </nav>
         </div>
     </div>
 </div>
@@ -289,9 +354,61 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="prediccion-del-bajo-rendimiento-academico">
-<h1>Predicción del bajo rendimiento académico<a class="headerlink" href="#prediccion-del-bajo-rendimiento-academico" title="Link to this heading">#</a></h1>
-<p>Este libro documenta el proyecto de grado, mostrando todo el proceso desde el análisis de datos hasta el modelado con machine learning.</p>
+  <section class="tex2jax_ignore mathjax_ignore" id="evaluacion-de-modelos-de-machine-learning-para-la-identificcacion-de-estudiantes-con-bajo-rendimiento-academico">
+<h1>Evaluación de modelos de machine learning para la identificcación de estudiantes con bajo rendimiento académico<a class="headerlink" href="#evaluacion-de-modelos-de-machine-learning-para-la-identificcacion-de-estudiantes-con-bajo-rendimiento-academico" title="Link to this heading">#</a></h1>
+<p>Este sitio documenta el desarrollo de un proyecto de analítica educativa realizado en el colegio <strong>Formar Innovar</strong>, con el propósito de identificar estudiantes que presentan <strong>bajo rendimiento académico</strong>, mediante el uso de técnicas de <strong>minería de datos educativa (EDM)</strong> y <strong>machine learning</strong>.</p>
+<p>El proyecto se enmarca dentro de los principios de la <strong>educación integral e innovadora</strong> promovida por el colegio, y se articula con su modelo pedagógico basado en:</p>
+<ul class="simple">
+<li><p>Autodidactismo por metacognición</p></li>
+<li><p>Pedagogía por proyectos</p></li>
+<li><p>Formación para la salud física y mental</p></li>
+</ul>
+<hr class="docutils" />
+<section id="objetivo-del-proyecto">
+<h2>Objetivo del Proyecto<a class="headerlink" href="#objetivo-del-proyecto" title="Link to this heading">#</a></h2>
+<blockquote>
+<div><p>Evaluar diversas técnicas de machine learning para la identificación de estudiantes con bajo rendimiento académico en el Colegio FICC con el fin de seleccionar el mejor modelo predictivo que permita implementar intervenciones personalizadas y oportunas que contribuyan al mejoramiento de su desempeño académico</p>
+</div></blockquote>
+</section>
+<hr class="docutils" />
+<section id="contenido-del-sitio">
+<h2>Contenido del sitio<a class="headerlink" href="#contenido-del-sitio" title="Link to this heading">#</a></h2>
+<p>Este sitio está organizado en las siguientes secciones:</p>
+<ol class="arabic simple">
+<li><p><strong>Introducción del Proyecto</strong><br />
+Contexto, motivación y justificación del problema.</p></li>
+<li><p><strong>Descripción de los Datos</strong><br />
+Información sobre las fuentes y tipos de datos utilizados: estudiantes, plataforma Moodle y calificaciones.</p></li>
+<li><p><strong>Preprocesamiento de Datos</strong><br />
+Limpieza, transformación e integración de los datos.</p></li>
+<li><p><strong>Visualización y Análisis Exploratorio</strong><br />
+Análisis descriptivo y visualizaciones para entender los patrones subyacentes.</p></li>
+<li><p><strong>Ingeniería de Características</strong><br />
+Preparación de variables.</p></li>
+<li><p><strong>Modelado Predictivoo</strong><br />
+Entrenamiento de modelos y selección del mejor algoritmo.</p></li>
+<li><p><strong>Conclusiones y Recomendaciones</strong><br />
+Hallazgos principales, impactos esperados y proyecciones futuras.</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="sobre-el-colegio">
+<h2>Sobre el Colegio<a class="headerlink" href="#sobre-el-colegio" title="Link to this heading">#</a></h2>
+<p><strong>FICC Formar Innovar Colegio Campestre</strong> es una institución educativa colombiana que apuesta por la transformación pedagógica y la innovación, formando ciudadanos integrales para los desafíos del siglo XXI. Este proyecto refleja su compromiso con la mejora continua y el uso ético e inteligente de los datos educativos.</p>
+</section>
+<hr class="docutils" />
+<section id="autoras">
+<h2>Autoras<a class="headerlink" href="#autoras" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Diana Marcela Gómez Gamez</p></li>
+<li><p>Angie Catherine Ovalle Molina</p></li>
+</ul>
+<p>Maestría en Analítica Aplicada<br />
+Universidad de La Sabana, 2025</p>
+</section>
+<hr class="docutils" />
+<div class="toctree-wrapper compound">
+</div>
 <div class="toctree-wrapper compound">
 </div>
 </section>
@@ -341,6 +458,24 @@ document.write(`
             </div>
             
             
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objetivo-del-proyecto">Objetivo del Proyecto</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contenido-del-sitio">Contenido del sitio</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sobre-el-colegio">Sobre el Colegio</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#autoras">Autoras</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
               
             
           </div>
