@@ -83,28 +83,28 @@ class EnrollmentProcessor:
 
     def process_all_years(self):
         # Procesar 2024
-        students_2024 = pd.read_csv("data/processed/Estudiantes_2024_hashed.csv")
+        students_2024 = pd.read_csv("data/interim/estudiantes/estudiantes_2024_hashed.csv")
         enrollments_2024 = self.create_enrollments_df(
-            parquet_users_path="data/processed/parquets/Users/mdlvf_user.parquet",
-            parquet_user_info_path="data/processed/parquets/Users/mdlvf_user_info_data.parquet",
+            parquet_users_path="data/raw/moodle/2024/Users/mdlvf_user.parquet",
+            parquet_user_info_path="data/raw/moodle/2024/Users/mdlvf_user_info_data.parquet",
             students_df=students_2024,
             year=2024,
             edukrea_users_path=None,
         )
 
         # Procesar 2025
-        students_2025 = pd.read_csv("data/processed/Estudiantes_imputed_encoded.csv")
+        students_2025 = pd.read_csv("data/interim/estudiantes/estudiantes_imputed_encoded.csv")
         enrollments_2025 = self.create_enrollments_df(
-            parquet_users_path="data/processed/parquets_2025/Users/mdlvf_user.parquet",
-            parquet_user_info_path="data/processed/parquets_2025/Users/mdlvf_user_info_data.parquet",
+            parquet_users_path="data/raw/moodle/2025/Users/mdlvf_user.parquet",
+            parquet_user_info_path="data/raw/moodle/2025/Users/mdlvf_user_info_data.parquet",
             students_df=students_2025,
             year=2025,
-            edukrea_users_path="data/processed/Edukrea/Users/mdl_user.parquet",
+            edukrea_users_path="data/raw/moodle/Edukrea/Users/mdl_user.parquet",
         )
         return enrollments_2024, enrollments_2025
 
 
 if __name__ == "__main__":
-    grados_df = pd.read_csv("data/processed/Grados.csv")
+    grados_df = pd.read_csv("data/interim/grados.csv")
     processor = EnrollmentProcessor(grados_df)
     processor.process_all_years()

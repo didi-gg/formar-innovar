@@ -1,0 +1,1 @@
+The purpose of this file is to allow an otherwise empty data directory to be committed to git.
