@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>4. Construcción del dataset de calificaciones &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
+    <title>5. Construcción del dataset de calificaciones &#8212; Predicción del Bajo Rendimiento Académico con datos del colegio FICC</title>
   
   
   
@@ -62,7 +62,7 @@
     <link rel="icon" href="../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="prev" title="3. Codificación de Variables Categóricas a Numéricas" href="data_encoding_students.html" />
+    <link rel="prev" title="4. Creación del dataset para las matrículas de los estudiantes" href="build_enrollments_dataset.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -185,10 +185,11 @@
 <li class="toctree-l1"><a class="reference internal" href="data_cleaning_students.html">1. Limpieza y Transformación del Dataset de Estudiantes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="data_imputer_students.html">2. Manejo de Valores Nulos y Atípicos en el Dataset de Estudiantes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="data_encoding_students.html">3. Codificación de Variables Categóricas a Numéricas</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build_enrollments_dataset.html">4. Creación del dataset para las matrículas de los estudiantes</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Calificaciones 2021 - 2022</span></p>
 <ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">4. Construcción del dataset de calificaciones</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">5. Construcción del dataset de calificaciones</a></li>
 </ul>
 
     </div>
@@ -230,54 +231,6 @@
         <div class="header-article-item">
 
 <div class="article-header-buttons">
-
-
-
-
-
-<div class="dropdown dropdown-download-buttons">
-  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
-    <i class="fas fa-download"></i>
-  </button>
-  <ul class="dropdown-menu">
-      
-      
-      
-      <li><a href="../../_sources/notebooks/pre_processing/data_build_historic_grades.ipynb" target="_blank"
-   class="btn btn-sm btn-download-source-button dropdown-item"
-   title="Download source file"
-   data-bs-placement="left" data-bs-toggle="tooltip"
->
-  
-
-<span class="btn__icon-container">
-  <i class="fas fa-file"></i>
-  </span>
-<span class="btn__text-container">.ipynb</span>
-</a>
-</li>
-      
-      
-      
-      
-      <li>
-<button onclick="window.print()"
-  class="btn btn-sm btn-download-pdf-button dropdown-item"
-  title="Print to PDF"
-  data-bs-placement="left" data-bs-toggle="tooltip"
->
-  
-
-<span class="btn__icon-container">
-  <i class="fas fa-file-pdf"></i>
-  </span>
-<span class="btn__text-container">.pdf</span>
-</button>
-</li>
-      
-  </ul>
-</div>
-
 
 
 
@@ -337,11 +290,11 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anonimizacion-de-los-datos">4.1. Anonimización de los datos</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#comprension-de-la-estructura-original">4.2. Comprensión de la Estructura Original</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transformacion-de-formato-wide-a-long">4.3. Transformación de Formato Wide a Long</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#estructura-final-del-dataset">4.4. Estructura Final del Dataset</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guardado-del-dataset-procesado">4.5. Guardado del Dataset Procesado</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anonimizacion-de-los-datos">5.1. Anonimización de los datos</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#comprension-de-la-estructura-original">5.2. Comprensión de la Estructura Original</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transformacion-de-formato-wide-a-long">5.3. Transformación de Formato Wide a Long</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#estructura-final-del-dataset">5.4. Estructura Final del Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guardado-del-dataset-procesado">5.5. Guardado del Dataset Procesado</a></li>
 </ul>
             </nav>
         </div>
@@ -354,7 +307,7 @@ document.write(`
                 <article class="bd-article">
                   
   <section class="tex2jax_ignore mathjax_ignore" id="construccion-del-dataset-de-calificaciones">
-<h1><span class="section-number">4. </span>Construcción del dataset de calificaciones<a class="headerlink" href="#construccion-del-dataset-de-calificaciones" title="Link to this heading">#</a></h1>
+<h1><span class="section-number">5. </span>Construcción del dataset de calificaciones<a class="headerlink" href="#construccion-del-dataset-de-calificaciones" title="Link to this heading">#</a></h1>
 <p>Este notebook documenta el proceso de transformación de las bases de datos de calificaciones de los años <strong>2021 y 2022</strong> en un formato unificado, estructurado y anonimizado.</p>
 <p>Fusagasugá: 2021 - 2022<br />
 Girardot: 2022</p>
@@ -392,7 +345,7 @@ Girardot: 2022</p>
 </div>
 </div>
 <section id="anonimizacion-de-los-datos">
-<h2><span class="section-number">4.1. </span>Anonimización de los datos<a class="headerlink" href="#anonimizacion-de-los-datos" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.1. </span>Anonimización de los datos<a class="headerlink" href="#anonimizacion-de-los-datos" title="Link to this heading">#</a></h2>
 <p>Para proteger la identidad de los estudiantes, se aplicó <strong>hashing criptográfico estable</strong> a las columnas:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">Identificación</span></code></p></li>
@@ -583,7 +536,7 @@ Girardot: 2022</p>
 </div>
 </section>
 <section id="comprension-de-la-estructura-original">
-<h2><span class="section-number">4.2. </span>Comprensión de la Estructura Original<a class="headerlink" href="#comprension-de-la-estructura-original" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.2. </span>Comprensión de la Estructura Original<a class="headerlink" href="#comprension-de-la-estructura-original" title="Link to this heading">#</a></h2>
 <p>Cada fila de la hoja <code class="docutils literal notranslate"><span class="pre">BD</span></code> contiene múltiples calificaciones para un mismo estudiante y periodo, distribuidas en columnas codificadas por dimensión (ej. <code class="docutils literal notranslate"><span class="pre">Cog_CS</span></code>, <code class="docutils literal notranslate"><span class="pre">Proc_MT</span></code>) donde:</p>
 <ul class="simple">
 <li><p>El prefijo indica la <strong>dimensión evaluativa</strong>:</p>
@@ -626,7 +579,7 @@ Girardot: 2022</p>
 </div>
 </section>
 <section id="transformacion-de-formato-wide-a-long">
-<h2><span class="section-number">4.3. </span>Transformación de Formato Wide a Long<a class="headerlink" href="#transformacion-de-formato-wide-a-long" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.3. </span>Transformación de Formato Wide a Long<a class="headerlink" href="#transformacion-de-formato-wide-a-long" title="Link to this heading">#</a></h2>
 <p>Convertimos la estructura wide en <strong>formato long</strong>, donde cada fila representa una calificación por estudiante, asignatura y dimensión evaluativa:</p>
 <ul class="simple">
 <li><p>Se identificaron todas las asignaturas presentes mediante análisis de sufijos.</p></li>
@@ -885,7 +838,7 @@ Girardot: 2022</p>
 </div>
 </section>
 <section id="estructura-final-del-dataset">
-<h2><span class="section-number">4.4. </span>Estructura Final del Dataset<a class="headerlink" href="#estructura-final-del-dataset" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.4. </span>Estructura Final del Dataset<a class="headerlink" href="#estructura-final-del-dataset" title="Link to this heading">#</a></h2>
 <p>Columnas del dataset transformado:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">Sede</span></code>, <code class="docutils literal notranslate"><span class="pre">Año</span></code>, <code class="docutils literal notranslate"><span class="pre">Periodo</span></code>, <code class="docutils literal notranslate"><span class="pre">Grado</span></code>, <code class="docutils literal notranslate"><span class="pre">Identificación</span></code>, <code class="docutils literal notranslate"><span class="pre">Estudiante</span></code></p></li>
@@ -1122,7 +1075,7 @@ Girardot: 2022</p>
 </div>
 </section>
 <section id="guardado-del-dataset-procesado">
-<h2><span class="section-number">4.5. </span>Guardado del Dataset Procesado<a class="headerlink" href="#guardado-del-dataset-procesado" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.5. </span>Guardado del Dataset Procesado<a class="headerlink" href="#guardado-del-dataset-procesado" title="Link to this heading">#</a></h2>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Guardar el DataFrame en un archivo CSV</span>
@@ -1166,12 +1119,12 @@ Girardot: 2022</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="data_encoding_students.html"
+       href="build_enrollments_dataset.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">3. </span>Codificación de Variables Categóricas a Numéricas</p>
+        <p class="prev-next-title"><span class="section-number">4. </span>Creación del dataset para las matrículas de los estudiantes</p>
       </div>
     </a>
 </div>
@@ -1190,11 +1143,11 @@ Girardot: 2022</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anonimizacion-de-los-datos">4.1. Anonimización de los datos</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#comprension-de-la-estructura-original">4.2. Comprensión de la Estructura Original</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transformacion-de-formato-wide-a-long">4.3. Transformación de Formato Wide a Long</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#estructura-final-del-dataset">4.4. Estructura Final del Dataset</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guardado-del-dataset-procesado">4.5. Guardado del Dataset Procesado</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anonimizacion-de-los-datos">5.1. Anonimización de los datos</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#comprension-de-la-estructura-original">5.2. Comprensión de la Estructura Original</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transformacion-de-formato-wide-a-long">5.3. Transformación de Formato Wide a Long</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#estructura-final-del-dataset">5.4. Estructura Final del Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#guardado-del-dataset-procesado">5.5. Guardado del Dataset Procesado</a></li>
 </ul>
   </nav></div>
 
