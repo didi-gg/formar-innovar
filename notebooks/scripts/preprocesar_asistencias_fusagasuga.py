@@ -150,8 +150,6 @@ def limpiar_espacios(texto):
     # Elimina espacios iniciales y finales, y convierte múltiples espacios en uno solo
     return ' '.join(texto.split())
 
-import pandas as pd
-
 def convertir_a_formato_largo(df, id_vars, dias_col_start, dias_col_end):
     """
     Convierte un DataFrame con columnas de días en formato ancho a formato largo.
