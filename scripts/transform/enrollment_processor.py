@@ -38,7 +38,7 @@ class EnrollmentProcessor:
     def _load_edukrea_mapping(self, year, edukrea_users_path):
         edukrea_mapping = {}
 
-        if year == 2025:
+        if year == 2025 and edukrea_users_path:  # Added check for path existence
             sql = f"""
             SELECT 
                 u.id AS UserID,
@@ -55,14 +55,18 @@ class EnrollmentProcessor:
 
         return edukrea_mapping
 
-    def create_enrollments_df(self, parquet_users_path, parquet_user_info_path, students_df, year, edukrea_users_path):
+    def create_enrollments_df(self, parquet_users_path, parquet_user_info_path, students_df, year, edukrea_users_path=None):  # Added default None
         result_df = self._load_moodle_data(parquet_users_path, parquet_user_info_path)
 
         # Cargar y aplicar hashing
         result_df["documento_identificación"] = result_df["documento_identificación"].apply(HashUtility.hash_stable)
 
-        # Combinar con estudiantes
-        merged_df = pd.merge(result_df, students_df, on="documento_identificación", how="inner")
+        # Combinar con estudiantes - Asegúrate que 'sede' esté en students_df
+        if "sede" not in students_df.columns:
+            raise ValueError("La columna 'sede' no se encuentra en students_df")
+        merged_df = pd.merge(
+            result_df, students_df[["documento_identificación", "grado", "sede"]], on="documento_identificación", how="inner"
+        )  # Select 'sede' here
 
         # Inicializar DataFrame de matrículas
         enrollments = pd.DataFrame(
@@ -71,29 +75,50 @@ class EnrollmentProcessor:
 
         # Agregar mapeo de edukrea si aplica
         edukrea_mapping = self._load_edukrea_mapping(year, edukrea_users_path)
-        enrollments["edukrea_user_id"] = enrollments["documento_identificación"].map(edukrea_mapping) if edukrea_mapping else ""
+        enrollments["edukrea_user_id"] = (
+            enrollments["documento_identificación"].map(edukrea_mapping) if edukrea_mapping else None
+        )  # Use None instead of ""
 
-        # Agregar grado y hacer join con ID de grado
-        enrollments = pd.merge(enrollments, merged_df[["documento_identificación", "grado"]], on="documento_identificación", how="left")
+        # Agregar grado y sede, y hacer join con ID de grado
+        # We already have 'grado' and 'sede' in merged_df from the first merge
+        enrollments = pd.merge(
+            enrollments, merged_df[["documento_identificación", "grado", "sede"]], on="documento_identificación", how="left"
+        )  # Add 'sede' here
         enrollments = pd.merge(enrollments, self.grados_df[["grado", "ID"]], left_on="grado", right_on="grado", how="left")
         enrollments.drop(columns=["grado"], inplace=True)
         enrollments.rename(columns={"ID": "id_grado"}, inplace=True)
+
+        # Reordenar columnas si es necesario (opcional)
+        cols_order = ["documento_identificación", "moodle_user_id", "edukrea_user_id", "year", "id_grado", "sede"]
+        # Asegurarse que todas las columnas existan antes de reordenar
+        cols_order = [col for col in cols_order if col in enrollments.columns]
+        enrollments = enrollments[cols_order]
 
         return enrollments
 
     def process_all_years(self):
         # Procesar 2024
         students_2024 = pd.read_csv("data/interim/estudiantes/estudiantes_2024_hashed.csv")
+        # Asegurarse que 'sede' existe en students_2024
+        if "sede" not in students_2024.columns:
+            print("Advertencia: La columna 'sede' no existe en 'estudiantes_2024_hashed.csv'. Se omitirá.")
+            # Opcional: Añadir una columna 'sede' con valores por defecto si es necesario
+            # students_2024['sede'] = 'Desconocida'
+
         enrollments_2024 = self.create_enrollments_df(
             parquet_users_path="data/raw/moodle/2024/Users/mdlvf_user.parquet",
             parquet_user_info_path="data/raw/moodle/2024/Users/mdlvf_user_info_data.parquet",
             students_df=students_2024,
             year=2024,
-            edukrea_users_path=None,
+            # edukrea_users_path=None, # No se pasa para 2024
         )
 
         # Procesar 2025
         students_2025 = pd.read_csv("data/interim/estudiantes/estudiantes_imputed_encoded.csv")
+        # Asegurarse que 'sede' existe en students_2025
+        if "sede" not in students_2025.columns:
+            raise ValueError("La columna 'sede' no existe en 'estudiantes_imputed_encoded.csv'.")
+
         enrollments_2025 = self.create_enrollments_df(
             parquet_users_path="data/raw/moodle/2025/Users/mdlvf_user.parquet",
             parquet_user_info_path="data/raw/moodle/2025/Users/mdlvf_user_info_data.parquet",
@@ -101,10 +126,31 @@ class EnrollmentProcessor:
             year=2025,
             edukrea_users_path="data/raw/moodle/Edukrea/Users/mdl_user.parquet",
         )
-        return enrollments_2024, enrollments_2025
+
+        # Combinar los dataframes
+        all_enrollments = pd.concat([enrollments_2024, enrollments_2025], ignore_index=True)
+
+        # Eliminar grados de preescolar
+        all_enrollments = all_enrollments.merge(grados_df, left_on="id_grado", right_on="ID", how="left")
+        all_enrollments = all_enrollments.drop(columns=["ID"])
+
+        grados_to_remove = ["Prejardín", "Jardín", "Transición"]
+        all_enrollments = all_enrollments[~all_enrollments["grado"].isin(grados_to_remove)]
+        all_enrollments = all_enrollments.reset_index(drop=True)
+
+        all_enrollments = all_enrollments[["documento_identificación", "moodle_user_id", "year", "edukrea_user_id", "id_grado", "sede"]]
+
+        # Guardar el dataframe combinado
+        output_path = "data/interim/estudiantes/enrollments.csv"
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        all_enrollments.to_csv(output_path, index=False, encoding="utf-8")
+        print(f"Archivo de matrículas combinado guardado en: {output_path}")
+
+        return all_enrollments  # Devolver el dataframe combinado
 
 
 if __name__ == "__main__":
-    grados_df = pd.read_csv("data/interim/grados.csv")
+    grados_df = pd.read_csv("data/raw/tablas_maestras/grados.csv")
     processor = EnrollmentProcessor(grados_df)
-    processor.process_all_years()
+    final_enrollments = processor.process_all_years()
+    print("Procesamiento de matrículas completado.")

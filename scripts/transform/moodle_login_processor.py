@@ -6,6 +6,8 @@ import logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from utils.period_utils import PeriodUtils
+
 
 class MoodleLoginProcessor:
     """
@@ -19,19 +21,7 @@ class MoodleLoginProcessor:
     def __init__(self):
         self.con = duckdb.connect()
         self.logger = logging.getLogger(__name__)
-
-        self.p1_start = pd.Timestamp("2024-01-01", tz="America/Bogota")
-        self.p2_start = pd.Timestamp("2024-04-01", tz="America/Bogota")
-        self.p3_start = pd.Timestamp("2024-07-08", tz="America/Bogota")
-        self.p4_start = pd.Timestamp("2024-10-15", tz="America/Bogota")
-
-        self.vacaciones = [
-            ("2024-03-25", "2024-03-29"),  # Semana Santa
-            ("2024-06-17", "2024-07-05"),  # Mitad de año
-            ("2024-10-07", "2024-10-11"),  # Octubre
-        ]
-
-        self.vacaciones = [(pd.Timestamp(ini, tz="America/Bogota"), pd.Timestamp(fin, tz="America/Bogota")) for ini, fin in self.vacaciones]
+        self.period_utils = PeriodUtils()
 
     def __del__(self):
         if hasattr(self, "con") and self.con:
@@ -41,29 +31,6 @@ class MoodleLoginProcessor:
         if hasattr(self, "con") and self.con:
             self.con.close()
             self.con = None
-
-    def _asignar_periodo(self, date_log):
-        if date_log < self.p2_start and date_log >= self.p1_start:
-            return "Periodo 1"
-        elif date_log < self.p3_start:
-            return "Periodo 2"
-        elif date_log < self.p4_start:
-            return "Periodo 3"
-        else:
-            return "Periodo 4"
-
-    def _esta_en_vacaciones(self, fecha):
-        return any(inicio <= fecha <= fin for inicio, fin in self.vacaciones)
-
-    def _clasificar_jornada(self, hora):
-        if 0 <= hora < 6:
-            return "madrugada"
-        elif 6 <= hora < 12:
-            return "mañana"
-        elif 12 <= hora < 18:
-            return "tarde"
-        else:
-            return "noche"
 
     def _load_moodle_data(self, logs_parquet, students_enrollment, year=2024):
         try:
@@ -82,7 +49,6 @@ class MoodleLoginProcessor:
                 AND estudiantes.year = {year}
                 ORDER BY logs.timecreated
             """
-
             result = self.con.execute(sql).df()
             return result
         except Exception as e:
@@ -110,15 +76,15 @@ class MoodleLoginProcessor:
         combined_data["userid"] = combined_data["userid"].astype(str)
 
         # --- Paso 3: Asignar periodo
-        combined_data["periodo"] = combined_data["fecha_local"].apply(self._asignar_periodo)
+        combined_data["periodo"] = combined_data["fecha_local"].apply(self.period_utils.assign_period)
 
         # --- Paso 4: Marcar logins en vacaciones ---
-        combined_data["en_vacaciones"] = combined_data["fecha_local"].apply(self._esta_en_vacaciones)
+        combined_data["en_vacaciones"] = combined_data["fecha_local"].apply(self.period_utils.is_vacation)
 
         # --- Paso 5: Día de la semana y jornada ---
         combined_data["hora"] = combined_data["fecha_local"].dt.hour
         combined_data["dia"] = combined_data["fecha_local"].dt.day_name().str.lower()
-        combined_data["jornada"] = combined_data["hora"].apply(self._clasificar_jornada)
+        combined_data["jornada"] = combined_data["hora"].apply(self.period_utils.classify_daytime)
 
         # --- Paso 6: Calcular inactividad ---
         # Usar solo logins fuera de vacaciones para calcular `delta`
@@ -133,8 +99,16 @@ class MoodleLoginProcessor:
         summary = combined_data.groupby(["userid", "year", "periodo"]).agg(count_login=("fecha_local", "count")).reset_index()
 
         # Agregar `max_inactividad` desde el nuevo cálculo (excluyendo vacaciones)
-        max_inactividad = resultado_no_vacaciones.groupby(["userid", "year", "periodo"])["delta"].max().reset_index(name="max_inactividad")
+        resultado_no_vacaciones["delta_horas"] = resultado_no_vacaciones["delta"].dt.total_seconds() / 3600
+        max_inactividad = resultado_no_vacaciones.groupby(["userid", "year", "periodo"])["delta_horas"].max().reset_index(name="max_inactividad")
         summary = summary.merge(max_inactividad, on=["userid", "year", "periodo"], how="left")
+
+        # Rellenar valores faltantes de max_inactividad con la duración del periodo en horas
+        for idx, row in summary.iterrows():
+            if pd.isna(row["max_inactividad"]):
+                # Si no hay registros de inactividad, usar la duración total del periodo convertido a horas
+                duracion_periodo = self.period_utils.calculate_period_duration(int(row["year"]), row["periodo"])
+                summary.at[idx, "max_inactividad"] = duracion_periodo.total_seconds() / 3600
 
         # --- Paso 8: Conteo por día de la semana ---
         conteo_dias = combined_data.pivot_table(

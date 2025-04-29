@@ -50,6 +50,48 @@ class EDAAnalyzer:
             html = fig.to_html(include_plotlyjs="cdn")
             return HTML(html)
 
+    def plot_histogram(self, dataframe, column, bins=20, color="#636EFA", title=None):
+        """
+        Crea un histograma para una columna específica utilizando Plotly.
+
+        Args:
+            dataframe (pd.DataFrame): DataFrame que contiene los datos
+            column (str): Nombre de la columna para la cual crear el histograma
+            bins (int): Número de bins para el histograma
+            color (str): Color de las barras del histograma
+            title (str, optional): Título personalizado para el gráfico. Si no se especifica,
+                                se utilizará "Histograma - {nombre_columna}"
+
+        Returns:
+            IPython.display.HTML: Gráfico HTML interactivo del histograma
+        """
+        # Verificar que la columna exista en el dataframe
+        if column not in dataframe.columns:
+            raise ValueError(f"La columna '{column}' no existe en el DataFrame")
+
+        # Obtener el título del gráfico
+        plot_title = title if title is not None else f"Histograma - {column}"
+
+        # Crear el histograma con Plotly Express
+        fig = px.histogram(
+            dataframe, x=column, nbins=bins, title=plot_title, labels={column: column.replace("_", " ").title()}, color_discrete_sequence=[color]
+        )
+
+        # Personalizar el diseño del gráfico
+        fig.update_layout(
+            height=500,
+            width=900,
+            title_x=0.5,  # Centrar el título
+            bargap=0.05,  # Espacio entre barras
+            xaxis_title=column.replace("_", " ").title(),
+            yaxis_title="Frecuencia",
+            template="plotly_white",  # Usar plantilla blanca
+        )
+
+        # Convertir el gráfico a HTML y devolverlo
+        html = fig.to_html(include_plotlyjs="cdn")
+        return HTML(html)
+
     def plot_single_barplot(self, dataframe, column):
         data = dataframe[column].value_counts().reset_index()
         data.columns = [column, "conteo"]
@@ -66,6 +108,71 @@ class EDAAnalyzer:
             title_x=0.5,
             margin=dict(l=50, r=50, t=80, b=50),
         )
+
+        html = fig.to_html(include_plotlyjs="cdn")
+        return HTML(html)
+
+    def plot_bar(self, dataframe, x_col, y_col, title=None, x_label=None, y_label=None, color_col=None, barmode="group"):
+        """
+        Crea un gráfico de barras utilizando columnas x e y existentes en el dataframe.
+
+        Args:
+            dataframe (pd.DataFrame): DataFrame que contiene los datos
+            x_col (str): Nombre de la columna para el eje X
+            y_col (str): Nombre de la columna para el eje Y
+            title (str, optional): Título personalizado para el gráfico
+            x_label (str, optional): Etiqueta para el eje X
+            y_label (str, optional): Etiqueta para el eje Y
+            color_col (str, optional): Columna para agrupar por colores
+            barmode (str, optional): Tipo de agrupación ("group" o "stack")
+
+        Returns:
+            IPython.display.HTML: Gráfico HTML interactivo
+        """
+        # Verificar que las columnas existan
+        if x_col not in dataframe.columns or y_col not in dataframe.columns:
+            raise ValueError(f"Las columnas '{x_col}' o '{y_col}' no existen en el DataFrame")
+
+        if color_col and color_col not in dataframe.columns:
+            raise ValueError(f"La columna de color '{color_col}' no existe en el DataFrame")
+
+        # Crear gráfico de barras
+        if color_col:
+            fig = px.bar(
+                dataframe,
+                x=x_col,
+                y=y_col,
+                color=color_col,
+                barmode=barmode,
+                title=title or f"{x_col.replace('_', ' ').title()} vs {y_col.replace('_', ' ').title()}",
+            )
+            # Agregar leyenda con título adecuado
+            fig.update_layout(legend_title_text=color_col.replace("_", " ").title())
+        else:
+            fig = px.bar(
+                dataframe,
+                x=x_col,
+                y=y_col,
+                title=title or f"{x_col.replace('_', ' ').title()} vs {y_col.replace('_', ' ').title()}",
+            )
+
+        # Configurar ejes
+        fig.update_layout(
+            xaxis_title=x_label or x_col.replace("_", " ").title(),
+            yaxis_title=y_label or y_col.replace("_", " ").title(),
+            height=500,
+            width=900,
+            title_x=0.5,
+            margin=dict(l=50, r=50, t=80, b=50),
+        )
+
+        # Asegurar que se muestren todos los valores en el eje X
+        # Para horas del día (0-23) o valores similares
+        if x_col == "hora_local" or (dataframe[x_col].dtype in ["int64", "int32", "float64"]):
+            min_val = 0 if x_col == "hora_local" else dataframe[x_col].min()
+            max_val = 23 if x_col == "hora_local" else dataframe[x_col].max()
+
+            fig.update_xaxes(tickmode="linear", tick0=min_val, dtick=1, tickangle=0)
 
         html = fig.to_html(include_plotlyjs="cdn")
         return HTML(html)
@@ -148,3 +255,64 @@ class EDAAnalyzer:
             if len(raras) > 0:
                 categorias_raras[col] = raras
         return categorias_raras
+
+    def plot_boxplot(self, dataframe, x_col, y_col, title=None, x_label=None, y_label=None, color_col=None, color="#636EFA"):
+        """
+        Crea un diagrama de caja (boxplot) para visualizar la distribución de una variable numérica
+        agrupada por categorías.
+
+        Args:
+            dataframe (pd.DataFrame): DataFrame que contiene los datos
+            x_col (str): Nombre de la columna categórica (eje X)
+            y_col (str): Nombre de la columna numérica para la distribución (eje Y)
+            title (str, optional): Título personalizado para el gráfico
+            x_label (str, optional): Etiqueta para el eje X
+            y_label (str, optional): Etiqueta para el eje Y
+            color_col (str, optional): Columna para agrupar por colores
+            color (str, optional): Color para los boxplots cuando no se usa color_col
+
+        Returns:
+            IPython.display.HTML: Gráfico HTML interactivo
+        """
+        # Verificar que las columnas existan
+        if x_col not in dataframe.columns or y_col not in dataframe.columns:
+            raise ValueError(f"Las columnas '{x_col}' o '{y_col}' no existen en el DataFrame")
+
+        if color_col and color_col not in dataframe.columns:
+            raise ValueError(f"La columna de color '{color_col}' no existe en el DataFrame")
+
+        # Crear el boxplot
+        if color_col:
+            fig = px.box(
+                dataframe,
+                x=x_col,
+                y=y_col,
+                color=color_col,
+                title=title or f"Distribución de {y_col.replace('_', ' ').title()} por {x_col.replace('_', ' ').title()}",
+            )
+            # Agregar leyenda con título adecuado
+            fig.update_layout(legend_title_text=color_col.replace("_", " ").title())
+        else:
+            fig = px.box(
+                dataframe,
+                x=x_col,
+                y=y_col,
+                title=title or f"Distribución de {y_col.replace('_', ' ').title()} por {x_col.replace('_', ' ').title()}",
+                color_discrete_sequence=[color],
+            )
+
+        # Personalizar el diseño
+        fig.update_layout(
+            xaxis_title=x_label or x_col.replace("_", " ").title(),
+            yaxis_title=y_label or y_col.replace("_", " ").title(),
+            height=500,
+            width=900,
+            title_x=0.5,
+            template="plotly_white",
+            boxmode="group",
+            margin=dict(l=50, r=50, t=80, b=50),
+        )
+
+        # Devolver el gráfico en formato HTML
+        html = fig.to_html(include_plotlyjs="cdn")
+        return HTML(html)
