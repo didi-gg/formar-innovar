@@ -23,7 +23,7 @@ class NotesDataCleaner:
         df.columns = df.columns.astype(str).str.strip().str.replace(' ', '_')
 
         # Columnas de texto que deben convertirse a string y pasar a mayúsculas
-        columnas_texto = ['Sede','Estudiante', 'Documento_de_identidad','Asignatura', 'Docente', 'Nivel']
+        columnas_texto = ['Sede','Estudiante', 'id','Asignatura', 'Docente', 'Nivel']
         for col in columnas_texto:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.upper().str.strip()
@@ -37,7 +37,7 @@ class NotesDataCleaner:
         # Columnas numéricas que deben mantenerse como números
         columnas_numericas = [
              'Intensidad_Horaria',
-            'Cognitiva', 'Procedimental', 'Actitudinal', 'Axiologica', 'Resultado'
+            'Cog', 'Proc', 'Act', 'Axi', 'Resultado'
         ]
         for col in columnas_numericas:
             if col in df.columns:

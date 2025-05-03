@@ -50,7 +50,7 @@ class EDANotesAnalyzer:
         return self.df
 
     def promedio_por_estudiante(self) -> pd.DataFrame:
-        return self.df.groupby(['Estudiante', 'Periodo', 'Año'])['Resultado'].mean().reset_index()
+        return self.df.groupby(['Estudiante', 'Periodo', 'Año'])['Resultado'].median().reset_index()
 
     def verificar_periodos_completos(self) -> pd.DataFrame:
         max_periodos = self.df.groupby('Año')['Periodo'].nunique().max()

@@ -103,6 +103,7 @@ class ProcesarCalificacionesPDF:
                         '''
                 
                 else:
+                    print(f"linea procesada exitosamente: {line} en el archivo {pdf_link}")
                     data.append([
                         sede,
                         estudiante,
@@ -209,6 +210,6 @@ class ProcesarCalificacionesPDF:
 
 
 if __name__ == '__main__':
-    carpeta_pdf = os.path.abspath('notas/calificaciones')
+    carpeta_pdf = os.path.abspath('notas/calificaciones/2023/')
     procesador = ProcesarCalificacionesPDF()
     procesador.procesar_carpeta(carpeta_pdf)
