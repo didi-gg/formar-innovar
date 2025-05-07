@@ -10,6 +10,34 @@ class NotesDataCleaner:
             "Periodo": {"I": "1", "II": "2", "III": "3", "IV": "4"},
         }
 
+    def limpiar_columnas_numericas(self, columnas):
+        cambios_por_columna = {}
+        df_limpio = self.df
+
+        for col in columnas:
+            # Guarda una copia antes de limpiar
+            original = df_limpio[col].astype(str)
+
+            # Limpieza de caracteres no numéricos
+            limpio = original.str.replace(r"[^\d]", "", regex=True)
+
+            # Conversión a número
+            numerico = pd.to_numeric(limpio, errors="coerce")
+
+            # Contar cuántos valores cambiaron
+            cambios = (original != limpio).sum()
+
+            # Reemplazar la columna
+            df_limpio[col] = numerico
+
+            cambios_por_columna[col] = cambios
+
+        print("Valores modificados por columna:")
+        for col, count in cambios_por_columna.items():
+            print(f"- {col}: {count} valores corregidos")
+
+        return df_limpio
+
     def load_and_clean_data(self):
         '''
         Realiza limpieza básica:
