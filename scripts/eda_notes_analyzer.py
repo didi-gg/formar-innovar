@@ -5,6 +5,24 @@ from IPython.display import HTML
 import seaborn as sns
 import plotly.express as px
 from scipy.stats import chi2_contingency, f_oneway
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Estilo BlueLight personalizado
+def configurar_estilo_bluelight():
+    sns.set_theme(style="whitegrid")
+    plt.rcParams.update({
+        "axes.facecolor": "#F5F9FF",
+        "figure.facecolor": "#F5F9FF",
+        "axes.edgecolor": "#CCCCCC",
+        "axes.labelcolor": "#333333",
+        "xtick.color": "#333333",
+        "ytick.color": "#333333",
+        "text.color": "#003366",
+        "axes.titleweight": "bold",
+        "axes.titlesize": 14,
+        "axes.titlecolor": "#003366"
+    })
 
 class EDANotesAnalyzer:
     """
@@ -29,6 +47,7 @@ class EDANotesAnalyzer:
         self.df = df
 
     def plot_null_heatmap(self) -> HTML:
+        configurar_estilo_bluelight()
         null_df = self.df.loc[:, self.df.isnull().any()]
         null_matrix_numeric = null_df.isnull().astype(int)
         fig = px.imshow(
@@ -61,9 +80,10 @@ class EDANotesAnalyzer:
         return periodos_por_estudiante_anio[~periodos_por_estudiante_anio['completo']]
 
     def plot_histograma_por_docente_asignatura(self):
+        configurar_estilo_bluelight()
         docentes = self.df['Docente'].unique()
         n = len(docentes)
-        cols = 2
+        cols = 4
         rows = (n + 1) // cols
         fig, axes = plt.subplots(rows, cols, figsize=(16, 5 * rows), constrained_layout=True)
         axes = axes.flatten()
@@ -81,6 +101,7 @@ class EDANotesAnalyzer:
         plt.show()
 
     def analisis_bivariado(self, col1: str, col2: str) -> pd.DataFrame:
+        configurar_estilo_bluelight()
         """
         Realiza un análisis bivariado entre dos columnas numéricas, imprime gráficos y resultados,
         y devuelve un DataFrame con los resultados del análisis en un formato estructurado.
