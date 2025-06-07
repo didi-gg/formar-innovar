@@ -120,18 +120,52 @@ class AcademicPeriodUtils:
 
         return pd.Timedelta(days=len(dates_no_vacation))
 
+    @staticmethod
+    def extract_week_number_from_title(title: str) -> str:
+        """
+        Extrae el número de semana desde el título de un recurso.
+
+        Casos válidos:
+        - '1. Algo'
+        - '1.Algo'
+        - '10. Título'
+        - '10.Título'
+        - '10.'
+
+        Args:
+            title (str): Título del recurso.
+
+        Returns:
+            str: Número de semana o 0 si no se puede extraer.
+        """
+        if not isinstance(title, str):
+            return 0
+
+        match = re.match(r"^\s*(\d{1,2})\.\s*", title.strip())
+        if not match:
+            return 0
+        # If is nan
+        if pd.isna(match.group(1)):
+            return 0
+        return match.group(1)
+
+    @staticmethod
     def extract_week_number_string(section):
         """
         Extrae el número de semana de un nombre de sección de Moodle.
-        Retorna 'na' si no se encuentra un número válido o si la sección es irrelevante.
+        Retorna 0 si no se encuentra un número válido o si la sección es irrelevante.
         """
-        if not isinstance(section, str) or section.strip() in [
+        if not isinstance(section, str):
+            return 0
+
+        if section.strip() in [
             "",
             "-",
             "PLANTILLA",
             "General",
             "Syllabus",
             "syllabus",
+            "Lineamientos  generales.",
             "Lineamientos Generales",
             "Lineamientos generales",
             "Lineamiemtos Generales",
@@ -153,13 +187,16 @@ class AcademicPeriodUtils:
             "Syllabus Innovación y emprendimiento",
             "Seccion 32",
             "Lineamientos generales. ",
+            "Evaluación de conocimientos ",
         ]:
-            return "na"
-        match = re.search(r"(\d+)", section)
-        if match:
-            return match.group(1)
-        return "na"
+            return 0
 
+        match = re.search(r"(\d+)", section)
+        if not match:
+            return 0
+        return match.group(1)
+
+    @staticmethod
     def get_period_from_week(week):
         """
         Asocia un número de semana con un periodo académico.
@@ -171,7 +208,7 @@ class AcademicPeriodUtils:
         try:
             w = int(week)
         except (ValueError, TypeError):
-            return "na"
+            return 0
 
         if 1 <= w <= 8:
             return 1
@@ -182,4 +219,4 @@ class AcademicPeriodUtils:
         elif 25 <= w <= 32:
             return 4
         else:
-            return "na"
+            return 0
