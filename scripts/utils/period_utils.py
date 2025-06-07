@@ -23,7 +23,7 @@ class PeriodUtils:
             },
             2025: {
                 "p1_start": pd.Timestamp("2025-01-27", tz="America/Bogota"),
-                "p2_start": pd.Timestamp("2025-04-07", tz="America/Bogota"),
+                "p2_start": pd.Timestamp("2025-04-15", tz="America/Bogota"),
                 "p3_start": pd.Timestamp("2025-07-14", tz="America/Bogota"),
                 "p4_start": pd.Timestamp("2025-10-14", tz="America/Bogota"),
                 "vacations": [
@@ -40,6 +40,12 @@ class PeriodUtils:
                 (pd.Timestamp(start, tz="America/Bogota"), pd.Timestamp(end, tz="America/Bogota")) for start, end in self.periods[year]["vacations"]
             ]
 
+    def get_period_start(self, row):
+        try:
+            return self.periods[row["year"]][f"p{int(row['period'])}_start"]
+        except Exception:
+            return pd.NaT
+
     def assign_period(self, date_log):
         year = date_log.year
         if year not in self.periods:
@@ -47,13 +53,13 @@ class PeriodUtils:
             year = 2024
 
         if date_log < self.periods[year]["p2_start"] and date_log >= self.periods[year]["p1_start"]:
-            return "Periodo 1"
+            return "1"
         elif date_log < self.periods[year]["p3_start"]:
-            return "Periodo 2"
+            return "2"
         elif date_log < self.periods[year]["p4_start"]:
-            return "Periodo 3"
+            return "3"
         else:
-            return "Periodo 4"
+            return "4"
 
     def is_vacation(self, date):
         year = date.year
@@ -78,16 +84,16 @@ class PeriodUtils:
             self.logger.warning(f"Año {year} no configurado, usando fechas de 2024 por defecto")
             year = 2024
 
-        if period == "Periodo 1":
+        if period == "1":
             start = self.periods[year]["p1_start"]
             end = self.periods[year]["p2_start"] - pd.Timedelta(days=1)
-        elif period == "Periodo 2":
+        elif period == "2":
             start = self.periods[year]["p2_start"]
             end = self.periods[year]["p3_start"] - pd.Timedelta(days=1)
-        elif period == "Periodo 3":
+        elif period == "3":
             start = self.periods[year]["p3_start"]
             end = self.periods[year]["p4_start"] - pd.Timedelta(days=1)
-        elif period == "Periodo 4":
+        elif period == "4":
             start = self.periods[year]["p4_start"]
             end = pd.Timestamp(f"{year}-12-31", tz="America/Bogota")
         else:
