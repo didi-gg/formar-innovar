@@ -62,18 +62,23 @@ class MoodleLoginProcessor:
             students_enrollment="data/interim/estudiantes/enrollments.csv",
             year=2024,
         )
-        data_2025 = self._load_moodle_data(
+        data_2025_raw = self._load_moodle_data(
             logs_parquet="data/raw/moodle/2025/Log/mdlvf_logstore_standard_log.parquet",
             students_enrollment="data/interim/estudiantes/enrollments.csv",
             year=2025,
         )
+        edukrea_data = self._load_moodle_data(
+            logs_parquet="data/raw/moodle/Edukrea/Logs and Events/mdl_logstore_standard_log.parquet",
+            students_enrollment="data/interim/estudiantes/enrollments.csv",
+            year=2025,
+        )
 
-        combined_data = pd.concat([data_2024, data_2025])
+        combined_data = pd.concat([data_2024, data_2025_raw, edukrea_data], ignore_index=True)
 
         # --- Paso 2: Convertir timecreated a formato de fecha
         combined_data["timecreated"] = pd.to_datetime(combined_data["timecreated"], unit="s").dt.tz_localize("UTC")
         combined_data["fecha_local"] = combined_data["timecreated"].dt.tz_convert("America/Bogota")
-        combined_data["moodle_user_id"] = combined_data["moodle_user_id"].astype(str)
+        combined_data["documento_identificación"] = combined_data["documento_identificación"].astype(str)
 
         # --- Paso 3: Asignar periodo
         combined_data["periodo"] = combined_data["fecha_local"].apply(self.period_utils.assign_period)
@@ -91,19 +96,19 @@ class MoodleLoginProcessor:
         resultado_no_vacaciones = combined_data[~combined_data["en_vacaciones"]].copy()
 
         # Ordenar y calcular diferencias por usuario + periodo + año
-        resultado_no_vacaciones = resultado_no_vacaciones.sort_values(["moodle_user_id", "year", "periodo", "fecha_local"])
-        resultado_no_vacaciones["delta"] = resultado_no_vacaciones.groupby(["moodle_user_id", "year", "periodo"])["fecha_local"].diff()
+        resultado_no_vacaciones = resultado_no_vacaciones.sort_values(["documento_identificación", "year", "periodo", "fecha_local"])
+        resultado_no_vacaciones["delta"] = resultado_no_vacaciones.groupby(["documento_identificación", "year", "periodo"])["fecha_local"].diff()
 
         # --- Paso 7: Resumen general por usuario + periodo + año ---
         # Total logins (sin filtrar vacaciones)
-        summary = combined_data.groupby(["moodle_user_id", "year", "periodo"]).agg(count_login=("fecha_local", "count")).reset_index()
+        summary = combined_data.groupby(["documento_identificación", "year", "periodo"]).agg(count_login=("fecha_local", "count")).reset_index()
 
         # Agregar `max_inactividad` desde el nuevo cálculo (excluyendo vacaciones)
         resultado_no_vacaciones["delta_horas"] = resultado_no_vacaciones["delta"].dt.total_seconds() / 3600
         max_inactividad = (
-            resultado_no_vacaciones.groupby(["moodle_user_id", "year", "periodo"])["delta_horas"].max().reset_index(name="max_inactividad")
+            resultado_no_vacaciones.groupby(["documento_identificación", "year", "periodo"])["delta_horas"].max().reset_index(name="max_inactividad")
         )
-        summary = summary.merge(max_inactividad, on=["moodle_user_id", "year", "periodo"], how="left")
+        summary = summary.merge(max_inactividad, on=["documento_identificación", "year", "periodo"], how="left")
 
         # Rellenar valores faltantes de max_inactividad con la duración del periodo en horas
         for idx, row in summary.iterrows():
@@ -114,7 +119,7 @@ class MoodleLoginProcessor:
 
         # --- Paso 8: Conteo por día de la semana ---
         conteo_dias = combined_data.pivot_table(
-            index=["moodle_user_id", "year", "periodo", "documento_identificación"],
+            index=["documento_identificación", "year", "periodo"],
             columns="dia",
             values="fecha_local",
             aggfunc="count",
@@ -131,7 +136,7 @@ class MoodleLoginProcessor:
 
         # --- Paso 7: Conteo por jornada ---
         conteo_jornada = combined_data.pivot_table(
-            index=["moodle_user_id", "year", "periodo"], columns="jornada", values="fecha_local", aggfunc="count", fill_value=0
+            index=["documento_identificación", "year", "periodo"], columns="jornada", values="fecha_local", aggfunc="count", fill_value=0
         ).reset_index()
 
         # Renombrar jornadas
@@ -143,12 +148,12 @@ class MoodleLoginProcessor:
                 conteo_jornada[f"count_jornada_{j}"] = 0
 
         # --- Paso 9: Combinar todo ---
-        df_final = summary.merge(conteo_dias, on=["moodle_user_id", "year", "periodo"], how="left")
-        df_final = df_final.merge(conteo_jornada, on=["moodle_user_id", "year", "periodo"], how="left")
+        df_final = summary.merge(conteo_dias, on=["documento_identificación", "year", "periodo"], how="left")
+        df_final = df_final.merge(conteo_jornada, on=["documento_identificación", "year", "periodo"], how="left")
 
         # Asegurar orden de columnas (opcional)
         columnas_finales = (
-            ["moodle_user_id", "year", "periodo", "count_login", "max_inactividad", "documento_identificación"]
+            ["documento_identificación", "year", "periodo", "count_login", "max_inactividad"]
             + [f"count_login_{d[:3]}" for d in dias]
             + [f"count_jornada_{j}" for j in jornadas]
         )
