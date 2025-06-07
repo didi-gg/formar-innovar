@@ -21,6 +21,7 @@ enrol_file_2025 = "data/raw/moodle/2025/Enrollment/mdlvf_enrol.parquet"
 courses_file_2025 = "data/raw/moodle/2025/Course/mdlvf_course.parquet"
 
 students_file = "data/interim/estudiantes/enrollments.csv"
+mapping_file = "data/interim/moodle/course_moodle_mapping.csv"
 
 output_file = "data/interim/moodle/student_moodle_courses.csv"
 
@@ -33,6 +34,7 @@ excluded_courses = (
     549,
     550,
     332,
+    40,
     # Inteligencia Emocional
     154,
     386,
@@ -329,37 +331,41 @@ course_to_subject = {
 }
 
 
-def load_student_courses(year, enrollments_file, enrol_file, courses_file, students_file):
+def load_student_courses(year, enrollments_file, enrol_file, courses_file):
     sql = f"""
         SELECT DISTINCT
             ue.userid AS moodle_user_id,
             {year} AS year,
             s.id_grado AS id_grado,
             e.courseid AS course_id,
-            c.fullname AS course_name
+            c.fullname AS course_name,
+            s.documento_identificación AS documento_identificación,
+            s.sede AS sede,
+            map.id_asignatura AS id_asignatura
         FROM '{enrollments_file}' ue
         JOIN '{enrol_file}' e ON ue.enrolid = e.id
         JOIN '{courses_file}' c ON e.courseid = c.id
         JOIN '{students_file}' s ON ue.userid = s.moodle_user_id
+        JOIN read_csv_auto('{mapping_file}') AS map ON e.courseid = map.course_id
         WHERE s.year = {year}
             AND e.courseid NOT IN {excluded_courses}
+            AND s.id_grado = map.id_grado
+            AND c.visible = 1
     """
     return con.execute(sql).df()
 
 
 def create_student_moodle_courses():
     # Procesar 2024
-    df_2024 = load_student_courses(2024, enrollments_file_2024, enrol_file_2024, courses_file_2024, students_file)
+    df_2024 = load_student_courses(2024, enrollments_file_2024, enrol_file_2024, courses_file_2024)
+    # save as CSV
+    df_2024.to_csv("student_moodle_courses_2024.csv", index=False, encoding="utf-8-sig")
 
     # Procesar 2025
-    df_2025 = load_student_courses(2025, enrollments_file_2025, enrol_file_2025, courses_file_2025, students_file)
+    df_2025 = load_student_courses(2025, enrollments_file_2025, enrol_file_2025, courses_file_2025)
 
     # Unir los dos años
     df_combined = pd.concat([df_2024, df_2025], ignore_index=True)
-
-    # Mapear id_asignatura
-    df_combined["id_asignatura"] = df_combined["course_id"].map(course_to_subject)
-    df_combined["id_asignatura"] = df_combined["id_asignatura"].fillna(0).astype(int)
 
     # Guardar como CSV
     df_combined.to_csv(output_file, index=False, encoding="utf-8-sig")
