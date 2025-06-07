@@ -1,5 +1,4 @@
 # Procesamiento Matrículas de Estudiantes
-[enrollment_processor](../scripts/transform/enrollment_processor.py)
 
 ## Descripción
 Este script procesa, cruza y estandariza la información de inscripciones (matrículas) de estudiantes en la plataforma Moodle para los años 2024 y 2025, generando un archivo unificado `enrollments.csv`.
@@ -130,5 +129,3 @@ El procesamiento incluye la asociación de estudiantes con sus ID de Moodle y Ed
 - **Preescolar filtrado**: Se eliminan registros correspondientes a Prejardín, Jardín y Transición.
 - **Protección de datos**: No se almacenan documentos de identidad en texto plano; todos los documentos están hasheados.
 - **Integridad de datos**: Solo estudiantes válidamente enrolados y activos son considerados.
-
----

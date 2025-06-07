@@ -1,5 +1,4 @@
 # Procesamiento Relación entre Estudiantes y Cursos en Moodle
-[generate_student_moodle_courses](generate_student_moodle_coursesy.py)
 
 ## Descripción
 Este script genera un archivo CSV que relaciona estudiantes con los cursos en los que están inscritos en Moodle, durante los años 2024 y 2025. Además, asigna a cada curso una asignatura (id_asignatura) oficial.

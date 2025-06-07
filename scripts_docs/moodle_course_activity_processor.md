@@ -1,5 +1,4 @@
 # Procesamiento Eventos de Moodle por Asignatura
-[generate_moodle_course_activity_summary](generate_moodle_course_activity_summary.py)
 
 ## Descripción
 Este script procesa eventos de interacción académica de los estudiantes dentro de Moodle durante los años 2024 y 2025, enfocándose en actividades relacionadas con cursos, recursos, tareas, evaluaciones y foros.
@@ -159,5 +158,3 @@ Los eventos se agrupan en tres grandes categorías:
 - **Timezone**: Todos los eventos se transforman a hora local Bogotá (UTC-5).
 - **Compleción de columnas**: Se aseguran todas las columnas esperadas, incluso si un evento no aparece en los datos crudos.
 - **Solo cursos válidos**: Se consideran únicamente cursos en los que los estudiantes están inscritos oficialmente.
-
----

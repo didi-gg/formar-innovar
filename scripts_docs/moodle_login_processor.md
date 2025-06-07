@@ -1,5 +1,4 @@
 # Procesamiento Logins en Moodle
-[moodle_login_processor](../scripts/transform/moodle_login_processor.py)
 
 ## Descripción
 Este script procesa los eventos de login de los estudiantes en la plataforma Moodle durante los años 2024 y 2025.  
@@ -114,5 +113,3 @@ Se hace un ajuste especial para excluir los logins ocurridos en vacaciones al mo
 - **Zonificación horaria**: Se usa América/Bogotá para todos los registros.
 - **Filtrado de datos**: Solo logins de estudiantes oficialmente matriculados.
 - **Tiempos de carga**: Se usa DuckDB para procesamiento rápido sobre los archivos Parquet.
-
----
