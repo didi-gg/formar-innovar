@@ -100,7 +100,7 @@ class MoodleCourseActivityProcessor:
 
             # Cargar inscripciones de estudiantes
             df_courses = self.con.execute(f"""
-                SELECT moodle_user_id, course_id, id_asignatura, year, course_name
+                SELECT moodle_user_id, course_id, id_asignatura, year, course_name, documento_identificación
                 FROM '{student_courses}'
             """).df()
 
@@ -126,7 +126,7 @@ class MoodleCourseActivityProcessor:
 
         # Pivotear para contar eventos por tipo de actividad
         df_summary = combined_data.pivot_table(
-            index=["userid", "courseid", "period", "id_asignatura", "year", "course_name"],
+            index=["userid", "documento_identificación", "courseid", "period", "id_asignatura", "year", "course_name"],
             columns="activity_type",
             values="timecreated",
             aggfunc="count",
