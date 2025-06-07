@@ -29,7 +29,7 @@ El objetivo principal es consolidar la actividad por estudiante, curso, periodo 
    - Convierte `timecreated` a formato datetime, ajustado a la zona horaria Bogotá.
 
 3. **Asignación de Periodo Académico**:
-   - Se utiliza `PeriodUtils` para asignar a qué periodo (bimestre) pertenece cada evento basado en su fecha.
+   - Se utiliza `AcademicPeriodUtils` para asignar a qué periodo (bimestre) pertenece cada evento basado en su fecha.
 
 4. **Filtrado de cursos válidos**:
    - Se cruza la actividad con la matrícula de estudiantes (`student_moodle_courses.csv`) para considerar solo cursos reales.

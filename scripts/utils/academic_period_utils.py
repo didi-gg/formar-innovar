@@ -1,8 +1,9 @@
 import pandas as pd
+import re
 import logging
 
 
-class PeriodUtils:
+class AcademicPeriodUtils:
     """
     Utilidades para manejo de periodos académicos y clasificación de fechas en Moodle.
     """
@@ -40,13 +41,19 @@ class PeriodUtils:
                 (pd.Timestamp(start, tz="America/Bogota"), pd.Timestamp(end, tz="America/Bogota")) for start, end in self.periods[year]["vacations"]
             ]
 
-    def get_period_start(self, row):
+    def get_period_start_date(self, row):
+        """
+        Retorna la fecha de inicio del periodo para una fila con campos 'year' y 'period'.
+        """
         try:
             return self.periods[row["year"]][f"p{int(row['period'])}_start"]
         except Exception:
             return pd.NaT
 
-    def assign_period(self, date_log):
+    def determine_period_from_date(self, date_log):
+        """
+        Determina el número de periodo (1-4) según una fecha específica.
+        """
         year = date_log.year
         if year not in self.periods:
             self.logger.warning(f"Año {year} no configurado, usando fechas de 2024 por defecto")
@@ -62,6 +69,9 @@ class PeriodUtils:
             return "4"
 
     def is_vacation(self, date):
+        """
+        Verifica si una fecha dada cae dentro de un periodo de vacaciones.
+        """
         year = date.year
         if year not in self.periods:
             self.logger.warning(f"Año {year} no configurado, usando fechas de 2024 por defecto")
@@ -70,6 +80,9 @@ class PeriodUtils:
         return any(start <= date <= end for start, end in self.periods[year]["vacations"])
 
     def classify_daytime(self, hour):
+        """
+        Clasifica una hora del día como madrugada, mañana, tarde o noche.
+        """
         if 0 <= hour < 6:
             return "madrugada"
         elif 6 <= hour < 12:
@@ -80,6 +93,9 @@ class PeriodUtils:
             return "noche"
 
     def calculate_period_duration(self, year, period):
+        """
+        Calcula la duración de un periodo (1–4) excluyendo días de vacaciones.
+        """
         if year not in self.periods:
             self.logger.warning(f"Año {year} no configurado, usando fechas de 2024 por defecto")
             year = 2024
@@ -103,3 +119,67 @@ class PeriodUtils:
         dates_no_vacation = [date for date in date_range if not self.is_vacation(date)]
 
         return pd.Timedelta(days=len(dates_no_vacation))
+
+    def extract_week_number_string(section):
+        """
+        Extrae el número de semana de un nombre de sección de Moodle.
+        Retorna 'na' si no se encuentra un número válido o si la sección es irrelevante.
+        """
+        if not isinstance(section, str) or section.strip() in [
+            "",
+            "-",
+            "PLANTILLA",
+            "General",
+            "Syllabus",
+            "syllabus",
+            "Lineamientos Generales",
+            "Lineamientos generales",
+            "Lineamiemtos Generales",
+            "LINEAMIENTOS GENERALES",
+            "Lineamitos Generales",
+            "Lineamientos generales.",
+            "Lineamientos Generales.",
+            "General guidelines",
+            "General Guidelines",
+            "Here starts the aleatorio-estadistico thinking",
+            "Recursos",
+            "Diagnóstico",
+            "Induction",
+            "BIENVENIDA",
+            "Bienvenida",
+            "Evaluation week",
+            "Evaluación Primer Bimestre",
+            "Evaluación Semestral II",
+            "Syllabus Innovación y emprendimiento",
+            "Seccion 32",
+            "Lineamientos generales. ",
+        ]:
+            return "na"
+        match = re.search(r"(\d+)", section)
+        if match:
+            return match.group(1)
+        return "na"
+
+    def get_period_from_week(week):
+        """
+        Asocia un número de semana con un periodo académico.
+        - Semanas 1–8   => Periodo 1
+        - Semanas 9–16  => Periodo 2
+        - Semanas 17–24 => Periodo 3
+        - Semanas 25–32 => Periodo 4
+        """
+        try:
+            w = int(week)
+        except (ValueError, TypeError):
+            return "na"
+
+        if 1 <= w <= 8:
+            return 1
+        elif 9 <= w <= 16:
+            return 2
+        elif 17 <= w <= 24:
+            return 3
+        elif 25 <= w <= 32:
+            return 4
+        else:
+            return "na"

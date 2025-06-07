@@ -34,7 +34,7 @@ Se hace un ajuste especial para excluir los logins ocurridos en vacaciones al mo
    - `timecreated` se convierte a fecha-hora y se ajusta a la zona horaria Bogotá (UTC-5).
 
 3. **Asignación de periodo académico**:
-   - Se asigna automáticamente el bimestre en el que ocurrió cada login usando `PeriodUtils`.
+   - Se asigna automáticamente el bimestre en el que ocurrió cada login usando `AcademicPeriodUtils`.
 
 4. **Filtrado de vacaciones**:
    - Se marca cada login si ocurrió en vacaciones escolares.

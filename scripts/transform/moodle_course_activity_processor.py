@@ -6,7 +6,7 @@ import logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from utils.period_utils import PeriodUtils
+from scripts.utils.academic_period_utils import AcademicPeriodUtils
 
 
 class MoodleCourseActivityProcessor:
@@ -17,7 +17,7 @@ class MoodleCourseActivityProcessor:
     def __init__(self):
         self.con = duckdb.connect()
         self.logger = logging.getLogger(__name__)
-        self.period_utils = PeriodUtils()
+        self.period_utils = AcademicPeriodUtils()
 
     def __del__(self):
         if hasattr(self, "con") and self.con:
@@ -93,7 +93,7 @@ class MoodleCourseActivityProcessor:
 
             # Procesar timestamps
             df["timecreated"] = pd.to_datetime(df["timecreated"], unit="s", utc=True).dt.tz_convert("America/Bogota")
-            df["period"] = df["timecreated"].apply(self.period_utils.assign_period)
+            df["period"] = df["timecreated"].apply(self.period_utils.determine_period_from_date)
 
             # Mapear tipos de actividad
             df["activity_type"] = df["eventname"].map(events_of_interest)

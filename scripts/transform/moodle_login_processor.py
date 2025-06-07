@@ -6,7 +6,7 @@ import logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from utils.period_utils import PeriodUtils
+from scripts.utils.academic_period_utils import AcademicPeriodUtils
 
 
 class MoodleLoginProcessor:
@@ -21,7 +21,7 @@ class MoodleLoginProcessor:
     def __init__(self):
         self.con = duckdb.connect()
         self.logger = logging.getLogger(__name__)
-        self.period_utils = PeriodUtils()
+        self.period_utils = AcademicPeriodUtils()
 
     def __del__(self):
         if hasattr(self, "con") and self.con:
@@ -81,7 +81,7 @@ class MoodleLoginProcessor:
         combined_data["documento_identificación"] = combined_data["documento_identificación"].astype(str)
 
         # --- Paso 3: Asignar periodo
-        combined_data["periodo"] = combined_data["fecha_local"].apply(self.period_utils.assign_period)
+        combined_data["periodo"] = combined_data["fecha_local"].apply(self.period_utils.determine_period_from_date)
 
         # --- Paso 4: Marcar logins en vacaciones ---
         combined_data["en_vacaciones"] = combined_data["fecha_local"].apply(self.period_utils.is_vacation)
