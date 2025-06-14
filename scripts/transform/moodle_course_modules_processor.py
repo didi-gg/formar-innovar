@@ -300,7 +300,8 @@ class MoodleModuleProcessor:
         sql_logs = """
             SELECT 
                 contextinstanceid AS course_module_id,
-                MAX(to_timestamp(timecreated)) AS fecha_ultima_actualizacion
+                MAX(to_timestamp(timecreated)) AS fecha_ultima_actualizacion,
+                COUNT(*) AS total_actualizaciones_docente
             FROM '{}'
             WHERE eventname LIKE '%updated%'
             GROUP BY contextinstanceid
@@ -418,10 +419,16 @@ class MoodleModuleProcessor:
         # Calcular si accedió antes
         edukrea_df["accedio_antes"] = edukrea_df["fecha_primera_vista"] < edukrea_df["fecha_inicio_semana"]
 
+        modules_combined["total_actualizaciones_docente"] = modules_combined["total_actualizaciones_docente"].fillna(0).astype(int)
+        edukrea_df["total_actualizaciones_docente"] = edukrea_df["total_actualizaciones_docente"].fillna(0).astype(int)
+
+        modules_combined["total_vistas_docente"] = modules_combined["total_vistas_docente"].fillna(0).astype(int)
+        edukrea_df["total_vistas_docente"] = edukrea_df["total_vistas_docente"].fillna(0).astype(int)
+
         # Finally, save the Edukrea data to CSV
-        output_file = "data/interim/moodle/moodle_modules_active.csv"
+        output_file = "data/interim/moodle/modules_active_moodle.csv"
         self.save_to_csv(self.cast_column_types(modules_combined), output_file)
-        edukrea_output_file = "data/interim/moodle/edukrea_modules_active.csv"
+        edukrea_output_file = "data/interim/moodle/modules_active_edukrea.csv"
         self.save_to_csv(self.cast_column_types(edukrea_df), edukrea_output_file)
 
 
