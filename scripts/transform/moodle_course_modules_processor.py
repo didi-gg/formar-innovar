@@ -296,16 +296,65 @@ class MoodleModuleProcessor:
         df["module_name"] = df["module_name"].astype(str)
         return df
 
+    def _get_logs_updated(self, logs_file):
+        sql_logs = """
+            SELECT 
+                contextinstanceid AS course_module_id,
+                MAX(to_timestamp(timecreated)) AS fecha_ultima_actualizacion
+            FROM '{}'
+            WHERE eventname LIKE '%updated%'
+            GROUP BY contextinstanceid
+        """.format(logs_file)
+        return self.connection.execute(sql_logs).df()
+
+    def _get_calendar_df(self):
+        calendario_file = "data/raw/tablas_maestras/calendario_escolar.csv"
+        calendario_df = pd.read_csv(calendario_file)
+        calendario_df["inicio"] = pd.to_datetime(calendario_df["inicio"], dayfirst=True)
+        calendario_df.rename(columns={"año": "year", "bimestre": "period", "semana_general": "week"}, inplace=True)
+        return calendario_df
+
+    def merge_modules_logs_update(self, modules_df, logs_df, calendario_df):
+        # 1. Unir módulos con calendario
+        modules_df["year"] = modules_df["year"].astype(int)
+        modules_df["period"] = modules_df["period"].astype(int)
+        modules_df["week"] = modules_df["week"].astype(int)
+
+        calendario_df["year"] = calendario_df["year"].astype(int)
+        calendario_df["period"] = calendario_df["period"].astype(int)
+        calendario_df["week"] = calendario_df["week"].astype(int)
+
+        modules_df = modules_df.merge(calendario_df[["year", "period", "week", "inicio"]], on=["year", "period", "week"], how="left").rename(
+            columns={"inicio": "fecha_inicio_semana"}
+        )
+
+        # 2. Unir módulos con fecha de última actualización
+        modules_df = modules_df.merge(logs_df, on="course_module_id", how="left")
+
+        # 3. Calcular días desde creación y última actualización
+        modules_df["module_added"] = pd.to_datetime(modules_df["module_added"]).dt.tz_localize(None)
+        modules_df["fecha_ultima_actualizacion"] = pd.to_datetime(modules_df["fecha_ultima_actualizacion"]).dt.tz_localize(None)
+        modules_df["fecha_inicio_semana"] = pd.to_datetime(modules_df["fecha_inicio_semana"]).dt.tz_localize(None)
+
+        # Resta de fechas segura
+        modules_df["dias_desde_creacion"] = (modules_df["fecha_inicio_semana"] - modules_df["module_added"]).dt.days
+        modules_df["dias_desde_ultima_actualizacion"] = (modules_df["fecha_inicio_semana"] - modules_df["fecha_ultima_actualizacion"]).dt.days
+        return modules_df
+
     def process_course_data(self):
         """ """
         courses_file = "data/interim/moodle/courses_unique_moodle.csv"
         asignaturas_file = "data/raw/tablas_maestras/asignaturas.csv"
 
+        calendario_df = self._get_calendar_df()
+
         file_paths = self._build_module_file_paths(2024)
         modules_2024 = self._load_modules(courses_file, asignaturas_file, *file_paths, year=2024)
+        logs_2024 = self._get_logs_updated("data/raw/moodle/2024/Log/mdlvf_logstore_standard_log.parquet")
 
         file_paths = self._build_module_file_paths(2025)
         modules_2025 = self._load_modules(courses_file, asignaturas_file, *file_paths, year=2025)
+        logs_2025 = self._get_logs_updated("data/raw/moodle/2025/Log/mdlvf_logstore_standard_log.parquet")
 
         modules_2024 = self.process_moodle_modules(modules_2024)
         modules_2025 = self.process_moodle_modules(modules_2025)
@@ -321,6 +370,16 @@ class MoodleModuleProcessor:
         # Edukrea data processing
         edukrea_df = self._load_modules_edukrea(courses_file, asignaturas_file)
         edukrea_df = self.process_moodle_modules_edukrea(edukrea_df)
+
+        # Filtrar solo por el primer bimestre 1 lo demás esta en construcción
+        edukrea_df = edukrea_df[edukrea_df["period"] == 1]
+
+        logs_edukrea = self._get_logs_updated("data/raw/moodle/Edukrea/Logs and Events/mdl_logstore_standard_log.parquet")
+        edukrea_df = self.merge_modules_logs_update(edukrea_df, logs_edukrea, calendario_df)
+
+        # Agregar columnas para los días desde la creación y última actualización
+        logs_2024_2025 = pd.concat([logs_2024, logs_2025], ignore_index=True)
+        modules_combined = self.merge_modules_logs_update(modules_combined, logs_2024_2025, calendario_df)
 
         # Finally, save the Edukrea data to CSV
         output_file = "data/interim/moodle/moodle_modules_active.csv"
