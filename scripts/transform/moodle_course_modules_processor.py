@@ -371,6 +371,73 @@ class MoodleModuleProcessor:
         student_counts = students_df.groupby(["year", "course_id"]).size().reset_index(name="total_estudiantes")
         return student_counts
 
+    def _get_student_interactions(self, student_logs_file):
+        """
+        Carga los logs de estudiantes y calcula métricas de interacción por módulo.
+        """
+        logs = pd.read_csv(student_logs_file)
+        logs["timecreated"] = pd.to_datetime(logs["timecreated"], unit="s", errors="coerce")
+
+        # Asegura que `contextinstanceid` sea entero para merge posterior
+        logs["contextinstanceid"] = logs["contextinstanceid"].astype("Int64")
+
+        # Separar eventos viewed vs interactivos
+        logs["is_viewed"] = logs["eventname"].str.contains("viewed", case=False, na=False)
+
+        # Total vistas por módulo
+        total_views = (
+            logs[logs["is_viewed"]]
+            .groupby("contextinstanceid")
+            .agg(
+                total_vistas_estudiantes=("id", "count"),
+                estudiantes_que_vieron=("userid", pd.Series.nunique),
+            )
+        )
+
+        # Total interacciones por módulo (no viewed)
+        interacciones = (
+            logs[~logs["is_viewed"]]
+            .groupby("contextinstanceid")
+            .agg(
+                total_interacciones_estudiantes=("id", "count"),
+                estudiantes_que_interactuaron=("userid", pd.Series.nunique),
+            )
+        )
+
+        # Vistas por estudiante por módulo
+        vistas_por_estudiante = (
+            logs[logs["is_viewed"]]
+            .groupby(["contextinstanceid", "userid"])
+            .size()
+            .groupby("contextinstanceid")
+            .agg(
+                min_vistas_estudiante="min",
+                max_vistas_estudiante="max",
+                mediana_vistas_estudiante="median",
+            )
+        )
+
+        # Combinar todas las métricas
+        resumen = total_views.join(interacciones, how="outer").join(vistas_por_estudiante, how="outer")
+        resumen = resumen.reset_index().rename(columns={"contextinstanceid": "course_module_id"})
+
+        # Rellenar NaNs
+        resumen.fillna(0, inplace=True)
+
+        # Convertir a enteros donde aplique
+        int_cols = [
+            "total_vistas_estudiantes",
+            "estudiantes_que_vieron",
+            "total_interacciones_estudiantes",
+            "estudiantes_que_interactuaron",
+            "min_vistas_estudiante",
+            "max_vistas_estudiante",
+        ]
+        for col in int_cols:
+            resumen[col] = resumen[col].astype(int)
+
+        return resumen
+
     def process_course_data(self):
         """ """
         courses_file = "data/interim/moodle/courses_unique_moodle.csv"
@@ -449,6 +516,30 @@ class MoodleModuleProcessor:
 
         modules_combined["total_estudiantes"] = modules_combined["total_estudiantes"].fillna(0).astype(int)
         edukrea_df["total_estudiantes"] = edukrea_df["total_estudiantes"].fillna(0).astype(int)
+
+        # Agregar interacciones de estudiantes
+        student_logs_file = "data/interim/moodle/students_logs_moodle.csv"
+        interacciones_estudiantes_moodle = self._get_student_interactions(student_logs_file)
+        modules_combined = modules_combined.merge(interacciones_estudiantes_moodle, on="course_module_id", how="left")
+
+        # Now for edukrea
+        student_logs_file_edukrea = "data/interim/moodle/students_logs_edukrea.csv"
+        interacciones_estudiantes_edukrea = self._get_student_interactions(student_logs_file_edukrea)
+        edukrea_df = edukrea_df.merge(interacciones_estudiantes_edukrea, on="course_module_id", how="left")
+
+        # Rellenar NaNs y asegurar tipos
+        metrics_fill_zero = [
+            "total_vistas_estudiantes",
+            "estudiantes_que_vieron",
+            "total_interacciones_estudiantes",
+            "estudiantes_que_interactuaron",
+            "min_vistas_estudiante",
+            "max_vistas_estudiante",
+        ]
+        for df in [modules_combined, edukrea_df]:
+            for col in metrics_fill_zero:
+                df[col] = df[col].fillna(0).astype(int)
+            df["mediana_vistas_estudiante"] = df["mediana_vistas_estudiante"].fillna(0).astype(int)
 
         # Finally, save the Edukrea data to CSV
         output_file = "data/interim/moodle/modules_active_moodle.csv"
