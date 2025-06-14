@@ -41,7 +41,7 @@ class MoodleTeachersLogs:
             self.logger.error(f"Error cargando datos de actividad para el año {year}: {str(e)}")
             raise
 
-    def _get_log(self, year, docente_ids, logs_parquet, course_modules_file):
+    def _get_log(self, year, docente_ids, logs_parquet, courses_file):
         # Convertimos a texto SQL
         docente_ids_sql = str(docente_ids)
 
@@ -60,10 +60,10 @@ class MoodleTeachersLogs:
                 logs.origin,
                 logs.ip
             FROM '{logs_parquet}' AS logs
-            INNER JOIN '{course_modules_file}' AS modules ON logs.contextinstanceid = modules.course_module_id
+            INNER JOIN '{courses_file}' AS courses ON courses.course_id = logs.courseid
             WHERE
                 EXTRACT(YEAR FROM to_timestamp(logs.timecreated)) = {year}
-                AND modules.year = {year}
+                AND courses.year = {year}
                 AND logs.userid IN {docente_ids_sql}
             ORDER BY logs.timecreated
         """
@@ -74,7 +74,6 @@ class MoodleTeachersLogs:
             raise
 
     def process_teacher_logs(self):
-        course_modules_file = "data/interim/moodle/moodle_modules_active.csv"
         unique_courses_file = "data/interim/moodle/courses_unique_moodle.csv"
 
         # Get logs for 2024
@@ -87,7 +86,7 @@ class MoodleTeachersLogs:
         logs_parquet = f"data/raw/moodle/{year}/Log/mdlvf_logstore_standard_log.parquet"
 
         teacher_ids_2024 = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
-        log_2024 = self._get_log(year, teacher_ids_2024, logs_parquet, course_modules_file)
+        log_2024 = self._get_log(year, teacher_ids_2024, logs_parquet, unique_courses_file)
 
         # Get logs for 2025
         year = 2025
@@ -99,11 +98,10 @@ class MoodleTeachersLogs:
         logs_parquet = f"data/raw/moodle/{year}/Log/mdlvf_logstore_standard_log.parquet"
 
         teacher_ids_2025 = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
-        log_2025 = self._get_log(year, teacher_ids_2025, logs_parquet, course_modules_file)
+        log_2025 = self._get_log(year, teacher_ids_2025, logs_parquet, unique_courses_file)
 
         # Get logs Edukrea
         year = 2025
-        course_modules_file = "data/interim/moodle/edukrea_modules_active.csv"
         unique_courses_file = "data/interim/moodle/courses_unique_edukrea.csv"
         course_file = "data/raw/moodle/Edukrea/Courses/mdl_course.parquet"
         context_file = "data/raw/moodle/Edukrea/Access and Roles/mdl_context.parquet"
@@ -113,7 +111,7 @@ class MoodleTeachersLogs:
         logs_parquet = "data/raw/moodle/Edukrea/Logs and Events/mdl_logstore_standard_log.parquet"
 
         teacher_ids_edukrea = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
-        logs_edukrea = self._get_log(year, teacher_ids_edukrea, logs_parquet, course_modules_file)
+        logs_edukrea = self._get_log(year, teacher_ids_edukrea, logs_parquet, unique_courses_file)
 
         # Concatenate 2024 y 2025 logs
         logs_2024_2025 = pd.concat([log_2024, log_2025], ignore_index=True)
