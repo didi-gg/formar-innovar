@@ -365,10 +365,23 @@ class MoodleModuleProcessor:
         )
         return vistas_agg
 
+    def _get_students_count(self, students_df):
+        students_df["year"] = students_df["year"].astype(int)
+        students_df["course_id"] = students_df["course_id"].astype(int)
+        student_counts = students_df.groupby(["year", "course_id"]).size().reset_index(name="total_estudiantes")
+        return student_counts
+
     def process_course_data(self):
         """ """
         courses_file = "data/interim/moodle/courses_unique_moodle.csv"
         asignaturas_file = "data/raw/tablas_maestras/asignaturas.csv"
+
+        students_courses_moodle = pd.read_csv("data/interim/moodle/student_moodle_courses.csv")
+        students_courses_edukrea = pd.read_csv("data/interim/moodle/student_edukrea_courses.csv")
+
+        # Obtener el conteo de estudiantes por curso
+        students_count_moodle = self._get_students_count(students_courses_moodle)
+        students_count_edukrea = self._get_students_count(students_courses_edukrea)
 
         calendario_df = self._get_calendar_df()
 
@@ -429,6 +442,13 @@ class MoodleModuleProcessor:
         interactive_types = ["assign", "quiz", "forum", "hvp", "choice", "feedback", "chat", "workshop", "lti"]
         modules_combined["interactivo"] = modules_combined["module_type"].apply(lambda x: 1 if x in interactive_types else 0)
         edukrea_df["interactivo"] = edukrea_df["module_type"].apply(lambda x: 1 if x in interactive_types else 0)
+
+        # Agregar el conteo de estudiantes por curso
+        modules_combined = modules_combined.merge(students_count_moodle, on=["year", "course_id"], how="left")
+        edukrea_df = edukrea_df.merge(students_count_edukrea, on=["year", "course_id"], how="left")
+
+        modules_combined["total_estudiantes"] = modules_combined["total_estudiantes"].fillna(0).astype(int)
+        edukrea_df["total_estudiantes"] = edukrea_df["total_estudiantes"].fillna(0).astype(int)
 
         # Finally, save the Edukrea data to CSV
         output_file = "data/interim/moodle/modules_active_moodle.csv"
