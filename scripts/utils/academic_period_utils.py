@@ -10,36 +10,48 @@ class AcademicPeriodUtils:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.periods = {
-            2024: {
-                "p1_start": pd.Timestamp("2024-02-01", tz="America/Bogota"),
-                "p2_start": pd.Timestamp("2024-04-01", tz="America/Bogota"),
-                "p3_start": pd.Timestamp("2024-07-08", tz="America/Bogota"),
-                "p4_start": pd.Timestamp("2024-10-15", tz="America/Bogota"),
-                "vacations": [
-                    ("2024-03-25", "2024-03-29"),
-                    ("2024-06-17", "2024-07-05"),
-                    ("2024-10-07", "2024-10-11"),
-                ],
-            },
-            2025: {
-                "p1_start": pd.Timestamp("2025-01-27", tz="America/Bogota"),
-                "p2_start": pd.Timestamp("2025-04-15", tz="America/Bogota"),
-                "p3_start": pd.Timestamp("2025-07-14", tz="America/Bogota"),
-                "p4_start": pd.Timestamp("2025-10-14", tz="America/Bogota"),
-                "vacations": [
-                    ("2025-03-17", "2025-03-21"),
-                    ("2025-06-16", "2025-07-11"),
-                    ("2025-10-06", "2025-10-10"),
-                ],
-            },
-        }
+        self.build_periods()
 
-        # Convertir fechas de vacaciones a timestamps
-        for year in self.periods:
-            self.periods[year]["vacations"] = [
-                (pd.Timestamp(start, tz="America/Bogota"), pd.Timestamp(end, tz="America/Bogota")) for start, end in self.periods[year]["vacations"]
+    def build_periods(self):
+        # Leer CSVs
+        calendario_df = pd.read_csv("data/raw/tablas_maestras/calendario_escolar.csv", dayfirst=True)
+        vacaciones_df = pd.read_csv("data/raw/tablas_maestras/vacaciones_festivos.csv", dayfirst=True)
+
+        # Limpiar columnas
+        calendario_df.columns = calendario_df.columns.str.strip().str.lower()
+        vacaciones_df.columns = vacaciones_df.columns.str.strip().str.lower()
+
+        # Convertir fechas a datetime
+        calendario_df["inicio"] = pd.to_datetime(calendario_df["inicio"], dayfirst=True)
+        vacaciones_df["inicio"] = pd.to_datetime(vacaciones_df["inicio"], dayfirst=True)
+        vacaciones_df["fin"] = pd.to_datetime(vacaciones_df["fin"], dayfirst=True)
+
+        # Construir periods
+        periods = {}
+
+        for year in calendario_df["año"].unique():
+            year_data = calendario_df[(calendario_df["año"] == year) & (calendario_df["semana"] == 1)]
+            year_periods = {}
+
+            # Fechas de inicio de bimestres
+            for _, row in year_data.iterrows():
+                bimestre = int(row["bimestre"])
+                start_date = pd.Timestamp(row["inicio"], tz="America/Bogota")
+                year_periods[f"p{bimestre}_start"] = start_date
+
+            # Vacaciones como Timestamps con hora incluida
+            year_vacaciones = vacaciones_df[vacaciones_df["año"] == year]
+            vacations_list = [
+                (
+                    pd.Timestamp(row["inicio"].strftime("%Y-%m-%dT00:00:00"), tz="America/Bogota"),
+                    pd.Timestamp(row["fin"].strftime("%Y-%m-%dT23:59:00"), tz="America/Bogota"),
+                )
+                for _, row in year_vacaciones.iterrows()
             ]
+            year_periods["vacations"] = vacations_list
+
+            periods[year] = year_periods
+        self.periods = periods
 
     def get_period_start_date(self, row):
         """
