@@ -1,3 +1,4 @@
+import re
 import duckdb
 import pandas as pd
 import os
@@ -540,6 +541,20 @@ class MoodleModuleProcessor:
             for col in metrics_fill_zero:
                 df[col] = df[col].fillna(0).astype(int)
             df["mediana_vistas_estudiante"] = df["mediana_vistas_estudiante"].fillna(0).astype(int)
+
+        modules_combined["english"] = (
+            modules_combined["module_name"]
+            .str.contains(r"(?:reto(?:\s+\w+){0,2}\s+ingl[eé]s|english)", flags=re.IGNORECASE, regex=True)
+            .fillna(False)
+            .astype(int)
+        )
+
+        edukrea_df["english"] = (
+            edukrea_df["module_name"]
+            .str.lower()
+            .str.contains(r"(?:reto(?:\s+\w+){0,2}\s+ingl[eé]s|english)", flags=re.IGNORECASE, regex=True)
+            .astype(int)
+        )
 
         # Finally, save the Edukrea data to CSV
         output_file = "data/interim/moodle/modules_active_moodle.csv"
