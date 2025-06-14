@@ -341,6 +341,29 @@ class MoodleModuleProcessor:
         modules_df["dias_desde_ultima_actualizacion"] = (modules_df["fecha_inicio_semana"] - modules_df["fecha_ultima_actualizacion"]).dt.days
         return modules_df
 
+    def _get_vistas_docente(self, logs_file):
+        # 1. Cargar logs docentes
+        logs_docentes = pd.read_csv(logs_file)
+
+        # 2. Convertir columnas de tiempo
+        logs_docentes["timecreated"] = pd.to_datetime(logs_docentes["timecreated"], unit="s", errors="coerce")
+
+        # 3. Filtrar eventos de vista docente
+        vistas_docentes = logs_docentes[logs_docentes["eventname"].str.contains("viewed", case=False, na=False)]
+
+        # 4. Agrupar por módulo
+        vistas_agg = (
+            vistas_docentes.groupby("contextinstanceid")
+            .agg(
+                total_vistas_docente=("contextinstanceid", "count"),
+                fecha_primera_vista=("timecreated", "min"),
+                fecha_ultima_vista=("timecreated", "max"),
+            )
+            .rename_axis("course_module_id")
+            .reset_index()
+        )
+        return vistas_agg
+
     def process_course_data(self):
         """ """
         courses_file = "data/interim/moodle/courses_unique_moodle.csv"
@@ -380,6 +403,20 @@ class MoodleModuleProcessor:
         # Agregar columnas para los días desde la creación y última actualización
         logs_2024_2025 = pd.concat([logs_2024, logs_2025], ignore_index=True)
         modules_combined = self.merge_modules_logs_update(modules_combined, logs_2024_2025, calendario_df)
+
+        # Agregar vistas docentes
+        vistas_agg = self._get_vistas_docente("data/interim/moodle/teachers_logs_moodle.csv")
+        modules_combined = modules_combined.merge(vistas_agg, on="course_module_id", how="left")
+
+        # Calcular si accedió antes
+        modules_combined["accedio_antes"] = modules_combined["fecha_primera_vista"] < modules_combined["fecha_inicio_semana"]
+
+        # Agregar vistas docentes edukrea
+        vistas_agg = self._get_vistas_docente("data/interim/moodle/teachers_logs_edukrea.csv")
+        edukrea_df = edukrea_df.merge(vistas_agg, on="course_module_id", how="left")
+
+        # Calcular si accedió antes
+        edukrea_df["accedio_antes"] = edukrea_df["fecha_primera_vista"] < edukrea_df["fecha_inicio_semana"]
 
         # Finally, save the Edukrea data to CSV
         output_file = "data/interim/moodle/moodle_modules_active.csv"
