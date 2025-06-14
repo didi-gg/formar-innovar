@@ -425,6 +425,11 @@ class MoodleModuleProcessor:
         modules_combined["total_vistas_docente"] = modules_combined["total_vistas_docente"].fillna(0).astype(int)
         edukrea_df["total_vistas_docente"] = edukrea_df["total_vistas_docente"].fillna(0).astype(int)
 
+        # Agregar columna interactivo con valor 1 si el module_type esta en el array de tipos interactivos
+        interactive_types = ["assign", "quiz", "forum", "hvp", "choice", "feedback", "chat", "workshop", "lti"]
+        modules_combined["interactivo"] = modules_combined["module_type"].apply(lambda x: 1 if x in interactive_types else 0)
+        edukrea_df["interactivo"] = edukrea_df["module_type"].apply(lambda x: 1 if x in interactive_types else 0)
+
         # Finally, save the Edukrea data to CSV
         output_file = "data/interim/moodle/modules_active_moodle.csv"
         self.save_to_csv(self.cast_column_types(modules_combined), output_file)
