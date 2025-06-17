@@ -7,6 +7,8 @@ class MoodlePathResolver:
     def get_paths(folder, *tables):
         base_path = Path("data/raw/moodle")
 
+        folder = str(folder)
+
         if folder in ("2024", "2025"):
             schema = MOODLE_TABLES_GROUPED
             prefix = "mdlvf"
