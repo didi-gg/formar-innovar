@@ -1,15 +1,15 @@
-import duckdb
 import pandas as pd
 import os
 import sys
-import logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+from utils.moodle_path_resolver import MoodlePathResolver
 from utils.academic_period_utils import AcademicPeriodUtils
+from utils.base_script import BaseScript
 
 
-class MoodleLoginProcessor:
+class StudentLoginsProcessor(BaseScript):
     """
     Procesa datos de login de Moodle para generar estadísticas de acceso.
 
@@ -19,18 +19,8 @@ class MoodleLoginProcessor:
     """
 
     def __init__(self):
-        self.con = duckdb.connect()
-        self.logger = logging.getLogger(__name__)
         self.period_utils = AcademicPeriodUtils()
-
-    def __del__(self):
-        if hasattr(self, "con") and self.con:
-            self.con.close()
-
-    def close(self):
-        if hasattr(self, "con") and self.con:
-            self.con.close()
-            self.con = None
+        super().__init__()
 
     def _load_moodle_data(self, logs_parquet, students_enrollment, year=2024):
         try:
@@ -57,18 +47,22 @@ class MoodleLoginProcessor:
 
     def process_moodle_logins(self):
         # --- Paso 1: Cargar datos de Moodle 2024 y 2025
+        logs_path_2024 = MoodlePathResolver.get_paths(2024, "logstore_standard_log")[0]
+        logs_path_2025 = MoodlePathResolver.get_paths(2025, "logstore_standard_log")[0]
+        logs_path_edukrea = MoodlePathResolver.get_paths("Edukrea", "logstore_standard_log")[0]
+
         data_2024 = self._load_moodle_data(
-            logs_parquet="data/raw/moodle/2024/Log/mdlvf_logstore_standard_log.parquet",
+            logs_parquet=logs_path_2024,
             students_enrollment="data/interim/estudiantes/enrollments.csv",
             year=2024,
         )
         data_2025_raw = self._load_moodle_data(
-            logs_parquet="data/raw/moodle/2025/Log/mdlvf_logstore_standard_log.parquet",
+            logs_parquet=logs_path_2025,
             students_enrollment="data/interim/estudiantes/enrollments.csv",
             year=2025,
         )
         edukrea_data = self._load_moodle_data(
-            logs_parquet="data/raw/moodle/Edukrea/Logs and Events/mdl_logstore_standard_log.parquet",
+            logs_parquet=logs_path_edukrea,
             students_enrollment="data/interim/estudiantes/enrollments.csv",
             year=2025,
         )
@@ -161,12 +155,12 @@ class MoodleLoginProcessor:
         df_final = df_final[columnas_finales]
 
         # --- Paso 10: Guardar resultados ---
-        output_path = "data/interim/moodle/moodle_logins.csv"
+        output_path = "data/interim/moodle/student_login_moodle.csv"
         df_final.to_csv(output_path, index=False)
         self.logger.info(f"Resultados guardados en: {output_path}")
         self.logger.info("Proceso de logins de Moodle completado.")
 
 
 if __name__ == "__main__":
-    processor = MoodleLoginProcessor()
+    processor = StudentLoginsProcessor()
     processor.process_moodle_logins()
