@@ -4,9 +4,9 @@ import os
 import sys
 import logging
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from scripts.utils.academic_period_utils import AcademicPeriodUtils
+from utils.academic_period_utils import AcademicPeriodUtils
 
 
 class MoodleCourseActivityProcessor:

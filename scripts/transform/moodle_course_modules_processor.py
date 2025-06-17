@@ -5,7 +5,7 @@ import os
 import sys
 import logging
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from utils.academic_period_utils import AcademicPeriodUtils
 
@@ -438,6 +438,15 @@ class MoodleModuleProcessor:
             resumen[col] = resumen[col].astype(int)
 
         return resumen
+
+    def _add_metrics(self, df):
+        df["porcentaje_estudiantes_que_interactuaron"] = (df["estudiantes_que_interactuaron"] / df["total_estudiantes"]).fillna(0) * 100
+
+        df["porcentaje_estudiantes_que_vieron"] = (df["estudiantes_que_vieron"] / df["total_estudiantes"]).fillna(0) * 100
+
+        df["ratio_interaccion_vs_vista"] = (df["total_interacciones_estudiantes"] / df["total_vistas_estudiantes"]).fillna(0)
+
+        df["docente_activo"] = ((df["total_vistas_docente"] > 0) & (df["total_actualizaciones_docente"] > 0)).astype(int)
 
     def process_course_data(self):
         """ """
