@@ -1,26 +1,14 @@
-import duckdb
 import pandas as pd
 import os
 import sys
-import logging
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+from utils.moodle_path_resolver import MoodlePathResolver
+from utils.base_script import BaseScript
 
 
-class MoodleStudentLogs:
-    def __init__(self):
-        self.con = duckdb.connect()
-        self.logger = logging.getLogger(__name__)
-
-    def __del__(self):
-        if hasattr(self, "con") and self.con:
-            self.con.close()
-
-    def close(self):
-        if hasattr(self, "con") and self.con:
-            self.con.close()
-            self.con = None
-
+class StudentLoginProcessor(BaseScript):
     def _get_log(self, year, logs_parquet, student_courses_file):
         sql_logs_estudiantes = f"""
             SELECT 
@@ -51,20 +39,21 @@ class MoodleStudentLogs:
 
     def process_student_logs(self):
         student_courses_file = "data/interim/moodle/student_moodle_courses.csv"
+        logs_table = "logstore_standard_log"
 
         # Get logs for 2024
         year = 2024
-        logs_parquet = f"data/raw/moodle/{year}/Log/mdlvf_logstore_standard_log.parquet"
+        logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
         log_2024 = self._get_log(year, logs_parquet, student_courses_file)
 
         # Get logs for 2025
         year = 2025
-        logs_parquet = f"data/raw/moodle/{year}/Log/mdlvf_logstore_standard_log.parquet"
+        logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
         log_2025 = self._get_log(year, logs_parquet, student_courses_file)
 
         # Get logs Edukrea
         year = 2025
-        logs_parquet = "data/raw/moodle/Edukrea/Logs and Events/mdl_logstore_standard_log.parquet"
+        logs_parquet = MoodlePathResolver.get_paths("Edukrea", logs_table)[0]
         student_courses_file = "data/interim/moodle/student_edukrea_courses.csv"
         logs_edukrea = self._get_log(year, logs_parquet, student_courses_file)
 
@@ -72,14 +61,16 @@ class MoodleStudentLogs:
         logs_2024_2025 = pd.concat([log_2024, log_2025], ignore_index=True)
 
         # Save as csv
-        output_file = "data/interim/moodle/students_logs_moodle.csv"
-        logs_2024_2025.to_csv(output_file, index=False, encoding="utf-8-sig", quoting=1)
+        output_file = "data/interim/moodle/student_logs_edukrea.csv"
+        self.save_to_csv(logs_2024_2025, output_file)
 
         # Save Edukrea logs
-        output_file_edukrea = "data/interim/moodle/students_logs_edukrea.csv"
-        logs_edukrea.to_csv(output_file_edukrea, index=False, encoding="utf-8-sig", quoting=1)
+        output_file_edukrea = "data/interim/moodle/student_logs_edukrea.csv"
+        self.save_to_csv(logs_edukrea, output_file_edukrea)
 
 
 if __name__ == "__main__":
-    processor = MoodleStudentLogs()
+    processor = StudentLoginProcessor()
     processor.process_student_logs()
+    processor.logger.info("Student logs processed successfully.")
+    processor.close()
