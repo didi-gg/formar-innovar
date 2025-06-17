@@ -1,16 +1,15 @@
-import duckdb
 import pandas as pd
 import os
 import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+from utils.moodle_path_resolver import MoodlePathResolver
+from utils.base_script import BaseScript
 from utils.hash_utility import HashUtility
 
 
-class EnrollmentProcessor:
-    def __init__(self):
-        self.con = duckdb.connect()
-
+class EnrollmentProcessor(BaseScript):
     def _load_moodle_data(self, parquet_users_path, parquet_user_info_path):
         sql = f"""
         SELECT 
@@ -54,7 +53,7 @@ class EnrollmentProcessor:
 
         return edukrea_mapping
 
-    def create_enrollments_df(self, parquet_users_path, parquet_user_info_path, students_df, year, edukrea_users_path=None):  # Added default None
+    def create_enrollments_df(self, parquet_users_path, parquet_user_info_path, students_df, year, edukrea_users_path=None):
         result_df = self._load_moodle_data(parquet_users_path, parquet_user_info_path)
 
         # Cargar y aplicar hashing
@@ -94,10 +93,11 @@ class EnrollmentProcessor:
     def process_all_years(self):
         # Procesar 2024
         students_2024 = pd.read_csv("data/interim/estudiantes/estudiantes_2024_hashed.csv")
+        parquet_users_path, parquet_user_info_path = MoodlePathResolver.get_paths(2024, "user", "user_info_data")
 
         enrollments_2024 = self.create_enrollments_df(
-            parquet_users_path="data/raw/moodle/2024/Users/mdlvf_user.parquet",
-            parquet_user_info_path="data/raw/moodle/2024/Users/mdlvf_user_info_data.parquet",
+            parquet_users_path=parquet_users_path,
+            parquet_user_info_path=parquet_user_info_path,
             students_df=students_2024,
             year=2024,
             # edukrea_users_path=None, # No se pasa para 2024
@@ -105,13 +105,15 @@ class EnrollmentProcessor:
 
         # Procesar 2025
         students_2025 = pd.read_csv("data/interim/estudiantes/estudiantes_2025_hashed.csv")
+        parquet_users_path, parquet_user_info_path = MoodlePathResolver.get_paths(2025, "user", "user_info_data")
+        parquet_users_path_edukrea = MoodlePathResolver.get_paths("Edukrea", "user")[0]
 
         enrollments_2025 = self.create_enrollments_df(
-            parquet_users_path="data/raw/moodle/2025/Users/mdlvf_user.parquet",
-            parquet_user_info_path="data/raw/moodle/2025/Users/mdlvf_user_info_data.parquet",
+            parquet_users_path=parquet_users_path,
+            parquet_user_info_path=parquet_user_info_path,
             students_df=students_2025,
             year=2025,
-            edukrea_users_path="data/raw/moodle/Edukrea/Users/mdl_user.parquet",
+            edukrea_users_path=parquet_users_path_edukrea,
         )
 
         # Combinar los dataframes
@@ -128,14 +130,11 @@ class EnrollmentProcessor:
 
         # Guardar el dataframe combinado
         output_path = "data/interim/estudiantes/enrollments.csv"
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        all_enrollments.to_csv(output_path, index=False, encoding="utf-8")
-        print(f"Archivo de matrículas combinado guardado en: {output_path}")
-
-        return all_enrollments  # Devolver el dataframe combinado
+        self.save_to_csv(all_enrollments, output_path)
 
 
 if __name__ == "__main__":
     processor = EnrollmentProcessor()
     final_enrollments = processor.process_all_years()
-    print("Procesamiento de matrículas completado.")
+    processor.logger.info("Enrollment data processed successfully.")
+    processor.close()
