@@ -112,8 +112,8 @@ class MoodleCourseActivityProcessor(BaseScript):
         logs_parquet_2025 = MoodlePathResolver.get_paths(2025, logs_table)[0]
         logs_parquet_edukrea = MoodlePathResolver.get_paths("Edukrea", logs_table)[0]
 
-        student_courses = "data/interim/moodle/student_moodle_courses.csv"
-        student_courses_edukrea = "data/interim/moodle/student_edukrea_courses.csv"
+        student_courses = "data/interim/moodle/student_courses_moodle.csv"
+        student_courses_edukrea = "data/interim/moodle/student_courses_edukrea.csv"
 
         # Cargar datos de 2024 y 2025
         data_2024 = self._load_course_activity_data(logs_parquet_2024, student_courses, year=2024)

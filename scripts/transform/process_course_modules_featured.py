@@ -175,8 +175,8 @@ class ModuleFeaturesProcessor(BaseScript):
         moodle_df = pd.read_csv("data/interim/moodle/modules_active_moodle.csv")
         edukrea_df = pd.read_csv("data/interim/moodle/modules_active_edukrea.csv")
 
-        students_moodle = pd.read_csv("data/interim/moodle/student_moodle_courses.csv")
-        students_edukrea = pd.read_csv("data/interim/moodle/student_edukrea_courses.csv")
+        students_moodle = pd.read_csv("data/interim/moodle/student_courses_moodle.csv")
+        students_edukrea = pd.read_csv("data/interim/moodle/student_courses_edukrea.csv")
 
         logs_table = "logstore_standard_log"
 

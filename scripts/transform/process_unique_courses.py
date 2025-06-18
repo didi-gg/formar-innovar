@@ -31,8 +31,8 @@ class UniqueCoursesProcessor(BaseScript):
         Carga los datos de cursos desde archivos CSV intermedios,
         extrae cursos únicos y los guarda en nuevos archivos CSV.
         """
-        moodle_input_path = "data/interim/moodle/student_moodle_courses.csv"
-        edukrea_input_path = "data/interim/moodle/student_edukrea_courses.csv"
+        moodle_input_path = "data/interim/moodle/student_courses_moodle.csv"
+        edukrea_input_path = "data/interim/moodle/student_courses_edukrea.csv"
 
         moodle_df = pd.read_csv(moodle_input_path)
         edukrea_df = pd.read_csv(edukrea_input_path)

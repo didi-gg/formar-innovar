@@ -39,7 +39,7 @@ class StudentLoginProcessor(BaseScript):
             raise
 
     def process_student_logs(self):
-        student_courses_file = "data/interim/moodle/student_moodle_courses.csv"
+        student_courses_file = "data/interim/moodle/student_courses_moodle.csv"
         logs_table = "logstore_standard_log"
 
         # Get logs for 2024
@@ -55,7 +55,7 @@ class StudentLoginProcessor(BaseScript):
         # Get logs Edukrea
         year = 2025
         logs_parquet = MoodlePathResolver.get_paths("Edukrea", logs_table)[0]
-        student_courses_file = "data/interim/moodle/student_edukrea_courses.csv"
+        student_courses_file = "data/interim/moodle/student_courses_edukrea.csv"
         logs_edukrea = self._get_log(year, logs_parquet, student_courses_file)
 
         # Concatenate 2024 y 2025 logs
