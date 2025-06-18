@@ -195,7 +195,7 @@ class ModuleFeaturesProcessor(BaseScript):
             "data/interim/moodle/teacher_logs_moodle.csv",
             "data/interim/moodle/student_logs_moodle.csv",
         )
-        self.save_to_csv(moodle_df, "data/interim/moodle/modules_moodle_featured.csv")
+        self.save_to_csv(moodle_df, "data/interim/moodle/modules_featured_moodle.csv")
 
         # Procesar Edukrea
         edukrea_df = self.process_df(
@@ -205,7 +205,7 @@ class ModuleFeaturesProcessor(BaseScript):
             "data/interim/moodle/teacher_logs_edukrea.csv",
             "data/interim/moodle/student_logs_edukrea.csv",
         )
-        self.save_to_csv(edukrea_df, "data/interim/moodle/modules_edukrea_featured.csv")
+        self.save_to_csv(edukrea_df, "data/interim/moodle/modules_featured_edukrea.csv")
 
 
 if __name__ == "__main__":
