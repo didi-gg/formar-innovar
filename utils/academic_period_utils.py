@@ -232,3 +232,14 @@ class AcademicPeriodUtils:
             return 4
         else:
             return 0
+
+    @staticmethod
+    def _load_calendar() -> pd.DataFrame:
+        calendar_file = "data/raw/tablas_maestras/calendario_escolar.csv"
+        df = pd.read_csv(calendar_file)
+        df["inicio"] = pd.to_datetime(df["inicio"], dayfirst=True, errors="coerce")
+        df.rename(columns={"año": "year", "bimestre": "period", "semana_general": "week"}, inplace=True)
+        df["year"] = df["year"].astype(int)
+        df["period"] = df["period"].astype(int)
+        df["week"] = df["week"].astype(int)
+        return df
