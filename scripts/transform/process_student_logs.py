@@ -12,6 +12,7 @@ class StudentLoginProcessor(BaseScript):
     def _get_log(self, year, logs_parquet, student_courses_file):
         sql_logs_estudiantes = f"""
             SELECT 
+                '{year}' AS year,
                 logs.id,
                 logs.eventname,
                 logs.component,
@@ -61,7 +62,7 @@ class StudentLoginProcessor(BaseScript):
         logs_2024_2025 = pd.concat([log_2024, log_2025], ignore_index=True)
 
         # Save as csv
-        output_file = "data/interim/moodle/student_logs_edukrea.csv"
+        output_file = "data/interim/moodle/student_logs_moodle.csv"
         self.save_to_csv(logs_2024_2025, output_file)
 
         # Save Edukrea logs
