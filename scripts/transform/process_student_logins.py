@@ -164,3 +164,5 @@ class StudentLoginsProcessor(BaseScript):
 if __name__ == "__main__":
     processor = StudentLoginsProcessor()
     processor.process_moodle_logins()
+    processor.close()
+    processor.logger.info("Student logins processed successfully.")
