@@ -116,6 +116,7 @@ class MoodleModulesProcessor(BaseScript):
             LEFT JOIN '{chat_file}' AS ch ON b.module_type = 'chat' AND b.instance = ch.id
             LEFT JOIN '{feedback_file}' AS fb ON b.module_type = 'feedback' AND b.instance = fb.id
             LEFT JOIN '{glossary_file}' AS g ON b.module_type = 'glossary' AND b.instance = g.id
+            WHERE module_name IS NOT NULL AND module_name != ''
             """
             return self.con.execute(sql).df()
 
@@ -172,6 +173,7 @@ class MoodleModulesProcessor(BaseScript):
             LEFT JOIN '{assign_file}' AS a ON b.module_type = 'assign' AND b.instance = a.id
             LEFT JOIN '{resource_file}' AS r ON b.module_type = 'resource' AND b.instance = r.id
             LEFT JOIN '{url_file}' AS u ON b.module_type = 'url' AND b.instance = u.id
+            WHERE module_name IS NOT NULL AND module_name != ''
             """
             return self.con.execute(sql).df()
 
