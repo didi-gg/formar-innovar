@@ -1,28 +1,19 @@
-import duckdb
 import pandas as pd
 import os
 import sys
-import logging
 import re
 import json
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+from utils.moodle_path_resolver import MoodlePathResolver
+from utils.base_script import BaseScript
+from utils.academic_period_utils import AcademicPeriodUtils
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
-class MoodleHVP:
-    def __init__(self):
-        self.con = duckdb.connect()
-        self.logger = logging.getLogger(__name__)
-
-    def __del__(self):
-        if hasattr(self, "con") and self.con:
-            self.con.close()
-
-    def close(self):
-        if hasattr(self, "con") and self.con:
-            self.con.close()
-            self.con = None
-
+class MoodleHVPProcessor(BaseScript):
     def parse_json(self, row):
         try:
             return json.loads(row)
@@ -39,22 +30,6 @@ class MoodleHVP:
                 sede,
                 week,
                 period,
-                fecha_inicio_semana,
-                total_actualizaciones_docente,
-                dias_desde_creacion,
-                total_vistas_docente,
-                fecha_primera_vista,
-                fecha_ultima_vista,
-                accedio_antes,
-                interactivo,
-                total_estudiantes,
-                total_vistas_estudiantes,
-                estudiantes_que_vieron,
-                total_interacciones_estudiantes,
-                estudiantes_que_interactuaron,
-                min_vistas_estudiante,
-                max_vistas_estudiante,
-                mediana_vistas_estudiante,
                 id_grado,
                 hl.machine_name,
                 h.timecreated,
@@ -70,7 +45,7 @@ class MoodleHVP:
             FROM '{moodle_modules}' cm
             JOIN '{hvp}' AS h ON cm.instance = h.id AND cm.module_type_id = 24
             LEFT JOIN '{hvp_libraries}' hl ON hl.id = h.main_library_id
-            WHERE cm.year = year
+            WHERE cm.year = '{year}'
             """
         try:
             return self.con.execute(sql_hvp).df()
@@ -99,7 +74,6 @@ class MoodleHVP:
 
         df["h5p_libraries"] = df["json_parsed"].apply(extract_libraries)
 
-        # Elimina json_parsed si no lo necesitas
         df.drop(columns=["json_parsed"], inplace=True)
         df["json_kb"] = df["hvp_type"].apply(lambda x: round(len(x.encode("utf-8")) / 1024, 2))
 
@@ -107,7 +81,7 @@ class MoodleHVP:
         df["libraries_count"] = df["h5p_libraries"].apply(lambda libs: len(libs) if isinstance(libs, list) else 0)
 
         # Verificar si "reto inglés" aparece en el nombre, sin importar mayúsculas
-        df["english"] = df["hvp_name"].str.lower().str.contains(r"reto(?:\s+\w+){0,2}\s+ingl[eé]s", flags=re.IGNORECASE)
+        df["is_in_english"] = df["hvp_name"].str.lower().str.contains(r"reto(?:\s+\w+){0,2}\s+ingl[eé]s", flags=re.IGNORECASE)
 
         # 1. Set de librerías interactivas
         interactive_libraries = {
@@ -134,29 +108,26 @@ class MoodleHVP:
         )
 
         # 4. Resultado: solo es interactivo si tiene alguna librería válida Y no es machine bloqueado
-        df["interactive"] = ~(cond_no_interactive_libraries | cond_machine)
+        df["is_interactive"] = ~(cond_no_interactive_libraries | cond_machine)
 
         return df
 
     def process_all_hvp(self):
         # Load HVP data
+        tables = ["hvp", "hvp_libraries"]
 
         year = 2024
-        hvp = f"data/raw/moodle/{year}/h5/mdlvf_hvp.parquet"
-        hvp_libraries = f"data/raw/moodle/{year}/h5/mdlvf_hvp_libraries.parquet"
         moodle_modules = "data/interim/moodle/modules_active_moodle.csv"
+        hvp, hvp_libraries = MoodlePathResolver.get_paths(year, *tables)
         hvp_data_2024 = self._get_hvp(hvp, hvp_libraries, moodle_modules, year)
 
         year = 2025
-        hvp = f"data/raw/moodle/{year}/h5/mdlvf_hvp.parquet"
-        hvp_libraries = f"data/raw/moodle/{year}/h5/mdlvf_hvp_libraries.parquet"
-        moodle_modules = "data/interim/moodle/modules_active_moodle.csv"
+        hvp, hvp_libraries = MoodlePathResolver.get_paths(year, *tables)
         hvp_data_2025 = self._get_hvp(hvp, hvp_libraries, moodle_modules, year)
 
         year = 2025
-        hvp = "data/raw/moodle/Edukrea/Interactive Content/mdl_hvp.parquet"
-        hvp_libraries = "data/raw/moodle/Edukrea/Interactive Content/mdl_hvp_libraries.parquet"
         moodle_modules = "data/interim/moodle/modules_active_edukrea.csv"
+        hvp, hvp_libraries = MoodlePathResolver.get_paths("Edukrea", *tables)
         hvp_data_edukrea = self._get_hvp(hvp, hvp_libraries, moodle_modules, year)
 
         # Combine HVP data for both years
@@ -166,15 +137,15 @@ class MoodleHVP:
         hvp_data_edukrea = self.process_hvp(hvp_data_edukrea)
 
         # Save the processed HVP data
-        hvp_data.to_csv("data/interim/moodle/hvp_data_moodle.csv", index=False, encoding="utf-8-sig", quoting=1)
+        hvp_data.to_csv("data/interim/moodle/hvp_moodle.csv", index=False, encoding="utf-8-sig", quoting=1)
         self.logger.info("HVP data processed and saved successfully.")
 
-        hvp_data_edukrea.to_csv("data/interim/moodle/hvp_data_edukrea.csv", index=False, encoding="utf-8-sig", quoting=1)
+        hvp_data_edukrea.to_csv("data/interim/moodle/hvp_edukrea.csv", index=False, encoding="utf-8-sig", quoting=1)
         self.logger.info("HVP data processed and saved successfully.")
 
 
 if __name__ == "__main__":
-    moodle_hvp = MoodleHVP()
-    moodle_hvp.process_all_hvp()
-    moodle_hvp.close()
-    logging.info("Moodle HVP processing completed.")
+    processor = MoodleHVPProcessor()
+    processor.process_all_hvp()
+    processor.close()
+    processor.logger.info("Moodle HVP processing completed.")
