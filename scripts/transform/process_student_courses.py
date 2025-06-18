@@ -74,7 +74,7 @@ class StudentMoodleCoursesProcessor(BaseScript):
 
     def process_student_courses(self):
         students_file = "data/interim/estudiantes/enrollments.csv"
-        mapping_file = "data/interim/moodle/course_moodle_mapping.csv"
+        mapping_file = "data/interim/moodle/course_mapping_moodle.csv"
 
         excluded_courses = (
             # Institucionales y prueba
@@ -121,7 +121,7 @@ class StudentMoodleCoursesProcessor(BaseScript):
         self.save_to_csv(df_combined, output_file)
 
         # Process Edukrea
-        mapping_file = "data/interim/moodle/course_edukrea_mapping.csv"
+        mapping_file = "data/interim/moodle/course_mapping_edukrea.csv"
         enrollments_file, enrol_file, courses_file = MoodlePathResolver.get_paths("Edukrea", "user_enrolments", "enrol", "course")
         df_edukrea = self.load_student_courses_edukrea(2025, enrollments_file, enrol_file, courses_file, students_file, mapping_file, ())
 
