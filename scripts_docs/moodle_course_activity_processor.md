@@ -32,7 +32,7 @@ El objetivo principal es consolidar la actividad por estudiante, curso, periodo 
    - Se utiliza `AcademicPeriodUtils` para asignar a qué periodo (bimestre) pertenece cada evento basado en su fecha.
 
 4. **Filtrado de cursos válidos**:
-   - Se cruza la actividad con la matrícula de estudiantes (`student_moodle_courses.csv`) para considerar solo cursos reales.
+   - Se cruza la actividad con la matrícula de estudiantes (`student_courses_moodle.csv`) para considerar solo cursos reales.
 
 5. **Clasificación de eventos**:
    - Cada evento se mapea a un tipo de actividad más amigable.
@@ -63,7 +63,7 @@ El objetivo principal es consolidar la actividad por estudiante, curso, periodo 
 
 ---
 
-### Tabla: `data/interim/moodle/student_moodle_courses.csv`
+### Tabla: `data/interim/moodle/student_courses_moodle.csv`
 | **Columna** | **Descripción** |
 |-------------|------------------|
 | moodle_user_id | ID de usuario en Moodle |

@@ -14,7 +14,7 @@ Se excluyen cursos no académicos o no relevantes para el análisis, como cursos
   - Cursos de inteligencia emocional sin calificación (IDs: 154, 386, 411, 515, 155, 390, 394, 156, 157, 398, 158, 402, 159, 416, 160, 418, 213, 502, 409, 565).
 - Mapea los cursos restantes a un `id_asignatura` oficial según un diccionario definido.
 - Consolida los registros de 2024 y 2025.
-- Guarda el resultado en un archivo CSV limpio (`student_moodle_courses.csv`).
+- Guarda el resultado en un archivo CSV limpio (`student_courses_moodle.csv`).
 
 ---
 
@@ -61,7 +61,7 @@ Notas importantes:
 - Se excluyen **cursos de prueba** e **institucionales** en el procesamiento (IDs: 549, 550, 332, etc.).
 - Se realiza un mapeo especial para asignar **id_asignatura** a partir de **course_id**.
 
-### Estructura de la Tabla de Salida (`student_moodle_courses.csv`)
+### Estructura de la Tabla de Salida (`student_courses_moodle.csv`)
 Después de la transformación, la información se organiza en la siguiente estructura:
 | **Columna** | **Descripción** |
 |-------------|------------------|
