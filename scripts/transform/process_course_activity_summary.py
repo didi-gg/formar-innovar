@@ -1,32 +1,22 @@
-import duckdb
 import pandas as pd
 import os
 import sys
-import logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+from utils.moodle_path_resolver import MoodlePathResolver
+from utils.base_script import BaseScript
 from utils.academic_period_utils import AcademicPeriodUtils
 
 
-class MoodleCourseActivityProcessor:
+class MoodleCourseActivityProcessor(BaseScript):
     """
     Procesa eventos de interacción con cursos y recursos en Moodle.
     """
 
     def __init__(self):
-        self.con = duckdb.connect()
-        self.logger = logging.getLogger(__name__)
         self.period_utils = AcademicPeriodUtils()
-
-    def __del__(self):
-        if hasattr(self, "con") and self.con:
-            self.con.close()
-
-    def close(self):
-        if hasattr(self, "con") and self.con:
-            self.con.close()
-            self.con = None
+        super().__init__()
 
     def _load_course_activity_data(self, logs_parquet, student_courses, year=2024):
         try:
@@ -80,6 +70,7 @@ class MoodleCourseActivityProcessor:
 
             sql = f"""
                 SELECT 
+                    {year} AS year,
                     logs.userid,
                     logs.timecreated,
                     logs.eventname,
@@ -105,7 +96,9 @@ class MoodleCourseActivityProcessor:
             """).df()
 
             # Unir para quedarnos solo con cursos inscritos
-            df_merged = df.merge(df_courses, left_on=["userid", "courseid"], right_on=["moodle_user_id", "course_id"], how="inner")
+            df_merged = df.merge(
+                df_courses, left_on=["userid", "courseid"], right_on=["moodle_user_id", "course_id"], how="inner", suffixes=("", "_student")
+            )
 
             return df_merged
 
@@ -114,18 +107,32 @@ class MoodleCourseActivityProcessor:
             raise
 
     def process_course_activity(self):
-        logs_parquet_2024 = "data/raw/moodle/2024/Log/mdlvf_logstore_standard_log.parquet"
-        logs_parquet_2025 = "data/raw/moodle/2025/Log/mdlvf_logstore_standard_log.parquet"
+        logs_table = "logstore_standard_log"
+        logs_parquet_2024 = MoodlePathResolver.get_paths(2024, logs_table)[0]
+        logs_parquet_2025 = MoodlePathResolver.get_paths(2025, logs_table)[0]
+        logs_parquet_edukrea = MoodlePathResolver.get_paths("Edukrea", logs_table)[0]
+
         student_courses = "data/interim/moodle/student_moodle_courses.csv"
+        student_courses_edukrea = "data/interim/moodle/student_edukrea_courses.csv"
 
         # Cargar datos de 2024 y 2025
         data_2024 = self._load_course_activity_data(logs_parquet_2024, student_courses, year=2024)
         data_2025 = self._load_course_activity_data(logs_parquet_2025, student_courses, year=2025)
+        data_edukrea = self._load_course_activity_data(logs_parquet_edukrea, student_courses_edukrea, year=2025)
 
         combined_data = pd.concat([data_2024, data_2025])
 
         # Pivotear para contar eventos por tipo de actividad
         df_summary = combined_data.pivot_table(
+            index=["userid", "documento_identificación", "courseid", "period", "id_asignatura", "year", "course_name"],
+            columns="activity_type",
+            values="timecreated",
+            aggfunc="count",
+            fill_value=0,
+        ).reset_index()
+
+        # Pivotear para contar eventos por tipo de actividad
+        df_summary_edukrea = data_edukrea.pivot_table(
             index=["userid", "documento_identificación", "courseid", "period", "id_asignatura", "year", "course_name"],
             columns="activity_type",
             values="timecreated",
@@ -185,9 +192,11 @@ class MoodleCourseActivityProcessor:
                 df_summary[col] = 0
 
         # Guardar resultados
-        output_path = "data/interim/moodle/moodle_course_activity_summary.csv"
-        df_summary.to_csv(output_path, index=False)
-        self.logger.info(f"Resumen de actividad por curso guardado en: {output_path}")
+        output_path = "data/interim/moodle/course_activity_summary_moodle.csv"
+        self.save_to_csv(df_summary, output_path)
+
+        output_path = "data/interim/moodle/course_activity_summary_edukrea.csv"
+        self.save_to_csv(df_summary_edukrea, output_path)
 
         return df_summary
 
@@ -195,3 +204,5 @@ class MoodleCourseActivityProcessor:
 if __name__ == "__main__":
     processor = MoodleCourseActivityProcessor()
     processor.process_course_activity()
+    processor.logger.info("Moodle course activity processed successfully.")
+    processor.close()
