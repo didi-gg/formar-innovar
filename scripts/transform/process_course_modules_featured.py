@@ -133,7 +133,21 @@ class ModuleFeaturesProcessor(BaseScript):
         df["teacher_active"] = ((df["teacher_total_views"] > 0) & (df["teacher_total_updates"] > 0)).astype(int)
         df["teacher_accessed_before_start"] = (df["teacher_first_view_date"] < df["planned_start_date"]).astype(int)
 
-    def process_df(self, df, logs_df, students_df, teacher_logs_file, student_logs_file):
+    def _set_interactive_flag(self, df, hvp_path):
+        if not os.path.exists(hvp_path):
+            self.logger.warning(f"HVP file not found: {hvp_path}")
+            df["is_interactive"] = 0
+            return df
+
+        hvp_df = pd.read_csv(hvp_path, dtype={"course_module_id": int, "course_id": int, "year": int, "is_interactive": int})
+
+        hvp_lookup = {(row["year"], row["course_id"], row["course_module_id"]): row["is_interactive"] for _, row in hvp_df.iterrows()}
+
+        df["is_interactive"] = df.apply(lambda row: hvp_lookup.get((row["year"], row["course_id"], row["course_module_id"]), 0), axis=1).astype(int)
+
+        return df
+
+    def process_df(self, df, logs_df, students_df, teacher_logs_file, student_logs_file, hvp_path):
         df = self.merge_modules_logs_update(df, logs_df)
 
         # Vistas docentes
@@ -168,6 +182,8 @@ class ModuleFeaturesProcessor(BaseScript):
 
         self._add_metrics(df)
 
+        self._set_interactive_flag(df, hvp_path)
+
         return df
 
     # ---------- EJECUCIÓN PRINCIPAL ----------
@@ -194,6 +210,7 @@ class ModuleFeaturesProcessor(BaseScript):
             students_moodle,
             "data/interim/moodle/teacher_logs_moodle.csv",
             "data/interim/moodle/student_logs_moodle.csv",
+            "data/interim/moodle/hvp_moodle.csv",
         )
         self.save_to_csv(moodle_df, "data/interim/moodle/modules_featured_moodle.csv")
 
@@ -204,6 +221,7 @@ class ModuleFeaturesProcessor(BaseScript):
             students_edukrea,
             "data/interim/moodle/teacher_logs_edukrea.csv",
             "data/interim/moodle/student_logs_edukrea.csv",
+            "data/interim/moodle/hvp_edukrea.csv",
         )
         self.save_to_csv(edukrea_df, "data/interim/moodle/modules_featured_edukrea.csv")
 
