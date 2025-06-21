@@ -18,7 +18,7 @@ class TeacherLoginProcessor(BaseScript):
             JOIN '{role_assignments_file}' ra ON ra.contextid = ctx.id
             JOIN '{role_file}' r ON r.id = ra.roleid
             JOIN '{user_file}' u ON u.id = ra.userid
-            WHERE r.shortname = 'editingteacher'  -- o 'teacher' si también quieres no-editing
+            WHERE r.shortname = 'editingteacher'
             AND uc.year = {year}
             AND NOT (u.firstname = 'Provisional' AND u.lastname = 'Girardot')
             """
