@@ -217,7 +217,7 @@ class MoodleModulesProcessor(BaseScript):
         )
 
         df["planned_end_date"] = df["planned_start_date"] + pd.Timedelta(days=6)
-
+        df = df.drop(columns=["is_absence_assignment", "is_edukrea_access"], errors="ignore")
         return df
 
     def cast_column_types(self, df):
@@ -229,9 +229,6 @@ class MoodleModulesProcessor(BaseScript):
         df["section_id"] = df["section_id"].astype(int)
         df["module_type_id"] = df["module_type_id"].astype(int)
         df["instance"] = df["instance"].astype(int)
-        if "is_edukrea_access" in df.columns:
-            df["is_edukrea_access"] = df["is_edukrea_access"].astype(int)
-        df["is_absence_assignment"] = df["is_absence_assignment"].astype(int)
         df["module_creation_date"] = pd.to_datetime(df["module_creation_date"], unit="s", errors="coerce").dt.tz_localize("America/Bogota")
         df["week"] = df["week"].astype(int)
         df["period"] = df["period"].astype(int)
