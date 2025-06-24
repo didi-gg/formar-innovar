@@ -216,8 +216,15 @@ class MoodleModulesProcessor(BaseScript):
             columns={"inicio": "planned_start_date"}
         )
 
+        df["planned_start_date"] = pd.to_datetime(df["planned_start_date"]).dt.normalize()
         df["planned_end_date"] = df["planned_start_date"] + pd.Timedelta(days=6)
+        df["planned_end_date"] = df["planned_end_date"].dt.normalize() + pd.Timedelta(hours=23, minutes=59, seconds=59)
+
         df = df.drop(columns=["is_absence_assignment", "is_edukrea_access"], errors="ignore")
+
+        # Excluir el module_type 23 # bootstrapelements
+        df["module_type_id"] = df["module_type_id"].astype(int)
+        df = df[df["module_type_id"] != 23]
         return df
 
     def cast_column_types(self, df):
@@ -277,10 +284,11 @@ class MoodleModulesProcessor(BaseScript):
         modules_2024 = self.process_moodle_modules(modules_2024)
         modules_2025 = self.process_moodle_modules(modules_2025)
 
+        # No incluir los módulos con secciones por fuera de los periodos académicos
+        modules_2024 = modules_2024[modules_2024["period"].isin([1, 2, 3, 4])]
+
         # Filtrar solo por el primer bimestre o 0, lo demás esta en construcción
-        modules_2025 = modules_2025[modules_2025["period"].isin([1, 0])]
-        # Excluir el module_type 23 # bootstrapelements
-        modules_2025 = modules_2025[modules_2025["module_type_id"] != 23]
+        modules_2025 = modules_2025[modules_2025["period"] == 1]
 
         # Unir los DataFrames de 2024 y 2025
         modules_combined = pd.concat([modules_2024, modules_2025], ignore_index=True)
