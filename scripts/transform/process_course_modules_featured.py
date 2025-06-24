@@ -27,7 +27,7 @@ class ModuleFeaturesProcessor(BaseScript):
         logs = pd.read_csv(logs_file)
         logs["timecreated"] = pd.to_datetime(logs["timecreated"], unit="s", errors="coerce")
 
-        vistas = logs[logs["eventname"].str.contains("viewed", case=False, na=False)]
+        vistas = logs[logs["eventname"].str.contains("view", case=False, na=False)]
         vistas_agg = (
             vistas.groupby(["contextinstanceid", "year"])
             .agg(
@@ -50,7 +50,7 @@ class ModuleFeaturesProcessor(BaseScript):
         logs = pd.read_csv(student_logs_file)
         logs["timecreated"] = pd.to_datetime(logs["timecreated"], unit="s", errors="coerce")
         logs["contextinstanceid"] = logs["contextinstanceid"].astype("Int64")
-        logs["is_viewed"] = logs["eventname"].str.contains("viewed", case=False, na=False)
+        logs["is_viewed"] = logs["eventname"].str.contains("view", case=False, na=False)
 
         # --- MÉTRICAS POR VISTAS ---
         total_views = (
@@ -130,8 +130,12 @@ class ModuleFeaturesProcessor(BaseScript):
         df["percent_students_interacted"] = (df["students_who_interacted"] / df["total_students"]).fillna(0) * 100
         df["percent_students_viewed"] = (df["students_who_viewed"] / df["total_students"]).fillna(0) * 100
         df["interaction_to_view_ratio"] = (df["student_total_interactions"] / df["student_total_views"]).fillna(0)
-        df["teacher_active"] = ((df["teacher_total_views"] > 0) & (df["teacher_total_updates"] > 0)).astype(int)
         df["teacher_accessed_before_start"] = (df["teacher_first_view_date"] < df["planned_start_date"]).astype(int)
+        df["teacher_updated_before_start"] = (df["last_update_date"] < df["planned_start_date"]).astype(int)
+        df["teacher_updated_during_week_planned"] = (
+            (df["last_update_date"] >= df["planned_start_date"]) & (df["last_update_date"] < df["planned_end_date"])
+        ).astype(int)
+        df["teacher_active"] = ((df["teacher_updated_before_start"] > 0) | (df["teacher_updated_during_week_planned"] > 0)).astype(int)
 
     def _set_interactive_flag(self, df, hvp_path):
         if not os.path.exists(hvp_path):
