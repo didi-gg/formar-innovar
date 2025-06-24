@@ -99,24 +99,129 @@ class CoursesProcessor(BaseScript):
         return moodle_summary_df
 
     @staticmethod
-    def process_df(df):
+    def _process_student_modules(students_modules_df):
+        # 1. Flags por estudiante y curso
+        student_summary = (
+            students_modules_df.groupby(["moodle_user_id", "course_id", "year", "period", "sede"])
+            .agg(any_viewed=("has_viewed", "max"), any_participated=("has_participated", "max"))
+            .reset_index()
+        )
+
+        # 2. Resumen por curso
+        course_summary = (
+            student_summary.groupby(["course_id", "year", "period", "sede"])
+            .agg(
+                num_students=("moodle_user_id", "count"),
+                num_students_viewed=("any_viewed", "sum"),
+                num_students_interacted=("any_participated", "sum"),
+            )
+            .reset_index()
+        )
+
+        # 3. Módulos únicos y vistos
+        module_summary = (
+            students_modules_df.groupby(["course_id", "year", "period", "sede"])
+            .agg(
+                num_modules=("course_module_id", "nunique"),
+                num_modules_viewed=("has_viewed", lambda x: x.sum()),
+            )
+            .reset_index()
+        )
+
+        # 4. Métricas promedio de vistas e interacciones
+        avg_metrics = (
+            students_modules_df.groupby(["course_id", "year", "period", "sede"])
+            .agg(
+                avg_views_per_student=("num_views", "mean"),
+                median_views_per_student=("num_views", "median"),
+                avg_interactions_per_student=("num_interactions", "mean"),
+                median_interactions_per_student=("num_interactions", "median"),
+            )
+            .reset_index()
+        )
+
+        # 5. Módulo menos visto (renombrando para evitar conflictos)
+        module_views = (
+            students_modules_df[students_modules_df["has_viewed"] == 1]
+            .groupby(["course_id", "year", "period", "sede", "course_module_id"])["moodle_user_id"]
+            .nunique()
+            .reset_index(name="num_students_viewed")
+        )
+
+        least_viewed_module = (
+            module_views.sort_values("num_students_viewed")
+            .groupby(["course_id", "year", "period", "sede"])
+            .first()
+            .reset_index()
+            .rename(columns={"course_module_id": "id_least_viewed_module", "num_students_viewed": "students_viewed_least_module"})
+        )
+
+        # 6. Módulo más tarde abierto
+        opened_late = (
+            students_modules_df.groupby(["course_id", "year", "period", "sede", "course_module_id"])["days_before_start"].mean().reset_index()
+        )
+
+        most_late_opened = (
+            opened_late.sort_values("days_before_start", ascending=False)
+            .groupby(["course_id", "year", "period", "sede"])
+            .first()
+            .reset_index()
+            .rename(columns={"course_module_id": "id_most_late_opened_module"})
+        )
+
+        # 7. Porcentaje de accesos fuera de fecha
+        students_modules_df["out_of_date"] = ((students_modules_df["days_before_start"] < 0) | (students_modules_df["days_after_end"] > 0)).astype(
+            int
+        )
+
+        out_of_date = (
+            students_modules_df.groupby(["course_id", "year", "period", "sede"])
+            .agg(percent_modules_out_of_date=("out_of_date", lambda x: round(x.mean(), 2)))
+            .reset_index()
+        )
+
+        # 8. Merge de todas las métricas
+        summary_df = (
+            course_summary.merge(module_summary, on=["course_id", "year", "period", "sede"], how="left")
+            .merge(avg_metrics, on=["course_id", "year", "period", "sede"], how="left")
+            .merge(least_viewed_module, on=["course_id", "year", "period", "sede"], how="left")
+            .merge(most_late_opened, on=["course_id", "year", "period", "sede"], how="left")
+            .merge(out_of_date, on=["course_id", "year", "period", "sede"], how="left")
+        )
+
+        # 9. Porcentajes
+        summary_df["percent_students_viewed"] = (summary_df["num_students_viewed"] / summary_df["num_students"]).round(2)
+        summary_df["percent_students_interacted"] = (summary_df["num_students_interacted"] / summary_df["num_students"]).round(2)
+        summary_df["percent_modules_viewed"] = (summary_df["num_modules_viewed"] / summary_df["num_modules"]).round(2)
+
+        return summary_df
+
+    @staticmethod
+    def process_df(df, students_modules_moodle):
         modules_df = CoursesProcessor._categorize_moodle_modules(df)
         moodle_summary_df = CoursesProcessor._group_moodle_modules(modules_df)
         temporal_metrics_df = CoursesProcessor._calculate_module_metrics(modules_df)
 
         moodle_summary_df = moodle_summary_df.merge(temporal_metrics_df, on=["course_id", "year", "period"], how="left")
         moodle_summary_df = CoursesProcessor._adding_percentages(moodle_summary_df)
+
+        students_course_summary = CoursesProcessor._process_student_modules(students_modules_moodle)
+        moodle_summary_df = moodle_summary_df.merge(students_course_summary, on=["course_id", "year", "period"], how="left")
+
         return moodle_summary_df
 
     def process_course_data(self):
+        students_modules_moodle = pd.read_csv("data/interim/moodle/student_modules_moodle.csv")
         modules_moodle_df = pd.read_csv("data/interim/moodle/modules_featured_moodle.csv")
-        moodle_courses = CoursesProcessor.process_df(modules_moodle_df)
+        moodle_courses = CoursesProcessor.process_df(modules_moodle_df, students_modules_moodle)
 
+        students_modules_edukrea = pd.read_csv("data/interim/moodle/student_modules_edukrea.csv")
         modules_edukrea_df = pd.read_csv("data/interim/moodle/modules_featured_edukrea.csv")
-        edukrea_courses = CoursesProcessor.process_df(modules_edukrea_df)
+        edukrea_courses = CoursesProcessor.process_df(modules_edukrea_df, students_modules_edukrea)
 
-        moodle_courses.to_csv("data/interim/moodle/courses_moodle.csv", index=False, encoding="utf-8-sig", quoting=1)
-        edukrea_courses.to_csv("data/interim/moodle/courses_edukrea.csv", index=False, encoding="utf-8-sig", quoting=1)
+        self.save_to_csv(moodle_courses, "data/interim/moodle/courses_moodle.csv")
+        self.save_to_csv(edukrea_courses, "data/interim/moodle/courses_edukrea.csv")
+
         self.logger.info("Courses data processed and saved successfully.")
 
 
