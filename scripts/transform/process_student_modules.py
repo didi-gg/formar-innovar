@@ -100,8 +100,9 @@ class StudentModulesProcessor(BaseScript):
 
         student_modules_edukrea = StudentModulesProcessor._process_df(modules_df, students_df, logs_df)
 
-        student_modules_moodle.to_csv("data/interim/moodle/student_modules_moodle.csv", index=False, encoding="utf-8-sig", quoting=1)
-        student_modules_edukrea.to_csv("data/interim/moodle/student_modules_edukrea.csv", index=False, encoding="utf-8-sig", quoting=1)
+        self.save_to_csv(student_modules_moodle, "data/interim/moodle/student_modules_moodle.csv")
+        self.save_to_csv(student_modules_edukrea, "data/interim/moodle/student_modules_edukrea.csv")
+
         self.logger.info("Courses data processed and saved successfully.")
 
 

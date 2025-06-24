@@ -156,7 +156,7 @@ class StudentLoginsProcessor(BaseScript):
 
         # --- Paso 10: Guardar resultados ---
         output_path = "data/interim/moodle/student_login_moodle.csv"
-        df_final.to_csv(output_path, index=False)
+        self.save_to_csv(df_final, output_path)
         self.logger.info(f"Resultados guardados en: {output_path}")
         self.logger.info("Proceso de logins de Moodle completado.")
 

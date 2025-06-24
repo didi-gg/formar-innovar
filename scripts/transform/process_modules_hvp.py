@@ -137,10 +137,9 @@ class MoodleHVPProcessor(BaseScript):
         hvp_data_edukrea = self.process_hvp(hvp_data_edukrea)
 
         # Save the processed HVP data
-        hvp_data.to_csv("data/interim/moodle/hvp_moodle.csv", index=False, encoding="utf-8-sig", quoting=1)
-        self.logger.info("HVP data processed and saved successfully.")
+        self.save_to_csv(hvp_data, "data/interim/moodle/hvp_moodle.csv")
+        self.save_to_csv(hvp_data_edukrea, "data/interim/moodle/hvp_edukrea.csv")
 
-        hvp_data_edukrea.to_csv("data/interim/moodle/hvp_edukrea.csv", index=False, encoding="utf-8-sig", quoting=1)
         self.logger.info("HVP data processed and saved successfully.")
 
 
