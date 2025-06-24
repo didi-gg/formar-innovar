@@ -27,5 +27,5 @@ class BaseScript:
             self.con = None
 
     def save_to_csv(self, df: pd.DataFrame, file_path: str):
-        df.to_csv(file_path, index=False, encoding="utf-8-sig", quoting=1)
+        df.to_csv(file_path, index=False, encoding="utf-8-sig", quoting=1, date_format="%Y-%m-%d %H:%M:%S")
         self.logger.info(f"Archivo CSV guardado exitosamente en: {file_path}")
