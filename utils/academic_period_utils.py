@@ -197,7 +197,6 @@ class AcademicPeriodUtils:
             "Evaluación Primer Bimestre",
             "Evaluación Semestral II",
             "Syllabus Innovación y emprendimiento",
-            "Seccion 32",
             "Lineamientos generales. ",
             "Evaluación de conocimientos ",
         ]:
