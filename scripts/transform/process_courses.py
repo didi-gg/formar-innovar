@@ -28,7 +28,7 @@ class CoursesProcessor(BaseScript):
         df["was_updated"] = (df["teacher_updated_before_start"] | df["teacher_updated_during_week_planned"]).astype(int)
 
         agg = (
-            df.groupby(["course_id", "year", "period"])
+            df.groupby(["course_id", "year", "period", "sede"])
             .agg(
                 num_modules=("course_module_id", "count"),
                 num_modules_updated=("was_updated", "sum"),
@@ -202,11 +202,11 @@ class CoursesProcessor(BaseScript):
         moodle_summary_df = CoursesProcessor._group_moodle_modules(modules_df)
         temporal_metrics_df = CoursesProcessor._calculate_module_metrics(modules_df)
 
-        moodle_summary_df = moodle_summary_df.merge(temporal_metrics_df, on=["course_id", "year", "period"], how="left")
+        moodle_summary_df = moodle_summary_df.merge(temporal_metrics_df, on=["course_id", "year", "period", "sede"], how="left")
         moodle_summary_df = CoursesProcessor._adding_percentages(moodle_summary_df)
 
         students_course_summary = CoursesProcessor._process_student_modules(students_modules_moodle)
-        moodle_summary_df = moodle_summary_df.merge(students_course_summary, on=["course_id", "year", "period"], how="left")
+        moodle_summary_df = moodle_summary_df.merge(students_course_summary, on=["course_id", "year", "period", "sede", "num_modules"], how="left")
 
         return moodle_summary_df
 
