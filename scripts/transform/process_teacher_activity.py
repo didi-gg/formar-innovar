@@ -106,27 +106,26 @@ class TeacherActivityProcessor(BaseScript):
         # Merge docentes_df con Moodle 2024 y 2025 para obtener moodle_user_id
         teacher_moodle_2024["moodle_user_id"] = teacher_moodle_2024["userid"]
         teacher_moodle_2025["moodle_user_id"] = teacher_moodle_2025["userid"]
-        teacher_moodle_edukrea["edukre_user_id"] = teacher_moodle_edukrea["userid"]
+        teacher_moodle_edukrea["edukrea_user_id"] = teacher_moodle_edukrea["userid"]
 
         # Unir por nombre_normalized
         docentes_con_moodle_ids = docentes_df.merge(
             pd.concat([teacher_moodle_2024, teacher_moodle_2025])[["nombre_normalized", "moodle_user_id"]], on="nombre_normalized", how="left"
         )
 
-        # Merge con Edukrea (renombramos userid a edukre_user_id)
+        # Merge con Edukrea (renombramos userid a edukrea_user_id)
         docentes_con_todos_ids = docentes_con_moodle_ids.merge(
-            teacher_moodle_edukrea[["nombre_normalized", "edukre_user_id"]], on="nombre_normalized", how="left"
+            teacher_moodle_edukrea[["nombre_normalized", "edukrea_user_id"]], on="nombre_normalized", how="left"
         )
 
-        final_df = docentes_con_todos_ids[["id_docente", "nombre", "moodle_user_id", "edukre_user_id", "sede"]].drop_duplicates(
-            subset=["nombre", "moodle_user_id", "edukre_user_id"]
+        final_df = docentes_con_todos_ids[["id_docente", "nombre", "moodle_user_id", "edukrea_user_id", "sede"]].drop_duplicates(
+            subset=["nombre", "moodle_user_id", "edukrea_user_id"]
         )
 
         # Convertir IDs a tipo entero que permite nulos
         final_df["moodle_user_id"] = final_df["moodle_user_id"].astype("Int64")
-        final_df["edukre_user_id"] = final_df["edukre_user_id"].astype("Int64")
+        final_df["edukrea_user_id"] = final_df["edukrea_user_id"].astype("Int64")
 
-        # Guardar en CSV si lo deseas
         output_ids = "data/interim/moodle/teacher_moodle.csv"
         self.save_to_csv(final_df, output_ids)
 
