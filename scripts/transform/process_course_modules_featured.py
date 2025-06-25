@@ -44,7 +44,7 @@ class ModuleFeaturesProcessor(BaseScript):
     def _get_students_count(self, students_df):
         students_df["year"] = students_df["year"].astype(int)
         students_df["course_id"] = students_df["course_id"].astype(int)
-        return students_df.groupby(["year", "course_id"]).size().reset_index(name="total_students")
+        return students_df.groupby(["year", "course_id", "sede"]).size().reset_index(name="total_students")
 
     def _get_student_interactions(self, student_logs_file):
         logs = pd.read_csv(student_logs_file)
@@ -164,7 +164,7 @@ class ModuleFeaturesProcessor(BaseScript):
 
         # Estudiantes por curso
         student_counts = self._get_students_count(students_df)
-        df = df.merge(student_counts, on=["year", "course_id"], how="left")
+        df = df.merge(student_counts, on=["year", "course_id", "sede"], how="inner")
         df["total_students"] = df["total_students"].fillna(0).astype(int)
 
         # Interacciones estudiantes
