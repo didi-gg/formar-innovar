@@ -23,8 +23,8 @@ class ModuleFeaturesProcessor(BaseScript):
         """
         return self.con.execute(query).df()
 
-    def _get_vistas_docente(self, logs_file):
-        logs = pd.read_csv(logs_file)
+    def _get_vistas_docente(self, logs):
+        logs = logs.copy()
         logs["timecreated"] = pd.to_datetime(logs["timecreated"], unit="s", errors="coerce")
 
         vistas = logs[logs["eventname"].str.contains("view", case=False, na=False)]
@@ -46,8 +46,8 @@ class ModuleFeaturesProcessor(BaseScript):
         students_df["course_id"] = students_df["course_id"].astype(int)
         return students_df.groupby(["year", "course_id", "sede"]).size().reset_index(name="total_students")
 
-    def _get_student_interactions(self, student_logs_file):
-        logs = pd.read_csv(student_logs_file)
+    def _get_student_interactions(self, logs):
+        logs = logs.copy()
         logs["timecreated"] = pd.to_datetime(logs["timecreated"], unit="s", errors="coerce")
         logs["contextinstanceid"] = logs["contextinstanceid"].astype("Int64")
         logs["is_viewed"] = logs["eventname"].str.contains("view", case=False, na=False)
@@ -151,11 +151,11 @@ class ModuleFeaturesProcessor(BaseScript):
 
         return df
 
-    def process_df(self, df, logs_df, students_df, teacher_logs_file, student_logs_file, hvp_path):
+    def process_df(self, df, logs_df, students_df, teacher_logs_df, student_logs_df, hvp_path):
         df = self.merge_modules_logs_update(df, logs_df)
 
         # Vistas docentes
-        vistas_docente = self._get_vistas_docente(teacher_logs_file)
+        vistas_docente = self._get_vistas_docente(teacher_logs_df)
         df = df.merge(vistas_docente, on=["course_module_id", "year"], how="left")
 
         # Logs docentes
@@ -168,7 +168,7 @@ class ModuleFeaturesProcessor(BaseScript):
         df["total_students"] = df["total_students"].fillna(0).astype(int)
 
         # Interacciones estudiantes
-        interacciones = self._get_student_interactions(student_logs_file)
+        interacciones = self._get_student_interactions(student_logs_df)
         df = df.merge(interacciones, on=["course_module_id", "year"], how="left")
 
         # Completar valores faltantes
@@ -198,6 +198,14 @@ class ModuleFeaturesProcessor(BaseScript):
         students_moodle = pd.read_csv("data/interim/moodle/student_courses_moodle.csv")
         students_edukrea = pd.read_csv("data/interim/moodle/student_courses_edukrea.csv")
 
+        student_logs = pd.read_csv("data/interim/moodle/student_logs.csv")
+        student_logs_moodle = student_logs[student_logs["platform"] == "moodle"]
+        student_logs_edukrea = student_logs[student_logs["platform"] == "edukrea"]
+
+        teacher_logs = pd.read_csv("data/interim/moodle/teacher_logs.csv")
+        teacher_logs_moodle = teacher_logs[teacher_logs["platform"] == "moodle"]
+        teacher_logs_edukrea = teacher_logs[teacher_logs["platform"] == "edukrea"]
+
         logs_table = "logstore_standard_log"
 
         # Logs para los años
@@ -207,27 +215,35 @@ class ModuleFeaturesProcessor(BaseScript):
 
         logs_edukrea = self._get_logs_updated(MoodlePathResolver.get_paths("Edukrea", logs_table)[0], 2025)
 
+        # Agregar columna de plataforma
+        moodle_df['platform'] = 'moodle'
+        edukrea_df['platform'] = 'edukrea'
+
         # Procesar Moodle
         moodle_df = self.process_df(
             moodle_df,
             logs_moodle,
             students_moodle,
-            "data/interim/moodle/teacher_logs_moodle.csv",
-            "data/interim/moodle/student_logs_moodle.csv",
+            teacher_logs_moodle,
+            student_logs_moodle,
             "data/interim/moodle/hvp_moodle.csv",
         )
-        self.save_to_csv(moodle_df, "data/interim/moodle/modules_featured_moodle.csv")
 
         # Procesar Edukrea
         edukrea_df = self.process_df(
             edukrea_df,
             logs_edukrea,
             students_edukrea,
-            "data/interim/moodle/teacher_logs_edukrea.csv",
-            "data/interim/moodle/student_logs_edukrea.csv",
+            teacher_logs_edukrea,
+            student_logs_edukrea,
             "data/interim/moodle/hvp_edukrea.csv",
         )
-        self.save_to_csv(edukrea_df, "data/interim/moodle/modules_featured_edukrea.csv")
+
+        # Combinar ambos dataframes
+        combined_df = pd.concat([moodle_df, edukrea_df], ignore_index=True)
+
+        # Guardar el archivo combinado
+        self.save_to_csv(combined_df, "data/interim/moodle/modules_featured.csv")
 
 
 if __name__ == "__main__":
