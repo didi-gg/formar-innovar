@@ -71,6 +71,7 @@ class TeacherLoginProcessor(BaseScript):
         )
         teacher_ids_2024 = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
         log_2024 = self._get_log(year, teacher_ids_2024, logs_parquet, unique_courses_file)
+        log_2024['platform'] = 'moodle'
 
         # Get logs for 2025
         year = 2025
@@ -79,6 +80,7 @@ class TeacherLoginProcessor(BaseScript):
         )
         teacher_ids_2025 = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
         log_2025 = self._get_log(year, teacher_ids_2025, logs_parquet, unique_courses_file)
+        log_2025['platform'] = 'moodle'
 
         # Get logs Edukrea
         year = 2025
@@ -88,17 +90,14 @@ class TeacherLoginProcessor(BaseScript):
         unique_courses_file = "data/interim/moodle/unique_courses_edukrea.csv"
         teacher_ids_edukrea = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
         logs_edukrea = self._get_log(year, teacher_ids_edukrea, logs_parquet, unique_courses_file)
+        logs_edukrea['platform'] = 'edukrea'
 
-        # Concatenate 2024 y 2025 logs
-        logs_2024_2025 = pd.concat([log_2024, log_2025], ignore_index=True)
+        # Concatenate all logs (2024, 2025, and Edukrea)
+        all_logs = pd.concat([log_2024, log_2025, logs_edukrea], ignore_index=True)
 
-        # Save as csv
-        output_file = "data/interim/moodle/teacher_logs_moodle.csv"
-        self.save_to_csv(logs_2024_2025, output_file)
-
-        # Save Edukrea logs
-        output_file_edukrea = "data/interim/moodle/teacher_logs_edukrea.csv"
-        self.save_to_csv(logs_edukrea, output_file_edukrea)
+        # Save as single csv file
+        output_file = "data/interim/moodle/teacher_logs.csv"
+        self.save_to_csv(all_logs, output_file)
 
 
 if __name__ == "__main__":
