@@ -21,6 +21,7 @@ class StudentLoginProcessor(BaseScript):
                 logs.objectid,
                 logs.contextinstanceid,
                 logs.userid,
+                student_courses.documento_identificación,
                 logs.courseid,
                 logs.timecreated,
                 logs.origin,
@@ -46,29 +47,42 @@ class StudentLoginProcessor(BaseScript):
         year = 2024
         logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
         log_2024 = self._get_log(year, logs_parquet, student_courses_file)
+        
+        # Add platform column and create moodle_user_id for moodle 2024
+        log_2024['platform'] = 'moodle'
+        log_2024['moodle_user_id'] = log_2024['userid']
 
         # Get logs for 2025
         year = 2025
         logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
         log_2025 = self._get_log(year, logs_parquet, student_courses_file)
+        
+        # Add platform column and create moodle_user_id for moodle 2025
+        log_2025['platform'] = 'moodle'
+        log_2025['moodle_user_id'] = log_2025['userid']
 
         # Get logs Edukrea
         year = 2025
         logs_parquet = MoodlePathResolver.get_paths("Edukrea", logs_table)[0]
         student_courses_file = "data/interim/moodle/student_courses_edukrea.csv"
         logs_edukrea = self._get_log(year, logs_parquet, student_courses_file)
+        
+        # Add platform column and create edukrea_user_id for edukrea
+        logs_edukrea['platform'] = 'edukrea'
+        logs_edukrea['edukrea_user_id'] = logs_edukrea['userid']
 
-        # Concatenate 2024 y 2025 logs
-        logs_2024_2025 = pd.concat([log_2024, log_2025], ignore_index=True)
+        # Concatenate all logs (2024, 2025, and Edukrea)
+        all_logs = pd.concat([log_2024, log_2025, logs_edukrea], ignore_index=True)
+        
+        # Convert user IDs to integers after concatenation
+        if 'moodle_user_id' in all_logs.columns:
+            all_logs['moodle_user_id'] = all_logs['moodle_user_id'].fillna(0).astype('Int64')
+        if 'edukrea_user_id' in all_logs.columns:
+            all_logs['edukrea_user_id'] = all_logs['edukrea_user_id'].fillna(0).astype('Int64')
 
-        # Save as csv
-        output_file = "data/interim/moodle/student_logs_moodle.csv"
-        self.save_to_csv(logs_2024_2025, output_file)
-
-        # Save Edukrea logs
-        output_file_edukrea = "data/interim/moodle/student_logs_edukrea.csv"
-        self.save_to_csv(logs_edukrea, output_file_edukrea)
-
+        # Save combined logs as csv
+        output_file = "data/interim/moodle/student_logs.csv"
+        self.save_to_csv(all_logs, output_file)
 
 if __name__ == "__main__":
     processor = StudentLoginProcessor()
