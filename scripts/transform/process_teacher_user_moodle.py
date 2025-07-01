@@ -10,7 +10,7 @@ from utils.moodle_path_resolver import MoodlePathResolver
 from utils.base_script import BaseScript
 
 
-class TeacherActivityProcessor(BaseScript):
+class TeacherMoodleUserProcessor(BaseScript):
     @staticmethod
     def normalize_name(name):
         if pd.isnull(name):
@@ -131,7 +131,7 @@ class TeacherActivityProcessor(BaseScript):
 
 
 if __name__ == "__main__":
-    processor = TeacherActivityProcessor()
+    processor = TeacherMoodleUserProcessor()
     processor.process_teacher_logs()
     processor.logger.info("Teacher logs processed successfully.")
     processor.close()

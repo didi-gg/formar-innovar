@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from scripts.transform.process_unique_courses import UniqueCoursesProcessor
 from scripts.transform.process_enrollments import EnrollmentProcessor
 from scripts.transform.process_teacher_logs import TeacherLoginProcessor
-from scripts.transform.process_teacher_activity import TeacherActivityProcessor
+from scripts.transform.process_teacher_user_moodle import TeacherMoodleUserProcessor
 from scripts.transform.process_student_modules import StudentModulesProcessor
 from scripts.transform.process_student_logs import StudentLoginProcessor
 from scripts.transform.process_student_logins import StudentLoginsProcessor
@@ -45,7 +45,7 @@ processor.close()
 # 4. Procesar actividad de profesores
 # Este script crea un dataset con la información de usuario de moodle de los profesores
 # Tiene las siguientes columnas: id_docente, nombre, moodle_user_id, edukrea_user_id, sede
-processor = TeacherActivityProcessor()
+processor = TeacherMoodleUserProcessor()
 processor.process_teacher_logs()
 processor.logger.info("Teacher logs processed successfully.")
 processor.close()
