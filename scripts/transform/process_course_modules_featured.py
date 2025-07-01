@@ -42,6 +42,7 @@ class ModuleFeaturesProcessor(BaseScript):
 
     # ---------- LOGS ESTUDIANTES ----------
     def _get_students_count(self, students_df):
+        students_df = students_df.copy()
         students_df["year"] = students_df["year"].astype(int)
         students_df["course_id"] = students_df["course_id"].astype(int)
         return students_df.groupby(["year", "course_id", "sede"]).size().reset_index(name="total_students")
@@ -195,8 +196,9 @@ class ModuleFeaturesProcessor(BaseScript):
         moodle_df = pd.read_csv("data/interim/moodle/modules_active_moodle.csv")
         edukrea_df = pd.read_csv("data/interim/moodle/modules_active_edukrea.csv")
 
-        students_moodle = pd.read_csv("data/interim/moodle/student_courses_moodle.csv")
-        students_edukrea = pd.read_csv("data/interim/moodle/student_courses_edukrea.csv")
+        student_courses = pd.read_csv("data/interim/moodle/student_courses.csv")
+        students_moodle = student_courses[student_courses["platform"] == "moodle"]
+        students_edukrea = student_courses[student_courses["platform"] == "edukrea"]
 
         student_logs = pd.read_csv("data/interim/moodle/student_logs.csv")
         student_logs_moodle = student_logs[student_logs["platform"] == "moodle"]

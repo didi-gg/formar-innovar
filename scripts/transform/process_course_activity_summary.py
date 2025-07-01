@@ -18,7 +18,7 @@ class MoodleCourseActivityProcessor(BaseScript):
         self.period_utils = AcademicPeriodUtils()
         super().__init__()
 
-    def _load_course_activity_data(self, logs_parquet, student_courses, year=2024):
+    def _load_course_activity_data(self, logs_parquet, student_courses, year=2024, platform='moodle'):
         try:
             # Eventos principales
             events_of_interest = {
@@ -93,6 +93,7 @@ class MoodleCourseActivityProcessor(BaseScript):
             df_courses = self.con.execute(f"""
                 SELECT moodle_user_id, course_id, id_asignatura, year, course_name, documento_identificación
                 FROM '{student_courses}'
+                WHERE platform = '{platform}'
             """).df()
 
             # Unir para quedarnos solo con cursos inscritos
@@ -112,13 +113,12 @@ class MoodleCourseActivityProcessor(BaseScript):
         logs_parquet_2025 = MoodlePathResolver.get_paths(2025, logs_table)[0]
         logs_parquet_edukrea = MoodlePathResolver.get_paths("Edukrea", logs_table)[0]
 
-        student_courses = "data/interim/moodle/student_courses_moodle.csv"
-        student_courses_edukrea = "data/interim/moodle/student_courses_edukrea.csv"
+        student_courses = "data/interim/moodle/student_courses.csv"
 
         # Cargar datos de 2024 y 2025
-        data_2024 = self._load_course_activity_data(logs_parquet_2024, student_courses, year=2024)
-        data_2025 = self._load_course_activity_data(logs_parquet_2025, student_courses, year=2025)
-        data_edukrea = self._load_course_activity_data(logs_parquet_edukrea, student_courses_edukrea, year=2025)
+        data_2024 = self._load_course_activity_data(logs_parquet_2024, student_courses, year=2024, platform='moodle')
+        data_2025 = self._load_course_activity_data(logs_parquet_2025, student_courses, year=2025, platform='moodle')
+        data_edukrea = self._load_course_activity_data(logs_parquet_edukrea, student_courses, year=2025, platform='edukrea')
 
         combined_data = pd.concat([data_2024, data_2025])
 

@@ -14,10 +14,17 @@ from utils.base_script import BaseScript
 
 
 class StudentMoodleCoursesProcessor(BaseScript):
-    def load_student_courses(self, year, enrollments_file, enrol_file, courses_file, students_file, mapping_file, excluded_courses=()):
+    def load_student_courses(self, year, enrollments_file, enrol_file, courses_file, students_file, mapping_file, platform = 'moodle', excluded_courses=()):
+
+        if platform == 'edukrea':
+            user_id_col = 'edukrea_user_id'
+        else:
+            user_id_col = 'moodle_user_id'
+
         sql = f"""
             SELECT DISTINCT
-                ue.userid AS moodle_user_id,
+                '{platform}' AS platform,
+                s.{user_id_col} AS moodle_user_id,
                 {year} AS year,
                 s.id_grado AS id_grado,
                 e.courseid AS course_id,
@@ -28,53 +35,27 @@ class StudentMoodleCoursesProcessor(BaseScript):
             FROM '{enrollments_file}' ue
             JOIN '{enrol_file}' e ON ue.enrolid = e.id
             JOIN '{courses_file}' c ON e.courseid = c.id
-            JOIN '{students_file}' s ON ue.userid = s.moodle_user_id
-            JOIN read_csv_auto('{mapping_file}') AS map ON e.courseid = map.course_id
+            JOIN '{students_file}' s ON ue.userid = s.{user_id_col}
+            JOIN '{mapping_file}' AS map ON e.courseid = map.course_id AND map.platform = '{platform}'
             WHERE s.year = {year}
-                AND e.courseid NOT IN {excluded_courses}
                 AND s.id_grado = map.id_grado
-                AND c.visible = 1
-        """
-        try:
-            return self.con.execute(sql).df()
-        except Exception as e:
-            self.logger.error(f"Error cargando datos de estudiantes para el año {year}: {str(e)}")
-            raise
-
-    def load_student_courses_edukrea(self, year, enrollments_file, enrol_file, courses_file, students_file, mapping_file, excluded_courses=()):
-        base_sql = f"""
-            SELECT DISTINCT
-                ue.userid AS moodle_user_id,
-                {year} AS year,
-                s.id_grado AS id_grado,
-                e.courseid AS course_id,
-                c.fullname AS course_name,
-                s.documento_identificación AS documento_identificación,
-                s.sede AS sede,
-                map.id_asignatura AS id_asignatura
-            FROM '{enrollments_file}' ue
-            JOIN '{enrol_file}' e ON ue.enrolid = e.id
-            JOIN '{courses_file}' c ON e.courseid = c.id
-            JOIN '{students_file}' s ON ue.userid = s.edukrea_user_id
-            JOIN '{mapping_file}' AS map ON e.courseid = map.course_id
-            WHERE s.year = {year}
                 AND c.visible = 1
         """
 
         # Agregar condición solo si hay cursos excluidos
         if excluded_courses:
             courses_str = ", ".join(str(cid) for cid in excluded_courses)
-            base_sql += f" AND e.courseid NOT IN ({courses_str})"
+            sql += f" AND e.courseid NOT IN ({courses_str})"
 
         try:
-            return self.con.execute(base_sql).df()
+            return self.con.execute(sql).df()
         except Exception as e:
             self.logger.error(f"Error cargando datos de estudiantes para el año {year}: {str(e)}")
             raise
 
     def process_student_courses(self):
         students_file = "data/interim/estudiantes/enrollments.csv"
-        mapping_file = "data/interim/moodle/course_mapping_moodle.csv"
+        mapping_file = "data/interim/moodle/course_mapping.csv"
 
         excluded_courses = (
             # Institucionales y prueba
@@ -108,26 +89,22 @@ class StudentMoodleCoursesProcessor(BaseScript):
         # Process 2024
         year = 2024
         enrollments_file, enrol_file, courses_file = MoodlePathResolver.get_paths(year, "user_enrolments", "enrol", "course")
-        df_2024 = self.load_student_courses(year, enrollments_file, enrol_file, courses_file, students_file, mapping_file, excluded_courses)
+        df_2024 = self.load_student_courses(year, enrollments_file, enrol_file, courses_file, students_file, mapping_file, platform = 'moodle', excluded_courses=excluded_courses)
 
         # Process 2025
         year = 2025
         enrollments_file, enrol_file, courses_file = MoodlePathResolver.get_paths(year, "user_enrolments", "enrol", "course")
-        df_2025 = self.load_student_courses(year, enrollments_file, enrol_file, courses_file, students_file, mapping_file, excluded_courses)
-
-        df_combined = pd.concat([df_2024, df_2025], ignore_index=True)
-        # Guardar como CSV
-        output_file = "data/interim/moodle/student_courses_moodle.csv"
-        self.save_to_csv(df_combined, output_file)
+        df_2025 = self.load_student_courses(year, enrollments_file, enrol_file, courses_file, students_file, mapping_file, platform = 'moodle', excluded_courses=excluded_courses)
 
         # Process Edukrea
-        mapping_file = "data/interim/moodle/course_mapping_edukrea.csv"
         enrollments_file, enrol_file, courses_file = MoodlePathResolver.get_paths("Edukrea", "user_enrolments", "enrol", "course")
-        df_edukrea = self.load_student_courses_edukrea(2025, enrollments_file, enrol_file, courses_file, students_file, mapping_file, ())
+        df_edukrea = self.load_student_courses(2025, enrollments_file, enrol_file, courses_file, students_file, mapping_file, platform = 'edukrea', excluded_courses=())
+
+        df_combined = pd.concat([df_2024, df_2025, df_edukrea], ignore_index=True)
 
         # Guardar como CSV
-        output_file = "data/interim/moodle/student_courses_edukrea.csv"
-        self.save_to_csv(df_edukrea, output_file)
+        output_file = "data/interim/moodle/student_courses.csv"
+        self.save_to_csv(df_combined, output_file)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from utils.base_script import BaseScript
 
 
 class StudentLoginProcessor(BaseScript):
-    def _get_log(self, year, logs_parquet, student_courses_file):
+    def _get_log(self, year, logs_parquet, student_courses_file, platform='moodle'):
         sql_logs_estudiantes = f"""
             SELECT 
                 '{year}' AS year,
@@ -25,9 +25,10 @@ class StudentLoginProcessor(BaseScript):
                 logs.courseid,
                 logs.timecreated,
                 logs.origin,
-                logs.ip
+                logs.ip,
+                '{platform}' AS platform
             FROM '{logs_parquet}' AS logs
-            INNER JOIN '{student_courses_file}' AS student_courses ON student_courses.course_id = logs.courseid AND student_courses.moodle_user_id = logs.userid
+            INNER JOIN '{student_courses_file}' AS student_courses ON student_courses.course_id = logs.courseid AND student_courses.moodle_user_id = logs.userid AND student_courses.platform = '{platform}'
             WHERE
                 EXTRACT(YEAR FROM to_timestamp(logs.timecreated)) = {year}
                 AND student_courses.year = {year}
@@ -40,35 +41,31 @@ class StudentLoginProcessor(BaseScript):
             raise
 
     def process_student_logs(self):
-        student_courses_file = "data/interim/moodle/student_courses_moodle.csv"
+        student_courses_file = "data/interim/moodle/student_courses.csv"
         logs_table = "logstore_standard_log"
 
         # Get logs for 2024
         year = 2024
         logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
-        log_2024 = self._get_log(year, logs_parquet, student_courses_file)
-        
+        log_2024 = self._get_log(year, logs_parquet, student_courses_file, platform='moodle')
+
         # Add platform column and create moodle_user_id for moodle 2024
-        log_2024['platform'] = 'moodle'
         log_2024['moodle_user_id'] = log_2024['userid']
 
         # Get logs for 2025
         year = 2025
         logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
-        log_2025 = self._get_log(year, logs_parquet, student_courses_file)
+        log_2025 = self._get_log(year, logs_parquet, student_courses_file, platform='moodle')
         
         # Add platform column and create moodle_user_id for moodle 2025
-        log_2025['platform'] = 'moodle'
         log_2025['moodle_user_id'] = log_2025['userid']
 
         # Get logs Edukrea
         year = 2025
         logs_parquet = MoodlePathResolver.get_paths("Edukrea", logs_table)[0]
-        student_courses_file = "data/interim/moodle/student_courses_edukrea.csv"
-        logs_edukrea = self._get_log(year, logs_parquet, student_courses_file)
+        logs_edukrea = self._get_log(year, logs_parquet, student_courses_file, platform='edukrea')
         
         # Add platform column and create edukrea_user_id for edukrea
-        logs_edukrea['platform'] = 'edukrea'
         logs_edukrea['edukrea_user_id'] = logs_edukrea['userid']
 
         # Concatenate all logs (2024, 2025, and Edukrea)
