@@ -126,7 +126,7 @@ class TeacherActivityProcessor(BaseScript):
         final_df["moodle_user_id"] = final_df["moodle_user_id"].astype("Int64")
         final_df["edukrea_user_id"] = final_df["edukrea_user_id"].astype("Int64")
 
-        output_ids = "data/interim/moodle/teacher_moodle.csv"
+        output_ids = "data/interim/moodle/teachers_users.csv"
         self.save_to_csv(final_df, output_ids)
 
 
