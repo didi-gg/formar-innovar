@@ -23,7 +23,7 @@ class UniqueCoursesProcessor(BaseScript):
         Returns:
             pd.DataFrame: DataFrame con cursos únicos.
         """
-        unique_cols = ["year", "id_grado", "course_id", "course_name", "sede", "id_asignatura"]
+        unique_cols = ["year", "id_grado", "course_id", "course_name", "sede", "id_asignatura", "platform"]
         return df[unique_cols].drop_duplicates()
 
     def process_course_data(self):
@@ -34,8 +34,8 @@ class UniqueCoursesProcessor(BaseScript):
         student_courses_input_path = "data/interim/moodle/student_courses.csv"
         student_courses = pd.read_csv(student_courses_input_path)
 
-        moodle_df = student_courses[student_courses['platform'] == 'Moodle']
-        edukrea_df = student_courses[student_courses['platform'] == 'Edukrea']
+        moodle_df = student_courses[student_courses['platform'] == 'moodle']
+        edukrea_df = student_courses[student_courses['platform'] == 'edukrea']
 
         unique_moodle_courses = self._extract_unique_courses(moodle_df)
         unique_edukrea_courses = self._extract_unique_courses(edukrea_df)
