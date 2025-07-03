@@ -30,6 +30,9 @@ class TeacherLoginProcessor(BaseScript):
             raise
 
     def _get_log(self, year, docente_ids, logs_parquet, courses_file):
+        if not docente_ids:
+            raise ValueError(f"No teacher IDs found for year {year}")   
+        
         docente_ids_sql = str(docente_ids)
 
         sql_logs_docentes = f"""
