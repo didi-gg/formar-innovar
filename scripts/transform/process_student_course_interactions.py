@@ -45,11 +45,12 @@ class StudentCourseInteractions(BaseScript):
         return student_course_interactions
 
     def process_all_course_interactions(self):
-        df = pd.read_csv("data/interim/moodle/student_modules_moodle.csv")
-        course_interactions_moodle = StudentCourseInteractions._process_course_interactions(df)
+        students_modules = pd.read_csv("data/interim/moodle/student_modules.csv")
+        students_modules_moodle = students_modules[students_modules['platform'] == 'moodle']
+        students_modules_edukrea = students_modules[students_modules['platform'] == 'edukrea']
 
-        df = pd.read_csv("data/interim/moodle/student_modules_edukrea.csv")
-        course_interactions_edukrea = StudentCourseInteractions._process_course_interactions(df)
+        course_interactions_moodle = StudentCourseInteractions._process_course_interactions(students_modules_moodle)
+        course_interactions_edukrea = StudentCourseInteractions._process_course_interactions(students_modules_edukrea)
 
         self.save_to_csv(course_interactions_moodle, "data/interim/moodle/student_course_interactions_moodle.csv")
         self.save_to_csv(course_interactions_edukrea, "data/interim/moodle/student_course_interactions_edukrea.csv")
