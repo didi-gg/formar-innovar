@@ -28,7 +28,7 @@ class CoursesProcessor(BaseScript):
         df_copy["was_updated"] = (df_copy["teacher_updated_before_start"] | df_copy["teacher_updated_during_week_planned"]).astype(int)
 
         agg = (
-            df_copy.groupby(["course_id", "year", "period", "sede"])
+            df_copy.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(
                 num_modules=("course_module_id", "count"),
                 num_modules_updated=("was_updated", "sum"),
@@ -71,7 +71,7 @@ class CoursesProcessor(BaseScript):
     def _group_moodle_modules(df):
         # Group by the required columns and aggregate counts
         moodle_summary_df = (
-            df.groupby(["course_id", "sede", "id_grado", "id_asignatura", "asignatura_name", "period", "year", "total_students"])
+            df.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(
                 {
                     "is_evaluation": "sum",
@@ -102,14 +102,14 @@ class CoursesProcessor(BaseScript):
     def _process_student_modules(students_modules_df):
         # 1. Flags por estudiante y curso
         student_summary = (
-            students_modules_df.groupby(["documento_identificación", "course_id", "year", "period", "sede"])
+            students_modules_df.groupby(["documento_identificación", "id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(any_viewed=("has_viewed", "max"), any_participated=("has_participated", "max"))
             .reset_index()
         )
 
         # 2. Resumen por curso
         course_summary = (
-            student_summary.groupby(["course_id", "year", "period", "sede"])
+            student_summary.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(
                 num_students=("documento_identificación", "count"),
                 num_students_viewed=("any_viewed", "sum"),
@@ -120,7 +120,7 @@ class CoursesProcessor(BaseScript):
 
         # 3. Módulos únicos y vistos
         module_summary = (
-            students_modules_df.groupby(["course_id", "year", "period", "sede"])
+            students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(
                 num_modules=("course_module_id", "nunique"),
                 num_modules_viewed=("has_viewed", lambda x: x.sum()),
@@ -130,7 +130,7 @@ class CoursesProcessor(BaseScript):
 
         # 4. Métricas promedio de vistas e interacciones
         avg_metrics = (
-            students_modules_df.groupby(["course_id", "year", "period", "sede"])
+            students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(
                 avg_views_per_student=("num_views", "mean"),
                 median_views_per_student=("num_views", "median"),
@@ -143,14 +143,14 @@ class CoursesProcessor(BaseScript):
         # 5. Módulo menos visto (renombrando para evitar conflictos)
         module_views = (
             students_modules_df[students_modules_df["has_viewed"] == 1]
-            .groupby(["course_id", "year", "period", "sede", "course_module_id"])["documento_identificación"]
+            .groupby(["id_asignatura", "id_grado", "year", "period", "sede", "course_module_id"])["documento_identificación"]
             .nunique()
             .reset_index(name="num_students_viewed")
         )
 
         least_viewed_module = (
             module_views.sort_values("num_students_viewed")
-            .groupby(["course_id", "year", "period", "sede"])
+            .groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .first()
             .reset_index()
             .rename(columns={"course_module_id": "id_least_viewed_module", "num_students_viewed": "students_viewed_least_module"})
@@ -158,12 +158,12 @@ class CoursesProcessor(BaseScript):
 
         # 6. Módulo más tarde abierto
         opened_late = (
-            students_modules_df.groupby(["course_id", "year", "period", "sede", "course_module_id"])["days_before_start"].mean().reset_index()
+            students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede", "course_module_id"])["days_before_start"].mean().reset_index()
         )
 
         most_late_opened = (
             opened_late.sort_values("days_before_start", ascending=False)
-            .groupby(["course_id", "year", "period", "sede"])
+            .groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .first()
             .reset_index()
             .rename(columns={"course_module_id": "id_most_late_opened_module"})
@@ -176,18 +176,18 @@ class CoursesProcessor(BaseScript):
         )
 
         out_of_date = (
-            students_modules_df.groupby(["course_id", "year", "period", "sede"])
+            students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(percent_modules_out_of_date=("out_of_date", lambda x: round(x.mean(), 2)))
             .reset_index()
         )
 
         # 8. Merge de todas las métricas
         summary_df = (
-            course_summary.merge(module_summary, on=["course_id", "year", "period", "sede"], how="left")
-            .merge(avg_metrics, on=["course_id", "year", "period", "sede"], how="left")
-            .merge(least_viewed_module, on=["course_id", "year", "period", "sede"], how="left")
-            .merge(most_late_opened, on=["course_id", "year", "period", "sede"], how="left")
-            .merge(out_of_date, on=["course_id", "year", "period", "sede"], how="left")
+            course_summary.merge(module_summary, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
+            .merge(avg_metrics, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
+            .merge(least_viewed_module, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
+            .merge(most_late_opened, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
+            .merge(out_of_date, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
         )
 
         # 9. Porcentajes
@@ -204,28 +204,21 @@ class CoursesProcessor(BaseScript):
         temporal_metrics_df = CoursesProcessor._calculate_module_metrics(modules_df)
 
         # Merge on course_id consistently
-        moodle_summary_df = moodle_summary_df.merge(temporal_metrics_df, on=["course_id", "year", "period", "sede"], how="left")
+        moodle_summary_df = moodle_summary_df.merge(temporal_metrics_df, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
         moodle_summary_df = CoursesProcessor._adding_percentages(moodle_summary_df)
 
         students_course_summary = CoursesProcessor._process_student_modules(students_modules_moodle)
-        moodle_summary_df = moodle_summary_df.merge(students_course_summary, on=["course_id", "year", "period", "sede"], how="left")
+        moodle_summary_df = moodle_summary_df.merge(students_course_summary, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
 
         return moodle_summary_df
 
     def process_course_data(self):
         students_modules = pd.read_csv("data/interim/moodle/student_modules.csv")
-        students_modules_moodle = students_modules[students_modules['platform'] == 'moodle']
-        students_modules_edukrea = students_modules[students_modules['platform'] == 'edukrea']
-
         modules_df = pd.read_csv("data/interim/moodle/modules_featured.csv")
-        modules_moodle_df = modules_df[modules_df['platform'] == 'moodle']
-        modules_edukrea_df = modules_df[modules_df['platform'] == 'edukrea']
 
-        moodle_courses = CoursesProcessor.process_df(modules_moodle_df, students_modules_moodle)
-        edukrea_courses = CoursesProcessor.process_df(modules_edukrea_df, students_modules_edukrea)
+        moodle_courses = CoursesProcessor.process_df(modules_df, students_modules)
 
-        self.save_to_csv(moodle_courses, "data/interim/moodle/courses_moodle.csv")
-        self.save_to_csv(edukrea_courses, "data/interim/moodle/courses_edukrea.csv")
+        self.save_to_csv(moodle_courses, "data/interim/moodle/courses.csv")
 
         self.logger.info("Courses data processed and saved successfully.")
 
