@@ -122,7 +122,7 @@ class CoursesProcessor(BaseScript):
         module_summary = (
             students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(
-                num_modules=("course_module_id", "nunique"),
+                num_unique_modules=("course_module_id", "nunique"),
                 num_modules_viewed=("has_viewed", lambda x: x.sum()),
             )
             .reset_index()
@@ -193,7 +193,7 @@ class CoursesProcessor(BaseScript):
         # 9. Porcentajes
         summary_df["percent_students_viewed"] = (summary_df["num_students_viewed"] / summary_df["num_students"]).round(2)
         summary_df["percent_students_interacted"] = (summary_df["num_students_interacted"] / summary_df["num_students"]).round(2)
-        summary_df["percent_modules_viewed"] = (summary_df["num_modules_viewed"] / summary_df["num_modules"]).round(2)
+        summary_df["percent_modules_viewed"] = (summary_df["num_modules_viewed"] / summary_df["num_unique_modules"]).round(2)
 
         return summary_df
 
