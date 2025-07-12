@@ -112,11 +112,13 @@ class StudentModulesProcessor(BaseScript):
         modules_df = modules_df[
             [
                 "year",
+                "sede",
+                "id_grado",
+                "id_asignatura",
+                "period",
                 "course_id",
                 "platform",
                 "course_module_id",
-                "sede",
-                "id_grado",
                 "planned_start_date",
                 "planned_end_date",
             ]
