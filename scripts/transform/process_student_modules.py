@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import sys
+import re
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -8,6 +9,23 @@ from utils.base_script import BaseScript
 
 
 class StudentModulesProcessor(BaseScript):
+    @staticmethod
+    def _clean_text_field(text):
+        """Clean text fields by removing special characters and line breaks"""
+        if pd.isna(text):
+            return text
+        # Convert to string
+        text = str(text)
+        # Remove line breaks and carriage returns
+        text = re.sub(r'[\r\n\t]', ' ', text)
+        # Remove multiple spaces
+        text = re.sub(r'\s+', ' ', text)
+        # Remove leading and trailing whitespace
+        text = text.strip()
+        # Remove or replace problematic characters for CSV
+        text = re.sub(r'[,;"]', '', text)
+        return text
+
     @staticmethod
     def _classify_event(eventname):
         eventname = str(eventname).lower()
@@ -78,7 +96,11 @@ class StudentModulesProcessor(BaseScript):
                 "planned_start_date",
                 "planned_end_date",
             ]
-        ]
+        ].copy()
+
+        # Clean text fields that may contain special characters or line breaks
+        modules_df["course_name"] = modules_df["course_name"].apply(StudentModulesProcessor._clean_text_field)
+        modules_df["module_name"] = modules_df["module_name"].apply(StudentModulesProcessor._clean_text_field)
 
         df_base = StudentModulesProcessor._merge_modules_students(students_df, modules_df)
 
