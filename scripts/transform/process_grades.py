@@ -44,24 +44,75 @@ class GradesProcessor(BaseScript):
 
         grades_filtered['id_asignatura'] = grades_filtered['Asignatura'].map(asignatura_mapping)
 
-        column_mapping = {
-            'Sede': 'sede',
-            'Estudiante': 'estudiante', 
-            'Grado': 'id_grado',
-            'Periodo': 'periodo',
-            'Año': 'año',
-            'Cog': 'cog',
-            'Proc': 'proc',
-            'Act': 'act',
-            'Axi': 'axi',
-            'Resultado': 'resultado',
-            'Nivel': 'nivel',
-            'Identificación': 'documento_identificación',
-            'id_asignatura': 'id_asignatura'
-        }
+        # Seleccionar las columnas necesarias
+        columns_to_keep = ['Sede', 'Estudiante', 'Grado', 'Periodo', 'Año', 
+                          'Cog', 'Proc', 'Act', 'Axi', 'Resultado', 'Identificación', 'id_asignatura']
+        grades_selected = grades_filtered[columns_to_keep].copy()
 
-        grades_final = grades_filtered[list(column_mapping.keys())].rename(columns=column_mapping)
-        self.save_to_csv(grades_final, "data/interim/calificaciones/calificaciones_2024_2025.csv")
+        # Renombrar columnas para el procesamiento
+        grades_selected = grades_selected.rename(columns={
+            'Sede': 'sede',
+            'Estudiante': 'estudiante',
+            'Grado': 'id_grado',
+            'Periodo': 'period',
+            'Año': 'year',
+            'Identificación': 'documento_identificación'
+        })
+
+        # Crear dataset en formato largo
+        # Primero crear registros para proc, cog, act, axi
+        dimensiones_base = ['Proc', 'Cog', 'Act', 'Axi']
+        
+        # Transformar a formato largo usando melt
+        grades_long = pd.melt(grades_selected, 
+                             id_vars=['documento_identificación', 'id_asignatura', 'id_grado', 
+                                     'period', 'year', 'sede', 'estudiante', 'Resultado'],
+                             value_vars=dimensiones_base,
+                             var_name='dimensión',
+                             value_name='resultado')
+        
+        # Convertir los nombres de dimensiones a minúsculas
+        grades_long['dimensión'] = grades_long['dimensión'].str.lower()
+        
+        # Crear registros para la dimensión 'final' usando el valor de 'Resultado'
+        grades_final_dimension = grades_selected[['documento_identificación', 'id_asignatura', 'id_grado', 
+                                                 'period', 'year', 'sede', 'estudiante', 'Resultado']].copy()
+        grades_final_dimension['dimensión'] = 'final'
+        grades_final_dimension['resultado'] = grades_final_dimension['Resultado']
+        
+        # Eliminar la columna 'Resultado' temporal
+        grades_final_dimension = grades_final_dimension.drop('Resultado', axis=1)
+        grades_long = grades_long.drop('Resultado', axis=1)
+        
+        # Combinar ambos datasets
+        grades_complete = pd.concat([grades_long, grades_final_dimension], ignore_index=True)
+        
+        # Función para calcular el nivel basado en el resultado
+        def calcular_nivel(resultado):
+            if pd.isna(resultado):
+                return None
+            elif resultado >= 95:
+                return 'Superior'
+            elif resultado >= 80:
+                return 'Alto'
+            elif resultado >= 60:
+                return 'Básico'
+            else:
+                return 'Bajo'
+        
+        # Calcular el nivel
+        grades_complete['nivel'] = grades_complete['resultado'].apply(calcular_nivel)
+        
+        # Reordenar las columnas según lo solicitado
+        column_order = ['documento_identificación', 'id_asignatura', 'id_grado', 
+                       'period', 'year', 'sede', 'estudiante', 'dimensión', 'resultado', 'nivel']
+        grades_final = grades_complete[column_order]
+        
+        # Ordenar por documento_identificación, id_asignatura, period, year, dimensión
+        grades_final = grades_final.sort_values(['documento_identificación', 'id_asignatura', 
+                                               'period', 'year', 'dimensión'])
+        
+        self.save_to_csv(grades_final, "data/interim/calificaciones/calificaciones_2024_2025_long.csv")
         self.logger.info("Procesamiento de calificaciones completado.")
 
 
