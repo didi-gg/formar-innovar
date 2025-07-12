@@ -56,7 +56,8 @@ class GradesProcessor(BaseScript):
             'Axi': 'axi',
             'Resultado': 'resultado',
             'Nivel': 'nivel',
-            'Identificación': 'documento_identificación'
+            'Identificación': 'documento_identificación',
+            'id_asignatura': 'id_asignatura'
         }
 
         grades_final = grades_filtered[list(column_mapping.keys())].rename(columns=column_mapping)
