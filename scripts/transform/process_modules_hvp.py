@@ -108,7 +108,7 @@ class MoodleHVPProcessor(BaseScript):
             lambda libs: not any(lib in interactive_libraries for lib in libs) if isinstance(libs, list) else True
         )
 
-        # 4. Resultado: solo es interactivo si tiene alguna librería válida Y no es machine bloqueado
+        # 4. Resultado: solo es interactivo si tiene alguna librería válida
         df["is_interactive"] = ~(cond_no_interactive_libraries | cond_machine)
 
         return df
@@ -121,25 +121,29 @@ class MoodleHVPProcessor(BaseScript):
         modules = "data/interim/moodle/modules_active.csv"
         hvp, hvp_libraries = MoodlePathResolver.get_paths(year, *tables)
         hvp_data_2024 = self._get_hvp(hvp, hvp_libraries, modules, year, platform="moodle")
+        hvp_data_2024["platform"] = "moodle"
 
         year = 2025
         hvp, hvp_libraries = MoodlePathResolver.get_paths(year, *tables)
         hvp_data_2025 = self._get_hvp(hvp, hvp_libraries, modules, year, platform="moodle")
+        hvp_data_2025["platform"] = "moodle"
 
         year = 2025
         hvp, hvp_libraries = MoodlePathResolver.get_paths("Edukrea", *tables)
         hvp_data_edukrea = self._get_hvp(hvp, hvp_libraries, modules, year, platform="edukrea")
+        hvp_data_edukrea["platform"] = "edukrea"
 
-        # Combine HVP data for both years
-        hvp_data = pd.concat([hvp_data_2024, hvp_data_2025], ignore_index=True)
-        hvp_data = self.process_hvp(hvp_data)
+        # Combine HVP data for all platforms and years
+        hvp_data_moodle = pd.concat([hvp_data_2024, hvp_data_2025], ignore_index=True)
+        hvp_data_moodle = self.process_hvp(hvp_data_moodle)
 
         hvp_data_edukrea = self.process_hvp(hvp_data_edukrea)
 
-        # Save the processed HVP data
-        self.save_to_csv(hvp_data, "data/interim/moodle/hvp_moodle.csv")
-        self.save_to_csv(hvp_data_edukrea, "data/interim/moodle/hvp_edukrea.csv")
+        # Combine all data into a single DataFrame
+        hvp_data_combined = pd.concat([hvp_data_moodle, hvp_data_edukrea], ignore_index=True)
 
+        # Save the processed HVP data
+        self.save_to_csv(hvp_data_combined, "data/interim/moodle/hvp.csv")
         self.logger.info("HVP data processed and saved successfully.")
 
 

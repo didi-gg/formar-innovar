@@ -146,11 +146,11 @@ class ModuleFeaturesProcessor(BaseScript):
             df["is_interactive"] = 0
             return df
 
-        hvp_df = pd.read_csv(hvp_path, dtype={"course_module_id": int, "course_id": int, "year": int, "is_interactive": int})
+        hvp_df = pd.read_csv(hvp_path, dtype={"course_module_id": int, "course_id": int, "year": int, "is_interactive": int, "platform": str})   
 
-        hvp_lookup = {(row["year"], row["course_id"], row["course_module_id"]): row["is_interactive"] for _, row in hvp_df.iterrows()}
+        hvp_lookup = {(row["year"], row["course_id"], row["course_module_id"], row["platform"]): row["is_interactive"] for _, row in hvp_df.iterrows()}
 
-        df["is_interactive"] = df.apply(lambda row: hvp_lookup.get((row["year"], row["course_id"], row["course_module_id"]), 0), axis=1).astype(int)
+        df["is_interactive"] = df.apply(lambda row: hvp_lookup.get((row["year"], row["course_id"], row["course_module_id"], row["platform"]), 0), axis=1).astype(int)
 
         return df
 
@@ -228,7 +228,7 @@ class ModuleFeaturesProcessor(BaseScript):
             students_moodle,
             teacher_logs_moodle,
             student_logs_moodle,
-            "data/interim/moodle/hvp_moodle.csv",
+            "data/interim/moodle/hvp.csv",
         )
 
         # Procesar Edukrea
@@ -238,7 +238,7 @@ class ModuleFeaturesProcessor(BaseScript):
             students_edukrea,
             teacher_logs_edukrea,
             student_logs_edukrea,
-            "data/interim/moodle/hvp_edukrea.csv",
+            "data/interim/moodle/hvp.csv",
         )
 
         # Combinar ambos dataframes
