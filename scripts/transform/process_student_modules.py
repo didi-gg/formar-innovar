@@ -10,23 +10,6 @@ from utils.base_script import BaseScript
 
 class StudentModulesProcessor(BaseScript):
     @staticmethod
-    def _clean_text_field(text):
-        """Clean text fields by removing special characters and line breaks"""
-        if pd.isna(text):
-            return text
-        # Convert to string
-        text = str(text)
-        # Remove line breaks and carriage returns
-        text = re.sub(r'[\r\n\t]', ' ', text)
-        # Remove multiple spaces
-        text = re.sub(r'\s+', ' ', text)
-        # Remove leading and trailing whitespace
-        text = text.strip()
-        # Remove or replace problematic characters for CSV
-        text = re.sub(r'[,;"]', '', text)
-        return text
-
-    @staticmethod
     def _classify_event(eventname):
         eventname = str(eventname).lower()
         if "view" in eventname:

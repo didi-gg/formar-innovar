@@ -1,7 +1,7 @@
 import duckdb
 import logging
 import pandas as pd
-
+import re
 
 class BaseScript:
     def __init__(self):
@@ -25,6 +25,23 @@ class BaseScript:
         if hasattr(self, "con") and self.con:
             self.con.close()
             self.con = None
+
+    @staticmethod
+    def _clean_text_field(text):
+        """Clean text fields by removing special characters and line breaks"""
+        if pd.isna(text):
+            return text
+        # Convert to string
+        text = str(text)
+        # Remove line breaks and carriage returns
+        text = re.sub(r'[\r\n\t]', ' ', text)
+        # Remove multiple spaces
+        text = re.sub(r'\s+', ' ', text)
+        # Remove leading and trailing whitespace
+        text = text.strip()
+        # Remove or replace problematic characters for CSV
+        text = re.sub(r'[,;"]', '', text)
+        return text
 
     def save_to_csv(self, df: pd.DataFrame, file_path: str):
         df.to_csv(file_path, index=False, encoding="utf-8-sig", quoting=1, date_format="%Y-%m-%d %H:%M:%S")

@@ -249,6 +249,10 @@ class MoodleModulesProcessor(BaseScript):
         df["section_name"] = df["section_name"].astype(str)
         df["module_type"] = df["module_type"].astype(str)
         df["module_name"] = df["module_name"].astype(str)
+
+        df["course_name"] = df["course_name"].apply(self._clean_text_field)
+        df["module_name"] = df["module_name"].apply(self._clean_text_field)
+
         return df
 
     def process_course_data(self):

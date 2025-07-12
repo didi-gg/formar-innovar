@@ -36,6 +36,7 @@ class UniqueCoursesProcessor(BaseScript):
 
         # Extraer cursos únicos de todo el dataset manteniendo la columna platform
         unique_courses = self._extract_unique_courses(student_courses)
+        unique_courses["course_name"] = unique_courses["course_name"].apply(self._clean_text_field)
 
         self.save_to_csv(unique_courses, "data/interim/moodle/unique_courses.csv")
         self.logger.info(f"Procesamiento de cursos completado. Total cursos únicos: {len(unique_courses)}")

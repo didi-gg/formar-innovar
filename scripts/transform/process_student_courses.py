@@ -102,6 +102,8 @@ class StudentMoodleCoursesProcessor(BaseScript):
 
         df_combined = pd.concat([df_2024, df_2025, df_edukrea], ignore_index=True)
 
+        df_combined["course_name"] = df_combined["course_name"].apply(self._clean_text_field)
+
         # Guardar como CSV
         output_file = "data/interim/moodle/student_courses.csv"
         self.save_to_csv(df_combined, output_file)

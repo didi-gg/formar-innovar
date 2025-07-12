@@ -104,6 +104,7 @@ class MoodleCourseActivityProcessor(BaseScript):
                 df_courses, left_on=["userid", "courseid"], right_on=["moodle_user_id", "course_id"], how="inner", suffixes=("", "_student")
             )
 
+            df_merged["course_name"] = df_merged["course_name"].apply(self._clean_text_field)
             return df_merged
 
         except Exception as e:
