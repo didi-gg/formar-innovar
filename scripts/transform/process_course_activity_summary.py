@@ -89,6 +89,9 @@ class MoodleCourseActivityProcessor(BaseScript):
             # Mapear tipos de actividad
             df["activity_type"] = df["eventname"].map(events_of_interest)
 
+            # Agregar columna platform
+            df["platform"] = platform
+
             # Cargar inscripciones de estudiantes
             df_courses = self.con.execute(f"""
                 SELECT moodle_user_id, course_id, id_asignatura, year, course_name, documento_identificación
@@ -120,20 +123,12 @@ class MoodleCourseActivityProcessor(BaseScript):
         data_2025 = self._load_course_activity_data(logs_parquet_2025, student_courses, year=2025, platform='moodle')
         data_edukrea = self._load_course_activity_data(logs_parquet_edukrea, student_courses, year=2025, platform='edukrea')
 
-        combined_data = pd.concat([data_2024, data_2025])
+        # Combinar todos los datos
+        combined_data = pd.concat([data_2024, data_2025, data_edukrea])
 
         # Pivotear para contar eventos por tipo de actividad
         df_summary = combined_data.pivot_table(
-            index=["userid", "documento_identificación", "courseid", "period", "id_asignatura", "year", "course_name"],
-            columns="activity_type",
-            values="timecreated",
-            aggfunc="count",
-            fill_value=0,
-        ).reset_index()
-
-        # Pivotear para contar eventos por tipo de actividad
-        df_summary_edukrea = data_edukrea.pivot_table(
-            index=["userid", "documento_identificación", "courseid", "period", "id_asignatura", "year", "course_name"],
+            index=["userid", "documento_identificación", "courseid", "period", "id_asignatura", "year", "course_name", "platform"],
             columns="activity_type",
             values="timecreated",
             aggfunc="count",
@@ -192,11 +187,8 @@ class MoodleCourseActivityProcessor(BaseScript):
                 df_summary[col] = 0
 
         # Guardar resultados
-        output_path = "data/interim/moodle/course_activity_summary_moodle.csv"
+        output_path = "data/interim/moodle/course_activity_summary.csv"
         self.save_to_csv(df_summary, output_path)
-
-        output_path = "data/interim/moodle/course_activity_summary_edukrea.csv"
-        self.save_to_csv(df_summary_edukrea, output_path)
 
         return df_summary
 
