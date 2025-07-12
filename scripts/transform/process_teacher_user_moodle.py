@@ -19,7 +19,7 @@ class TeacherMoodleUserProcessor(BaseScript):
         name = "".join([c for c in name if not unicodedata.combining(c)])
         return name.upper().strip()
 
-    def _get_teachers(self, year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file):
+    def _get_teachers(self, year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file, platform="moodle"):
         sql_docentes = f"""
             SELECT DISTINCT u.id AS userid, 
                 u.firstname, u.lastname
@@ -32,6 +32,7 @@ class TeacherMoodleUserProcessor(BaseScript):
             WHERE r.shortname = 'editingteacher'
             AND uc.year = {year}
             AND NOT (u.firstname = 'Provisional' AND u.lastname = 'Girardot')
+            AND uc.platform = '{platform}'
             """
         try:
             docentes_df = self.con.execute(sql_docentes).df()
@@ -61,7 +62,7 @@ class TeacherMoodleUserProcessor(BaseScript):
         return docentes_df[docentes_df["id_docente"].isin(id_docente_unique)]
 
     def process_teacher_logs(self):
-        unique_courses_file = "data/interim/moodle/unique_courses_moodle.csv"
+        unique_courses_file = "data/interim/moodle/unique_courses.csv"
 
         carga = "data/raw/tablas_maestras/carga_horaria.csv"
         carga_df = pd.read_csv(carga, dtype={"id_docente": "Int64", "id_curso": "Int64"})
@@ -75,7 +76,7 @@ class TeacherMoodleUserProcessor(BaseScript):
         course_file, context_file, role_assignments_file, role_file, user_file, logs_parquet = MoodlePathResolver.get_paths(
             year, "course", "context", "role_assignments", "role", "user", "logstore_standard_log"
         )
-        teacher_moodle_2024 = self._get_teachers(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
+        teacher_moodle_2024 = self._get_teachers(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file, platform="moodle")
         teachers_2024 = self._get_teachers_by_year(carga_df, docentes_df, year)
         missing_teachers_2024 = self._check_missing_teachers(teacher_moodle_2024, teachers_2024)
         if missing_teachers_2024:
@@ -86,7 +87,7 @@ class TeacherMoodleUserProcessor(BaseScript):
         course_file, context_file, role_assignments_file, role_file, user_file, logs_parquet = MoodlePathResolver.get_paths(
             year, "course", "context", "role_assignments", "role", "user", "logstore_standard_log"
         )
-        teacher_moodle_2025 = self._get_teachers(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
+        teacher_moodle_2025 = self._get_teachers(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file, platform="moodle")
         teachers_2025 = self._get_teachers_by_year(carga_df, docentes_df, year)
         missing_teachers_2025 = self._check_missing_teachers(teacher_moodle_2025, teachers_2025)
         if missing_teachers_2025:
@@ -97,8 +98,7 @@ class TeacherMoodleUserProcessor(BaseScript):
         course_file, context_file, role_assignments_file, role_file, user_file, logs_parquet = MoodlePathResolver.get_paths(
             "Edukrea", "course", "context", "role_assignments", "role", "user", "logstore_standard_log"
         )
-        unique_courses_file = "data/interim/moodle/unique_courses_edukrea.csv"
-        teacher_moodle_edukrea = self._get_teachers(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
+        teacher_moodle_edukrea = self._get_teachers(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file, platform="edukrea")
         missing_teachers_edukrea = self._check_missing_teachers(teacher_moodle_edukrea, teachers_2025)
         if missing_teachers_edukrea:
             raise ValueError(f"Teachers missing in Edukrea logs: {', '.join(missing_teachers_edukrea)}")

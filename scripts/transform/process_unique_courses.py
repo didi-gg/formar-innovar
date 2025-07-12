@@ -29,20 +29,17 @@ class UniqueCoursesProcessor(BaseScript):
     def process_course_data(self):
         """
         Carga los datos de cursos desde archivos CSV intermedios,
-        extrae cursos únicos y los guarda en nuevos archivos CSV.
+        extrae cursos únicos y los guarda en un solo archivo CSV.
         """
         student_courses_input_path = "data/interim/moodle/student_courses.csv"
         student_courses = pd.read_csv(student_courses_input_path)
 
-        moodle_df = student_courses[student_courses['platform'] == 'moodle']
-        edukrea_df = student_courses[student_courses['platform'] == 'edukrea']
+        # Extraer cursos únicos de todo el dataset manteniendo la columna platform
+        unique_courses = self._extract_unique_courses(student_courses)
 
-        unique_moodle_courses = self._extract_unique_courses(moodle_df)
-        unique_edukrea_courses = self._extract_unique_courses(edukrea_df)
-
-        self.save_to_csv(unique_moodle_courses, "data/interim/moodle/unique_courses_moodle.csv")
-        self.save_to_csv(unique_edukrea_courses, "data/interim/moodle/unique_courses_edukrea.csv")
-        self.logger.info("Procesamiento de cursos completado.")
+        self.save_to_csv(unique_courses, "data/interim/moodle/unique_courses.csv")
+        self.logger.info(f"Procesamiento de cursos completado. Total cursos únicos: {len(unique_courses)}")
+        self.logger.info(f"Cursos por plataforma: {unique_courses['platform'].value_counts().to_dict()}")
 
 
 if __name__ == "__main__":

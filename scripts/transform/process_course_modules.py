@@ -57,6 +57,7 @@ class MoodleModulesProcessor(BaseScript):
         feedback_file,
         glossary_file,
         year=2025,
+        platform="moodle",
     ) -> pd.DataFrame:
         """
         Carga los módulos de cursos activos y enriquecidos con su nombre según el tipo.
@@ -89,6 +90,7 @@ class MoodleModulesProcessor(BaseScript):
                 INNER JOIN '{asignaturas_file}' AS a ON c.id_asignatura = a.id_asignatura
                 WHERE c.year = {year}
                   AND cm.visible = 1
+                  AND c.platform = '{platform}'
             )
             SELECT 
                 b.*,
@@ -128,6 +130,7 @@ class MoodleModulesProcessor(BaseScript):
         self,
         courses_file,
         asignaturas_file,
+        platform="edukrea",
     ) -> pd.DataFrame:
         try:
             tables = ["course_modules", "modules", "course_sections", "label", "hvp", "forum", "page", "assign", "resource", "url"]
@@ -159,6 +162,7 @@ class MoodleModulesProcessor(BaseScript):
                 INNER JOIN '{asignaturas_file}' AS a ON c.id_asignatura = a.id_asignatura
                 WHERE c.year = 2025
                 AND cm.visible = 1
+                AND c.platform = '{platform}'
             )
             SELECT 
                 b.*,
@@ -249,7 +253,7 @@ class MoodleModulesProcessor(BaseScript):
 
     def process_course_data(self):
         """ """
-        courses_file = "data/interim/moodle/unique_courses_moodle.csv"
+        courses_file = "data/interim/moodle/unique_courses.csv"
         asignaturas_file = "data/raw/tablas_maestras/asignaturas.csv"
 
         tables = [
@@ -276,10 +280,10 @@ class MoodleModulesProcessor(BaseScript):
             "glossary",
         ]
         file_paths = MoodlePathResolver.get_paths(2024, *tables)
-        modules_2024 = self._load_modules(courses_file, asignaturas_file, *file_paths, year=2024)
+        modules_2024 = self._load_modules(courses_file, asignaturas_file, *file_paths, year=2024, platform="moodle")
 
         file_paths = MoodlePathResolver.get_paths(2025, *tables)
-        modules_2025 = self._load_modules(courses_file, asignaturas_file, *file_paths, year=2025)
+        modules_2025 = self._load_modules(courses_file, asignaturas_file, *file_paths, year=2025, platform="moodle")
 
         modules_2024 = self.process_moodle_modules(modules_2024)
         modules_2025 = self.process_moodle_modules(modules_2025)
@@ -294,8 +298,7 @@ class MoodleModulesProcessor(BaseScript):
         modules_combined = pd.concat([modules_2024, modules_2025], ignore_index=True)
 
         # Edukrea data processing
-        courses_file = "data/interim/moodle/unique_courses_edukrea.csv"
-        edukrea_df = self._load_modules_edukrea(courses_file, asignaturas_file)
+        edukrea_df = self._load_modules_edukrea(courses_file, asignaturas_file, platform="edukrea")
         edukrea_df = self.process_moodle_modules(edukrea_df, edukrea=True)
 
         # Filtrar solo por el primer bimestre 1 lo demás esta en construcción

@@ -9,7 +9,7 @@ from utils.base_script import BaseScript
 
 
 class TeacherLoginProcessor(BaseScript):
-    def _get_teacher_ids(self, year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file):
+    def _get_teacher_ids(self, year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file, platform="moodle"):
         sql_docentes = f"""
             SELECT DISTINCT u.id AS userid
             FROM '{course_file}' c
@@ -21,6 +21,7 @@ class TeacherLoginProcessor(BaseScript):
             WHERE r.shortname = 'editingteacher'
             AND uc.year = {year}
             AND NOT (u.firstname = 'Provisional' AND u.lastname = 'Girardot')
+            AND uc.platform = '{platform}'
             """
         try:
             docentes_df = self.con.execute(sql_docentes).df()
@@ -65,14 +66,14 @@ class TeacherLoginProcessor(BaseScript):
             raise
 
     def process_teacher_logs(self):
-        unique_courses_file = "data/interim/moodle/unique_courses_moodle.csv"
+        unique_courses_file = "data/interim/moodle/unique_courses.csv"
 
         # Get logs for 2024
         year = 2024
         course_file, context_file, role_assignments_file, role_file, user_file, logs_parquet = MoodlePathResolver.get_paths(
             year, "course", "context", "role_assignments", "role", "user", "logstore_standard_log"
         )
-        teacher_ids_2024 = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
+        teacher_ids_2024 = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file, platform="moodle")
         log_2024 = self._get_log(year, teacher_ids_2024, logs_parquet, unique_courses_file)
         log_2024['platform'] = 'moodle'
 
@@ -81,7 +82,7 @@ class TeacherLoginProcessor(BaseScript):
         course_file, context_file, role_assignments_file, role_file, user_file, logs_parquet = MoodlePathResolver.get_paths(
             year, "course", "context", "role_assignments", "role", "user", "logstore_standard_log"
         )
-        teacher_ids_2025 = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
+        teacher_ids_2025 = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file, platform="moodle")
         log_2025 = self._get_log(year, teacher_ids_2025, logs_parquet, unique_courses_file)
         log_2025['platform'] = 'moodle'
 
@@ -90,8 +91,7 @@ class TeacherLoginProcessor(BaseScript):
         course_file, context_file, role_assignments_file, role_file, user_file, logs_parquet = MoodlePathResolver.get_paths(
             "Edukrea", "course", "context", "role_assignments", "role", "user", "logstore_standard_log"
         )
-        unique_courses_file = "data/interim/moodle/unique_courses_edukrea.csv"
-        teacher_ids_edukrea = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file)
+        teacher_ids_edukrea = self._get_teacher_ids(year, course_file, unique_courses_file, context_file, role_assignments_file, role_file, user_file, platform="edukrea")
         logs_edukrea = self._get_log(year, teacher_ids_edukrea, logs_parquet, unique_courses_file)
         logs_edukrea['platform'] = 'edukrea'
 
