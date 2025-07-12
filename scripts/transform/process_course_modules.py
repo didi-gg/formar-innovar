@@ -249,6 +249,7 @@ class MoodleModulesProcessor(BaseScript):
         df["section_name"] = df["section_name"].astype(str)
         df["module_type"] = df["module_type"].astype(str)
         df["module_name"] = df["module_name"].astype(str)
+        df["platform"] = df["platform"].astype(str)
 
         df["course_name"] = df["course_name"].apply(self._clean_text_field)
         df["module_name"] = df["module_name"].apply(self._clean_text_field)
@@ -292,6 +293,10 @@ class MoodleModulesProcessor(BaseScript):
         modules_2024 = self.process_moodle_modules(modules_2024)
         modules_2025 = self.process_moodle_modules(modules_2025)
 
+        # Agregar columna platform para identificar los módulos de Moodle
+        modules_2024["platform"] = "moodle"
+        modules_2025["platform"] = "moodle"
+
         # No incluir los módulos con secciones por fuera de los periodos académicos
         modules_2024 = modules_2024[modules_2024["period"].isin([1, 2, 3, 4])]
 
@@ -305,14 +310,18 @@ class MoodleModulesProcessor(BaseScript):
         edukrea_df = self._load_modules_edukrea(courses_file, asignaturas_file, platform="edukrea")
         edukrea_df = self.process_moodle_modules(edukrea_df, edukrea=True)
 
+        # Agregar columna platform para identificar los módulos de Edukrea
+        edukrea_df["platform"] = "edukrea"
+
         # Filtrar solo por el primer bimestre 1 lo demás esta en construcción
         edukrea_df = edukrea_df[edukrea_df["period"] == 1]
 
-        # Finally, save the Edukrea data to CSV
-        output_file = "data/interim/moodle/modules_active_moodle.csv"
-        self.save_to_csv(self.cast_column_types(modules_combined), output_file)
-        edukrea_output_file = "data/interim/moodle/modules_active_edukrea.csv"
-        self.save_to_csv(self.cast_column_types(edukrea_df), edukrea_output_file)
+        # Combinar todos los DataFrames incluyendo Edukrea
+        all_modules = pd.concat([modules_combined, edukrea_df], ignore_index=True)
+
+        # Finally, save all modules data to CSV
+        output_file = "data/interim/moodle/modules_active.csv"
+        self.save_to_csv(self.cast_column_types(all_modules), output_file)
 
 
 if __name__ == "__main__":

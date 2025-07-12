@@ -113,6 +113,8 @@ class ModuleFeaturesProcessor(BaseScript):
 
     # ---------- MÉTRICAS Y UNIONES ----------
     def merge_modules_logs_update(self, modules_df, logs_df):
+        modules_df = modules_df.copy()
+        logs_df = logs_df.copy()
         modules_df["year"] = modules_df["year"].astype(int)
         logs_df["year"] = logs_df["year"].astype(int)
 
@@ -193,8 +195,7 @@ class ModuleFeaturesProcessor(BaseScript):
 
     # ---------- EJECUCIÓN PRINCIPAL ----------
     def process_course_data(self):
-        moodle_df = pd.read_csv("data/interim/moodle/modules_active_moodle.csv")
-        edukrea_df = pd.read_csv("data/interim/moodle/modules_active_edukrea.csv")
+        modules_df = pd.read_csv("data/interim/moodle/modules_active.csv")
 
         student_courses = pd.read_csv("data/interim/moodle/student_courses.csv")
         students_moodle = student_courses[student_courses["platform"] == "moodle"]
@@ -217,9 +218,8 @@ class ModuleFeaturesProcessor(BaseScript):
 
         logs_edukrea = self._get_logs_updated(MoodlePathResolver.get_paths("Edukrea", logs_table)[0], 2025)
 
-        # Agregar columna de plataforma
-        moodle_df['platform'] = 'moodle'
-        edukrea_df['platform'] = 'edukrea'
+        moodle_df = modules_df[modules_df["platform"] == "moodle"]
+        edukrea_df = modules_df[modules_df["platform"] == "edukrea"]
 
         # Procesar Moodle
         moodle_df = self.process_df(

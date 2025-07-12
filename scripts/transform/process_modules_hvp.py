@@ -20,7 +20,7 @@ class MoodleHVPProcessor(BaseScript):
         except:
             return {}
 
-    def _get_hvp(self, hvp, hvp_libraries, moodle_modules, year):
+    def _get_hvp(self, hvp, hvp_libraries, moodle_modules, year, platform):
         sql_hvp = f"""
             SELECT
                 year,
@@ -46,6 +46,7 @@ class MoodleHVPProcessor(BaseScript):
             JOIN '{hvp}' AS h ON cm.instance = h.id AND cm.module_type_id = 24
             LEFT JOIN '{hvp_libraries}' hl ON hl.id = h.main_library_id
             WHERE cm.year = '{year}'
+            AND cm.platform = '{platform}'
             """
         try:
             return self.con.execute(sql_hvp).df()
@@ -117,18 +118,17 @@ class MoodleHVPProcessor(BaseScript):
         tables = ["hvp", "hvp_libraries"]
 
         year = 2024
-        moodle_modules = "data/interim/moodle/modules_active_moodle.csv"
+        modules = "data/interim/moodle/modules_active.csv"
         hvp, hvp_libraries = MoodlePathResolver.get_paths(year, *tables)
-        hvp_data_2024 = self._get_hvp(hvp, hvp_libraries, moodle_modules, year)
+        hvp_data_2024 = self._get_hvp(hvp, hvp_libraries, modules, year, platform="moodle")
 
         year = 2025
         hvp, hvp_libraries = MoodlePathResolver.get_paths(year, *tables)
-        hvp_data_2025 = self._get_hvp(hvp, hvp_libraries, moodle_modules, year)
+        hvp_data_2025 = self._get_hvp(hvp, hvp_libraries, modules, year, platform="moodle")
 
         year = 2025
-        moodle_modules = "data/interim/moodle/modules_active_edukrea.csv"
         hvp, hvp_libraries = MoodlePathResolver.get_paths("Edukrea", *tables)
-        hvp_data_edukrea = self._get_hvp(hvp, hvp_libraries, moodle_modules, year)
+        hvp_data_edukrea = self._get_hvp(hvp, hvp_libraries, modules, year, platform="edukrea")
 
         # Combine HVP data for both years
         hvp_data = pd.concat([hvp_data_2024, hvp_data_2025], ignore_index=True)
