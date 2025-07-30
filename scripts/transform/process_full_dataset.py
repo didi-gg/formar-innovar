@@ -5,6 +5,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from utils.base_script import BaseScript
+from utils.academic_period_utils import AcademicPeriodUtils
 
 
 class FullDatasetProcessor(BaseScript):
@@ -74,7 +75,16 @@ class FullDatasetProcessor(BaseScript):
         "count_jornada_madrugada",
         "count_jornada_mañana",
         "count_jornada_tarde",
-        "count_jornada_noche"
+        "count_jornada_noche",
+        "login_consistency",
+        "dia_preferido",
+        "jornada_preferida",
+        "login_regularity_score",
+        "consecutive_days_max",
+        "gaps_between_sessions_avg",
+        "engagement_decay",
+        "activity_percentile",
+        "longest_inactivity_streak"
     ]
     # data/interim/moodle/courses_base.csv
     COLUMNS_COURSES_BASE = [
@@ -301,24 +311,22 @@ class FullDatasetProcessor(BaseScript):
         merged_df = left_df.merge(
             right_df, 
             on=merge_keys, 
-            how='left',
+            how='inner',
             suffixes=('', f'_{dataset_name.lower().replace(" ", "_")}'),
             indicator=True
         )
 
-        # Analizar matches
+        # Analizar matches (con inner join, solo deberían existir registros 'both')
         match_counts = merged_df['_merge'].value_counts()
-        self.logger.info(f"Resultados del join con {dataset_name}:")
-        self.logger.info(f"  - Registros que hicieron match: {match_counts.get('both', 0)}")
-        self.logger.info(f"  - Registros sin match (solo en left): {match_counts.get('left_only', 0)}")
-
-        # Mostrar ejemplos de registros sin match
-        no_match = merged_df[merged_df['_merge'] == 'left_only']
-        if len(no_match) > 0:
-            self.logger.warning(f"Registros sin match en {dataset_name} (mostrando primeros 10):")
-            sample_keys = no_match[merge_keys].drop_duplicates().head(10)
-            for _, row in sample_keys.iterrows():
-                self.logger.warning(f"  - {dict(row)}")
+        self.logger.info(f"Resultados del inner join con {dataset_name}:")
+        self.logger.info(f"  - Registros incluidos en el dataset final: {match_counts.get('both', 0)}")
+        
+        # Con inner join no debería haber registros left_only, pero verificamos por seguridad
+        left_only_count = match_counts.get('left_only', 0)
+        right_only_count = match_counts.get('right_only', 0)
+        if left_only_count > 0 or right_only_count > 0:
+            self.logger.warning(f"  - Registros inesperados left_only: {left_only_count}")
+            self.logger.warning(f"  - Registros inesperados right_only: {right_only_count}")
 
         # Eliminar columna indicator
         merged_df = merged_df.drop('_merge', axis=1)
@@ -364,19 +372,22 @@ class FullDatasetProcessor(BaseScript):
         merged_df = combined_df.merge(
             courses_df, 
             on=merge_keys, 
-            how='left',
+            how='inner',
             suffixes=('', '_course'),
             indicator=True
         )
 
-        # Analizar matches
+        # Analizar matches (con inner join, solo deberían existir registros 'both')
         match_counts = merged_df['_merge'].value_counts()
-        self.logger.info(f"Resultados del join con cursos:")
-        self.logger.info(f"  - Registros que hicieron match: {match_counts.get('both', 0)}")
-        self.logger.info(f"  - Registros sin match (solo en combined): {match_counts.get('left_only', 0)}")
-
-        # Análisis detallado si hay registros sin match
-        self._detailed_course_analysis(merged_df, courses_df, merge_keys)
+        self.logger.info(f"Resultados del inner join con cursos:")
+        self.logger.info(f"  - Registros incluidos en el dataset final: {match_counts.get('both', 0)}")
+        
+        # Con inner join no debería haber registros left_only, pero verificamos por seguridad
+        left_only_count = match_counts.get('left_only', 0)
+        if left_only_count > 0:
+            self.logger.warning(f"  - Registros inesperados sin match: {left_only_count}")
+            # Análisis detallado si hay registros sin match (no debería ocurrir con inner join)
+            self._detailed_course_analysis(merged_df, courses_df, merge_keys)
 
         # Eliminar columna indicator
         merged_df = merged_df.drop('_merge', axis=1)
@@ -405,6 +416,82 @@ class FullDatasetProcessor(BaseScript):
                 percentage = null_counts/total_cells*100 if total_cells > 0 else 0
                 self.logger.info(f"{name} - Valores nulos: {null_counts}/{total_cells} ({percentage:.2f}%)")
 
+    def _remove_duplicate_columns(self, combined_df):
+        """Elimina columnas duplicadas que pueden haberse creado durante los merges"""
+        self.logger.info("=== LIMPIEZA DE COLUMNAS DUPLICADAS ===")
+        
+        # Lista de columnas duplicadas conocidas a eliminar
+        columns_to_remove = []
+        
+        # Buscar columnas con sufijos que indican duplicación
+        for col in combined_df.columns:
+            if col.endswith('_estudiantes') or col.endswith('_calificaciones'):
+                base_col = col.split('_')[0]
+                if base_col in combined_df.columns:
+                    columns_to_remove.append(col)
+                    self.logger.info(f"Columna duplicada encontrada: {col} (manteniendo {base_col})")
+        
+        # Eliminar las columnas duplicadas
+        if columns_to_remove:
+            combined_df = combined_df.drop(columns=columns_to_remove)
+            self.logger.info(f"Eliminadas {len(columns_to_remove)} columnas duplicadas: {columns_to_remove}")
+        else:
+            self.logger.info("No se encontraron columnas duplicadas para eliminar")
+            
+        return combined_df
+
+    def _calculate_student_age_in_months(self, combined_df):
+        """Calcula la edad del estudiante en meses basado en fecha_nacimiento y period"""
+        self.logger.info("=== CÁLCULO DE EDAD DE ESTUDIANTES EN MESES ===")
+        
+        # Inicializar utilidades académicas
+        academic_utils = AcademicPeriodUtils()
+
+        # Convertir fecha_nacimiento a datetime (formato YYYY-MM-DD)
+        combined_df['fecha_nacimiento'] = pd.to_datetime(combined_df['fecha_nacimiento'], format='%Y-%m-%d', errors='coerce')
+
+        # Función para calcular edad en meses
+        def calculate_age_months(row):
+            try:
+                if pd.isna(row['fecha_nacimiento']) or pd.isna(row['year']) or pd.isna(row['period']):
+                    raise Exception(f"Error calculando edad para estudiante: {row}. Las columnas fecha_nacimiento, year y period deben ser no nulas.")
+                # Obtener fecha de inicio del periodo usando las utilidades académicas
+                period_start_date = academic_utils.get_period_start_date(row)
+                
+                if pd.isna(period_start_date):
+                    raise Exception(f"No se pudo obtener fecha de inicio para año {row['year']}, periodo {row['period']}")
+                
+                # Calcular diferencia en meses
+                months_diff = (period_start_date.year - row['fecha_nacimiento'].year) * 12 + \
+                             (period_start_date.month - row['fecha_nacimiento'].month)
+                
+                # Ajustar si el día del periodo es anterior al día de nacimiento
+                if period_start_date.day < row['fecha_nacimiento'].day:
+                    months_diff -= 1
+                return months_diff
+
+            except Exception as e:
+                raise Exception(f"Error calculando edad para estudiante: {e}")
+
+        # Aplicar el cálculo
+        combined_df['edad_estudiante'] = combined_df.apply(calculate_age_months, axis=1)
+        
+        # Reportar estadísticas
+        valid_ages = combined_df['edad_estudiante'].dropna()
+        if len(valid_ages) > 0:
+            self.logger.info(f"Edades calculadas para {len(valid_ages)} estudiantes")
+            self.logger.info(f"Edad promedio: {valid_ages.mean():.1f} meses ({valid_ages.mean()/12:.1f} años)")
+            self.logger.info(f"Edad mínima: {valid_ages.min()} meses ({valid_ages.min()/12:.1f} años)")
+            self.logger.info(f"Edad máxima: {valid_ages.max()} meses ({valid_ages.max()/12:.1f} años)")
+        else:
+            self.logger.warning("No se pudieron calcular edades para ningún estudiante")
+        
+        invalid_ages = combined_df['edad_estudiante'].isna().sum()
+        if invalid_ages > 0:
+            self.logger.warning(f"No se pudo calcular edad para {invalid_ages} registros")
+            
+        return combined_df
+
     def _save_dataset(self, combined_df):
         """Guarda el dataset combinado y muestra información final"""
         output_path = "data/interim/full_dataset_combined.csv"
@@ -414,20 +501,27 @@ class FullDatasetProcessor(BaseScript):
         self.logger.info(f"Dataset combinado guardado exitosamente: {combined_df.shape}")
 
         # Mostrar información del dataset final
-        self.logger.info("=== INFORMACIÓN DEL DATASET FINAL ===")
+        self.logger.info("=== INFORMACIÓN DEL DATASET FINAL (INNER JOINS - SIN VALORES NULOS) ===")
         self.logger.info(f"Forma del dataset: {combined_df.shape}")
         self.logger.info(f"Número de columnas: {len(combined_df.columns)}")
         self.logger.info(f"Número de filas: {len(combined_df)}")
+        
+        # Verificar que efectivamente no hay valores nulos
+        total_nulls = combined_df.isnull().sum().sum()
+        self.logger.info(f"Total de valores nulos en el dataset final: {total_nulls}")
 
     def process_full_dataset(self):
         """
-        Combina todos los datasets usando enrollments.csv como base
+        Combina todos los datasets usando enrollments.csv como base con INNER JOINS
         1. enrollments.csv (base)
         2. estudiantes_clean.csv (por documento_identificación + sede)
         3. calificaciones (por documento_identificación + sede + year + id_grado, expandirá por períodos)
         4. moodle datasets (por llaves correspondientes)
+
+        NOTA: Se usan INNER JOINS para evitar valores nulos. Solo se incluyen registros 
+        que tengan correspondencia en todos los datasets.
         """
-        self.logger.info("Iniciando procesamiento del dataset completo...")
+        self.logger.info("Iniciando procesamiento del dataset completo usando INNER JOINS (sin valores nulos)...")
 
         # Cargar todos los datasets
         enrollments_df = self._load_and_prepare_enrollments()
@@ -457,7 +551,11 @@ class FullDatasetProcessor(BaseScript):
         combined_df = self._merge_with_analysis(combined_df, students_df, key_columns_student, "estudiantes")
         combined_df = self._merge_with_analysis(combined_df, grades_df, key_columns_grades_join, "calificaciones")
 
-        self.logger.info("=== UNIONES RESTANTES (SIN FALTANTES ESPERADOS) ===")
+        # Limpieza y cálculos adicionales después del merge con calificaciones
+        combined_df = self._remove_duplicate_columns(combined_df)
+        combined_df = self._calculate_student_age_in_months(combined_df)
+
+        self.logger.info("=== UNIONES RESTANTES (INNER JOINS - SOLO REGISTROS CON CORRESPONDENCIA) ===")
         combined_df = self._merge_with_analysis(combined_df, student_logins_df, key_columns_student_period, "logins de estudiantes")
         combined_df = self._merge_with_analysis(combined_df, courses_base_df, key_columns_course, "cursos base")
         combined_df = self._merge_courses_with_analysis(combined_df, courses_df, key_columns_course)
