@@ -68,14 +68,12 @@ class GradesProcessor(BaseScript):
 
     def process_grades(self):
         grades = pd.read_csv("data/interim/calificaciones/data_imputed_notes_2023_2025.csv")
-        grades_filtered = grades[grades['Año'].isin([2024, 2025])]
+        grades_filtered = grades[grades['Año'].isin([2024, 2025])].copy()
         
-        grades_filtered['Sede'] = grades_filtered['Sede'].replace({
+        grades_filtered.loc[:, 'Sede'] = grades_filtered['Sede'].replace({
             'FUSAGASUGÁ': 'Fusagasugá',
             'GIRARDOT': 'Girardot'
         })
-
-        grades_filtered = grades_filtered.copy()
 
         asignatura_mapping = {
             'CIENCIAS NATURALES': 1,
@@ -99,7 +97,7 @@ class GradesProcessor(BaseScript):
             'FÍSICA': 23
         }
 
-        grades_filtered['id_asignatura'] = grades_filtered['Asignatura'].map(asignatura_mapping)
+        grades_filtered.loc[:, 'id_asignatura'] = grades_filtered['Asignatura'].map(asignatura_mapping)
 
         # Seleccionar las columnas necesarias
         columns_to_keep = ['Sede', 'Estudiante', 'Grado', 'Periodo', 'Año', 
