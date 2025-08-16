@@ -129,8 +129,17 @@ class CoursesProcessor(BaseScript):
         )
 
         # 4. Métricas promedio de vistas e interacciones
+        metric_cols = [
+            "avg_views_per_student",
+            "median_views_per_student",
+            "avg_interactions_per_student",
+            "median_interactions_per_student",
+        ]
+
         avg_metrics = (
-            students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
+            students_modules_df.groupby(
+                ["id_asignatura", "id_grado", "year", "period", "sede"]
+            )
             .agg(
                 avg_views_per_student=("num_views", "mean"),
                 median_views_per_student=("num_views", "median"),
@@ -138,6 +147,14 @@ class CoursesProcessor(BaseScript):
                 median_interactions_per_student=("num_interactions", "median"),
             )
             .reset_index()
+        )
+
+        # Solo sobre las métricas:
+        avg_metrics[metric_cols] = (
+            avg_metrics[metric_cols]
+            .fillna(0)
+            .astype(float)
+            .round(2)
         )
 
         # 5. Módulo menos visto (renombrando para evitar conflictos)
@@ -158,27 +175,41 @@ class CoursesProcessor(BaseScript):
 
         # 6. Módulo más tarde abierto
         opened_late = (
-            students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede", "course_module_id"])["days_before_start"].mean().reset_index()
+            students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede", "course_module_id"])["days_from_planned_start"].mean().reset_index()
         )
 
         most_late_opened = (
-            opened_late.sort_values("days_before_start", ascending=False)
+            opened_late.sort_values("days_from_planned_start", ascending=False)
             .groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .first()
             .reset_index()
             .rename(columns={"course_module_id": "id_most_late_opened_module"})
+            .drop(columns=["days_from_planned_start"])
         )
 
         # 7. Porcentaje de accesos fuera de fecha
         students_modules_df = students_modules_df.copy()
-        students_modules_df["out_of_date"] = ((students_modules_df["days_before_start"] < 0) | (students_modules_df["days_after_end"] > 0)).astype(
-            int
+        keys = ["id_asignatura", "id_grado", "year", "period", "sede"]
+
+        # Marcar si el acceso está fuera de fecha
+        students_modules_df["out_of_date"] = (
+            (students_modules_df["days_from_planned_start"] < 0) |
+            (students_modules_df["days_after_end"] > 0)
+        ).astype(int)
+
+        # Agrupar por módulo y curso: un módulo está fuera de fecha si al menos un estudiante lo abrió fuera de fecha
+        module_out_of_date = (
+            students_modules_df.groupby(keys + ["course_module_id"])["out_of_date"]
+            .max()  # 1 si algún estudiante lo abrió fuera de fecha
+            .reset_index()
         )
 
-        out_of_date = (
-            students_modules_df.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
-            .agg(percent_modules_out_of_date=("out_of_date", lambda x: round(x.mean(), 2)))
-            .reset_index()
+        # Calcular el porcentaje sobre el total de módulos del curso
+        percent_modules_out_of_date = (
+            module_out_of_date.groupby(keys)["out_of_date"]
+            .mean()  # proporción de módulos fuera de fecha
+            .round(2)
+            .reset_index(name="percent_modules_out_of_date")
         )
 
         # 8. Merge de todas las métricas
@@ -187,7 +218,7 @@ class CoursesProcessor(BaseScript):
             .merge(avg_metrics, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
             .merge(least_viewed_module, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
             .merge(most_late_opened, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
-            .merge(out_of_date, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
+            .merge(percent_modules_out_of_date, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
         )
 
         # 9. Porcentajes

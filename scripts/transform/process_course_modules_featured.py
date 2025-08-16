@@ -125,7 +125,7 @@ class ModuleFeaturesProcessor(BaseScript):
             df[col] = pd.to_datetime(df[col]).dt.tz_localize(None)
 
         df["days_since_creation"] = (df["planned_start_date"] - df["module_creation_date"]).dt.days
-        df["days_since_last_update"] = (df["planned_start_date"] - df["last_update_date"]).dt.days
+        df["days_since_last_update"] = (df["planned_start_date"] - df["last_update_date"]).dt.days.fillna(-1).astype(int)
 
         return df
 

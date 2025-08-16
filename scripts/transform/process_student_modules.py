@@ -112,7 +112,7 @@ class StudentModulesProcessor(BaseScript):
         Métricas calculadas:
         - has_viewed: Indica si el estudiante visualizó el módulo al menos una vez (1=sí, 0=no)
         - has_participated: Indica si el estudiante interactuó con el módulo al menos una vez (1=sí, 0=no)
-        - days_before_start: Días antes de la fecha de inicio planificada en que el estudiante 
+        - days_from_planned_start: Días antes de la fecha de inicio planificada en que el estudiante 
           accedió por primera vez al módulo (valores negativos indican acceso temprano)
         - days_after_end: Días después de la fecha de fin planificada en que el estudiante 
           accedió por última vez al módulo (valores negativos indican acceso dentro del período)
@@ -135,7 +135,7 @@ class StudentModulesProcessor(BaseScript):
         df["has_participated"] = (df["num_interactions"].fillna(0) > 0).astype(int)
         
         # Métricas temporales
-        df["days_before_start"] = (df["first_view"] - df["planned_start_date"]).dt.days
+        df["days_from_planned_start"] = (df["first_view"] - df["planned_start_date"]).dt.days
         df["days_after_end"] = (df["last_view"] - df["planned_end_date"]).dt.days
         df["was_on_time"] = ((df["first_view"] >= df["planned_start_date"]) & (df["first_view"] <= df["planned_end_date"])).astype(int)
 
@@ -152,7 +152,7 @@ class StudentModulesProcessor(BaseScript):
         - Datos del estudiante: documento_identificación
         - Métricas de actividad: num_views, num_interactions, first_view, last_view
         - Métricas de engagement: has_viewed, has_participated
-        - Métricas temporales: days_before_start, days_after_end, was_on_time
+        - Métricas temporales: days_from_planned_start, days_after_end, was_on_time
         - Calificaciones: finalgrade
         
         Args:

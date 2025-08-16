@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import sys
+import time
 from scipy import stats
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -17,24 +18,70 @@ class StudentCourseInteractionsProcessor(BaseScript):
 
     def load_data(self):
         """Cargar los datos necesarios"""
+        load_start_time = time.time()
         self.logger.info("Cargando datos...")
+        
+        # Cargar student_modules
+        self.logger.info("Cargando student_modules.csv...")
+        file_start = time.time()
         self.student_modules = pd.read_csv("data/interim/moodle/student_modules.csv")
+        file_time = time.time() - file_start
+        self.logger.info(f"student_modules.csv cargado en {file_time:.2f}s - Shape: {self.student_modules.shape}")
+        
+        # Cargar modules_featured
+        self.logger.info("Cargando modules_featured.csv...")
+        file_start = time.time()
         self.modules_featured = pd.read_csv("data/interim/moodle/modules_featured.csv")
+        file_time = time.time() - file_start
+        self.logger.info(f"modules_featured.csv cargado en {file_time:.2f}s - Shape: {self.modules_featured.shape}")
+
+        # Log información de columnas
+        self.logger.info(f"Columnas en student_modules: {list(self.student_modules.columns)}")
+        self.logger.info(f"Columnas en modules_featured: {list(self.modules_featured.columns)}")
 
         # Convertir columnas numéricas
-        numeric_cols = ['num_views', 'num_interactions', 'days_before_start', 'days_after_end']
+        conversion_start = time.time()
+        self.logger.info("Convirtiendo columnas numéricas...")
+        numeric_cols = ['num_views', 'num_interactions', 'days_from_planned_start', 'days_after_end']
         for col in numeric_cols:
             if col in self.student_modules.columns:
+                col_start = time.time()
+                original_nulls = self.student_modules[col].isna().sum()
                 self.student_modules[col] = pd.to_numeric(self.student_modules[col], errors='coerce').fillna(0)
+                new_nulls = self.student_modules[col].isna().sum()
+                col_time = time.time() - col_start
+                self.logger.info(f"  {col}: {col_time:.3f}s - NULLs originales: {original_nulls}, NULLs nuevos: {new_nulls}")
 
         # Convertir columnas booleanas
+        self.logger.info("Convirtiendo columnas booleanas...")
         bool_cols = ['has_viewed', 'has_participated', 'was_on_time']
         for col in bool_cols:
             if col in self.student_modules.columns:
+                col_start = time.time()
+                original_unique = len(self.student_modules[col].unique())
                 self.student_modules[col] = self.student_modules[col].astype(int)
+                col_time = time.time() - col_start
+                self.logger.info(f"  {col}: {col_time:.3f}s - Valores únicos originales: {original_unique}")
         
-        self.logger.info(f"Datos cargados: {len(self.student_modules)} registros de student_modules")
-        self.logger.info(f"Datos cargados: {len(self.modules_featured)} registros de modules_featured")
+        conversion_time = time.time() - conversion_start
+        total_load_time = time.time() - load_start_time
+        
+        # Log estadísticas de memoria
+        memory_usage_mb = (self.student_modules.memory_usage(deep=True).sum() + 
+                          self.modules_featured.memory_usage(deep=True).sum()) / 1024 / 1024
+        
+        self.logger.info(f"=== RESUMEN DE CARGA DE DATOS ===")
+        self.logger.info(f"Tiempo total de carga: {total_load_time:.2f}s")
+        self.logger.info(f"Tiempo de conversión de tipos: {conversion_time:.2f}s")
+        self.logger.info(f"Uso de memoria: {memory_usage_mb:.2f} MB")
+        self.logger.info(f"Registros de student_modules: {len(self.student_modules):,}")
+        self.logger.info(f"Registros de modules_featured: {len(self.modules_featured):,}")
+        
+        # Estadísticas de los datos
+        unique_students = self.student_modules['documento_identificación'].nunique()
+        unique_courses = self.student_modules.groupby(['year', 'id_grado', 'sede', 'id_asignatura', 'period']).ngroups
+        self.logger.info(f"Estudiantes únicos: {unique_students:,}")
+        self.logger.info(f"Cursos únicos (combinaciones año-grado-sede-asignatura-período): {unique_courses:,}")
 
     def calculate_basic_engagement_metrics(self, group_data):
         """Calcular métricas básicas de engagement y participación"""
@@ -109,15 +156,15 @@ class StudentCourseInteractionsProcessor(BaseScript):
         metrics = {}
 
         # Métricas de días antes/después
-        metrics['avg_days_before_start'] = round(group_data['days_before_start'].mean(), 2)
+        metrics['avg_days_from_planned_start'] = round(group_data['days_from_planned_start'].mean(), 2)
         metrics['avg_days_after_end'] = round(group_data['days_after_end'].mean(), 2)
-        metrics['std_days_before_start'] = round(group_data['days_before_start'].std(), 2) if len(group_data) > 1 else 0
+        metrics['std_days_from_planned_start'] = round(group_data['days_from_planned_start'].std(), 2) if len(group_data) > 1 else 0
         metrics['std_days_after_end'] = round(group_data['days_after_end'].std(), 2) if len(group_data) > 1 else 0
-        metrics['min_days_before_start'] = group_data['days_before_start'].min()
+        metrics['min_days_from_planned_start'] = group_data['days_from_planned_start'].min()
         metrics['min_days_after_end'] = group_data['days_after_end'].min()
         metrics['max_days_after_end'] = group_data['days_after_end'].max()
-        metrics['max_days_before_start'] = group_data['days_before_start'].max()
-        metrics['median_days_before_start'] = round(group_data['days_before_start'].median(), 2)
+        metrics['max_days_from_planned_start'] = group_data['days_from_planned_start'].max()
+        metrics['median_days_from_planned_start'] = round(group_data['days_from_planned_start'].median(), 2)
         metrics['median_days_after_end'] = round(group_data['days_after_end'].median(), 2)
 
         # Métricas de puntualidad
@@ -129,7 +176,7 @@ class StudentCourseInteractionsProcessor(BaseScript):
         metrics['late_rate'] = round(1 - metrics['on_time_rate'], 4)
 
         # Conteos de acceso temprano y tardío
-        metrics['early_access_count'] = (group_data['days_before_start'] > 0).sum()
+        metrics['early_access_count'] = (group_data['days_from_planned_start'] > 0).sum()
         metrics['late_access_count'] = (group_data['days_after_end'] > 0).sum()
 
         return metrics
@@ -169,25 +216,39 @@ class StudentCourseInteractionsProcessor(BaseScript):
 
         # Calcular percentiles
         if len(course_views) > 0:
-            student_views_per_student = course_data.groupby('documento_identificación')['num_views'].sum()
-            student_interactions_per_student = course_data.groupby('documento_identificación')['num_interactions'].sum()
+            # Optimización: calcular groupby una sola vez y reutilizar
+            student_grouped = course_data.groupby('documento_identificación').agg({
+                'num_views': 'sum',
+                'num_interactions': 'sum'
+            })
+            
+            student_views_per_student = student_grouped['num_views']
+            student_interactions_per_student = student_grouped['num_interactions']
 
-            metrics['relative_views_percentile'] = round(stats.percentileofscore(student_views_per_student, student_views), 2)
-            metrics['relative_interaction_percentile'] = round(stats.percentileofscore(student_interactions_per_student, student_interactions), 2)
+            # Verificar que hay suficientes datos para estadísticas
+            if len(student_views_per_student) > 1:
+                metrics['relative_views_percentile'] = round(stats.percentileofscore(student_views_per_student, student_views), 2)
+                metrics['relative_interaction_percentile'] = round(stats.percentileofscore(student_interactions_per_student, student_interactions), 2)
 
-            # Z-scores
-            views_mean = student_views_per_student.mean()
-            views_std = student_views_per_student.std()
-            if views_std > 0:
-                metrics['zscore_views'] = round((student_views - views_mean) / views_std, 4)
+                # Z-scores
+                views_mean = student_views_per_student.mean()
+                views_std = student_views_per_student.std()
+                if views_std > 0:
+                    metrics['zscore_views'] = round((student_views - views_mean) / views_std, 4)
+                else:
+                    metrics['zscore_views'] = 0
+
+                interactions_mean = student_interactions_per_student.mean()
+                interactions_std = student_interactions_per_student.std()
+                if interactions_std > 0:
+                    metrics['zscore_interactions'] = round((student_interactions - interactions_mean) / interactions_std, 4)
+                else:
+                    metrics['zscore_interactions'] = 0
             else:
+                # Solo hay un estudiante, no se pueden calcular estadísticas relativas
+                metrics['relative_views_percentile'] = 50.0  # Neutral
+                metrics['relative_interaction_percentile'] = 50.0  # Neutral
                 metrics['zscore_views'] = 0
-
-            interactions_mean = student_interactions_per_student.mean()
-            interactions_std = student_interactions_per_student.std()
-            if interactions_std > 0:
-                metrics['zscore_interactions'] = round((student_interactions - interactions_mean) / interactions_std, 4)
-            else:
                 metrics['zscore_interactions'] = 0
         else:
             metrics['relative_views_percentile'] = 0
@@ -200,26 +261,42 @@ class StudentCourseInteractionsProcessor(BaseScript):
     def calculate_mid_week_engagement(self, student_data, modules_data):
         """Calcular engagement de mitad de semana"""
         try:
-            # Unir con modules_featured para obtener información de semana
+            # Verificar si tenemos los datos necesarios
+            if 'course_module_id' not in student_data.columns:
+                return {'mid_week_engagement': 0}
+            
+            # Verificar si modules_data tiene las columnas necesarias
+            required_cols = ['course_module_id', 'week', 'planned_start_date', 'planned_end_date']
+            available_cols = [col for col in required_cols if col in modules_data.columns]
+            
+            if not available_cols or 'course_module_id' not in available_cols:
+                return {'mid_week_engagement': 0}
+
+            # Unir con modules_featured para obtener información de semana (solo columnas disponibles)
             student_modules_with_week = student_data.merge(
-                modules_data[['course_module_id', 'week', 'planned_start_date', 'planned_end_date']], 
+                modules_data[available_cols], 
                 on='course_module_id', 
                 how='left'
             )
 
             # Convertir fechas si están disponibles
             if 'first_view' in student_modules_with_week.columns and 'planned_start_date' in student_modules_with_week.columns:
-                student_modules_with_week['first_view'] = pd.to_datetime(student_modules_with_week['first_view'], errors='coerce')
-                student_modules_with_week['planned_start_date'] = pd.to_datetime(student_modules_with_week['planned_start_date'], errors='coerce')
+                # Evitar conversiones costosas si ya están en datetime
+                if not pd.api.types.is_datetime64_any_dtype(student_modules_with_week['first_view']):
+                    student_modules_with_week['first_view'] = pd.to_datetime(student_modules_with_week['first_view'], errors='coerce')
+                if not pd.api.types.is_datetime64_any_dtype(student_modules_with_week['planned_start_date']):
+                    student_modules_with_week['planned_start_date'] = pd.to_datetime(student_modules_with_week['planned_start_date'], errors='coerce')
 
                 # Calcular día de la semana del primer acceso (0=Lunes, 6=Domingo)
-                student_modules_with_week['access_weekday'] = student_modules_with_week['first_view'].dt.dayofweek
+                valid_first_view = student_modules_with_week['first_view'].notna()
+                student_modules_with_week.loc[valid_first_view, 'access_weekday'] = student_modules_with_week.loc[valid_first_view, 'first_view'].dt.dayofweek
 
                 # Considerar lunes a miércoles como mitad de semana (0, 1, 2)
-                mid_week_accessed = student_modules_with_week[
-                    (student_modules_with_week['access_weekday'].isin([0, 1, 2])) & 
+                mid_week_mask = (
+                    student_modules_with_week['access_weekday'].isin([0, 1, 2]) & 
                     (student_modules_with_week['has_viewed'] == 1)
-                ]
+                )
+                mid_week_accessed = student_modules_with_week[mid_week_mask]
 
                 total_viewed = student_modules_with_week[student_modules_with_week['has_viewed'] == 1]
 
@@ -232,40 +309,83 @@ class StudentCourseInteractionsProcessor(BaseScript):
 
             return {'mid_week_engagement': round(mid_week_engagement, 4)}
         except Exception as e:
+            # Log error silencioso para debugging
             return {'mid_week_engagement': 0}
     
     def process_student_engagement_metrics(self):
         """Procesar todas las métricas de engagement para cada estudiante"""
+        start_time = time.time()
         self.logger.info("Iniciando cálculo de métricas de engagement...")
 
         # Agrupar por la clave especificada
         groupby_cols = ['documento_identificación', 'year', 'id_grado', 'sede', 'id_asignatura', 'period']
+        
+        # Obtener información sobre los grupos
+        grouped = self.student_modules.groupby(groupby_cols)
+        total_groups = len(grouped)
+        self.logger.info(f"Total de grupos estudiante-curso a procesar: {total_groups}")
 
         results = []
+        processed_groups = 0
+        checkpoint_interval = max(1, total_groups // 20)  # Log cada 5% del progreso
+        
+        # Inicializar contadores de tiempo para cada sección
+        time_metrics = {
+            'basic': 0,
+            'activity': 0,
+            'temporal': 0,
+            'dispersion': 0,
+            'relative': 0,
+            'mid_week': 0,
+            'filtering': 0
+        }
 
         # Procesar cada grupo de estudiante-curso
-        for group_key, group_data in self.student_modules.groupby(groupby_cols):
+        for group_key, group_data in grouped:
+            group_start_time = time.time()
             try:
                 # Crear diccionario con las claves del grupo
                 result = dict(zip(groupby_cols, group_key))
+                processed_groups += 1
+
+                # Log de progreso cada checkpoint_interval grupos
+                if processed_groups % checkpoint_interval == 0 or processed_groups == 1:
+                    elapsed_time = time.time() - start_time
+                    progress_percent = (processed_groups / total_groups) * 100
+                    avg_time_per_group = elapsed_time / processed_groups
+                    estimated_remaining = (total_groups - processed_groups) * avg_time_per_group
+                    
+                    self.logger.info(f"Progreso: {processed_groups}/{total_groups} ({progress_percent:.1f}%) - "
+                                   f"Tiempo transcurrido: {elapsed_time:.1f}s - "
+                                   f"Tiempo estimado restante: {estimated_remaining:.1f}s - "
+                                   f"Promedio por grupo: {avg_time_per_group:.3f}s")
 
                 # Calcular métricas básicas
+                metric_start = time.time()
                 basic_metrics = self.calculate_basic_engagement_metrics(group_data)
                 result.update(basic_metrics)
+                time_metrics['basic'] += time.time() - metric_start
 
                 # Calcular métricas de actividad
+                metric_start = time.time()
                 activity_metrics = self.calculate_activity_metrics(group_data)
                 result.update(activity_metrics)
+                time_metrics['activity'] += time.time() - metric_start
 
                 # Calcular métricas temporales
+                metric_start = time.time()
                 temporal_metrics = self.calculate_temporal_metrics(group_data)
                 result.update(temporal_metrics)
+                time_metrics['temporal'] += time.time() - metric_start
 
                 # Calcular métricas de dispersión
+                metric_start = time.time()
                 dispersion_metrics = self.calculate_dispersion_metrics(group_data)
                 result.update(dispersion_metrics)
+                time_metrics['dispersion'] += time.time() - metric_start
 
                 # Calcular métricas de engagement relativo
+                metric_start = time.time()
                 # Filtrar datos del curso para comparación
                 course_filter = (
                     (self.student_modules['year'] == group_key[1]) &
@@ -275,22 +395,50 @@ class StudentCourseInteractionsProcessor(BaseScript):
                     (self.student_modules['period'] == group_key[5])
                 )
                 course_data = self.student_modules[course_filter]
+                time_metrics['filtering'] += time.time() - metric_start
 
+                metric_start = time.time()
                 relative_metrics = self.calculate_relative_engagement(group_data, course_data)
                 result.update(relative_metrics)
+                time_metrics['relative'] += time.time() - metric_start
 
-                # Calcular engagement de mitad de semana (placeholder)
+                # Calcular engagement de mitad de semana
+                metric_start = time.time()
                 mid_week_metrics = self.calculate_mid_week_engagement(group_data, self.modules_featured)
                 result.update(mid_week_metrics)
+                time_metrics['mid_week'] += time.time() - metric_start
                 
                 results.append(result)
+
+                # Log detallado para grupos que toman mucho tiempo
+                group_time = time.time() - group_start_time
+                if group_time > 1.0:  # Log si un grupo toma más de 1 segundo
+                    self.logger.warning(f"Grupo lento detectado: {group_key} - "
+                                      f"Tiempo: {group_time:.3f}s - "
+                                      f"Tamaño: {len(group_data)} registros")
 
             except Exception as e:
                 self.logger.error(f"Error procesando grupo {group_key}: {str(e)}")
                 continue
 
+        # Log final con estadísticas de tiempo
+        total_time = time.time() - start_time
+        self.logger.info(f"Procesamiento completado en {total_time:.2f} segundos")
+        self.logger.info(f"Tiempo promedio por grupo: {total_time/total_groups:.4f} segundos")
+        
+        # Log de tiempo por cada tipo de métrica
+        self.logger.info("=== TIEMPO POR TIPO DE MÉTRICA ===")
+        for metric_type, metric_time in time_metrics.items():
+            percentage = (metric_time / total_time) * 100 if total_time > 0 else 0
+            self.logger.info(f"{metric_type.capitalize()}: {metric_time:.2f}s ({percentage:.1f}%)")
+
         # Convertir a DataFrame
+        self.logger.info("Convirtiendo resultados a DataFrame...")
+        df_start = time.time()
         engagement_df = pd.DataFrame(results)
+        df_time = time.time() - df_start
+        
+        self.logger.info(f"DataFrame creado en {df_time:.2f} segundos")
         self.logger.info(f"Métricas calculadas para {len(engagement_df)} grupos estudiante-curso")
         return engagement_df
     
