@@ -2,10 +2,12 @@ import pandas as pd
 import os
 import sys
 import re
+import duckdb
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from utils.base_script import BaseScript
+from utils.moodle_path_resolver import MoodlePathResolver
 
 
 class StudentModulesProcessor(BaseScript):
@@ -53,6 +55,56 @@ class StudentModulesProcessor(BaseScript):
         return student_logs_summary
 
     @staticmethod
+    def _get_student_grades(enrollments_file, year, platform):
+        """
+        Obtiene las calificaciones finales de los estudiantes para los módulos usando SQL.
+        
+        Args:
+            enrollments_file (str): Ruta al archivo de enrollments
+            year (int): Año para el cual obtener las calificaciones
+            platform (str): Plataforma ('moodle' o 'edukrea')
+            
+        Returns:
+            pd.DataFrame: DataFrame con calificaciones finales por estudiante y módulo
+        """
+        try:
+            # Determinar el folder y la columna de join según la plataforma
+            if platform.lower() == 'moodle':
+                folder = year
+                user_id_column = 'moodle_user_id'
+            elif platform.lower() == 'edukrea':
+                folder = "Edukrea"
+                user_id_column = 'edukrea_user_id'
+            else:
+                raise ValueError(f"Platform '{platform}' no es válida. Usa 'moodle' o 'edukrea'.")
+            
+            # Obtener rutas de las tablas
+            tables = ["grade_grades", "grade_items"]
+            grades_file, grades_items_file = MoodlePathResolver.get_paths(folder, *tables)
+            
+            # Query SQL para obtener las calificaciones
+            con = duckdb.connect()
+            sql = f"""
+            SELECT 
+                e.documento_identificación,
+                gi.iteminstance AS course_module_id,
+                g.finalgrade
+            FROM '{grades_file}' g
+            JOIN '{grades_items_file}' gi ON g.itemid = gi.id
+            JOIN '{enrollments_file}' e ON g.userid = e.{user_id_column}
+            WHERE e.year = {year}
+            """
+            
+            result = con.execute(sql).df()
+            con.close()
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error obteniendo calificaciones para {platform} {year}: {e}")
+            return pd.DataFrame(columns=['documento_identificación', 'course_module_id', 'finalgrade'])
+
+    @staticmethod
     def _calculate_metrics(df):
         """
         Calcula métricas de engagement y temporalidad para los módulos de estudiantes.
@@ -89,6 +141,7 @@ class StudentModulesProcessor(BaseScript):
 
         return df
 
+    @staticmethod
     def _process_df(modules_df, students_df, logs_df):
         """
         Procesa y combina los datos de módulos, estudiantes y logs para generar 
@@ -100,6 +153,7 @@ class StudentModulesProcessor(BaseScript):
         - Métricas de actividad: num_views, num_interactions, first_view, last_view
         - Métricas de engagement: has_viewed, has_participated
         - Métricas temporales: days_before_start, days_after_end, was_on_time
+        - Calificaciones: finalgrade
         
         Args:
             modules_df (pd.DataFrame): DataFrame con información de módulos
@@ -133,6 +187,31 @@ class StudentModulesProcessor(BaseScript):
         df_full = df_base.merge(student_logs_summary, on=["documento_identificación", "course_module_id", "year", "platform"], how="left")
 
         df_full = StudentModulesProcessor._calculate_metrics(df_full)
+
+        # Obtener calificaciones para cada combinación de año y plataforma
+        enrollments_file = "data/interim/estudiantes/enrollments.csv"
+        year_platform_combinations = df_full[['year', 'platform']].drop_duplicates()
+        
+        all_grades = []
+        for _, row in year_platform_combinations.iterrows():
+            year = row['year']
+            platform = row['platform']
+            grades = StudentModulesProcessor._get_student_grades(enrollments_file, year, platform)
+            if not grades.empty:
+                grades['year'] = year
+                grades['platform'] = platform
+                all_grades.append(grades)
+        
+        # Combinar calificaciones si hay datos
+        if all_grades:
+            grades_df = pd.concat(all_grades, ignore_index=True)
+            df_full = df_full.merge(
+                grades_df[['documento_identificación', 'course_module_id', 'finalgrade', 'year', 'platform']], 
+                on=['documento_identificación', 'course_module_id', 'year', 'platform'], 
+                how='left'
+            )
+        else:
+            df_full['finalgrade'] = None
 
         # Remove the date columns used only for calculations
         df_full = df_full.drop(columns=["planned_start_date", "planned_end_date"])
