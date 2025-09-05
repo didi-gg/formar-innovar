@@ -19,6 +19,94 @@ class MoodleModulesProcessor(BaseScript):
     INTERACTIVE_MODULES = {"assign", "quiz", "forum", "hvp", "choice", "feedback", "chat", "workshop", "lti"}
     ENGLISH_REGEX = r"(?:reto(?:\s+\w+){0,2}\s+ingl[eé]s|english)"
 
+    # Mapeo de tipos de módulo a letras identificadoras
+    MODULE_TYPE_LETTERS = {
+        "assign": "A",
+        "quiz": "Q", 
+        "forum": "F",
+        "hvp": "H",
+        "choice": "C",
+        "feedback": "B",
+        "chat": "T",
+        "workshop": "W",
+        "lti": "L",
+        "page": "P",
+        "resource": "R",
+        "label": "E",
+        "folder": "D",
+        "url": "U",
+        "lesson": "S",
+        "book": "K",
+        "glossary": "G",
+        "bootstrapelements": "X"  # Excluido pero incluido por completitud
+    }
+    
+    # Contador global para generar IDs únicos por tipo
+    _module_counters = {}
+
+    def generate_module_unique_id(self, module_type, course_module_id, instance, platform="moodle"):
+        """
+        Genera un identificador único corto para cada módulo basado en:
+        - Una letra que identifica el tipo de módulo
+        - Un número incremental único
+        - Prefijo 'e' para módulos de Edukrea
+        El identificador es consistente independientemente del año del curso.
+        """
+        # Obtener la letra del tipo de módulo
+        letter = self.MODULE_TYPE_LETTERS.get(module_type, "Z")  # "Z" para tipos no mapeados
+
+        # Crear una clave única basada en el tipo de módulo, course_module_id, instance y plataforma
+        # Esto garantiza que el mismo módulo tenga el mismo ID sin importar el año
+        unique_key = f"{platform}_{module_type}_{course_module_id}_{instance}"
+
+        # Si no hemos visto este módulo antes, asignar un nuevo número
+        if unique_key not in self._module_counters:
+            # Contar cuántos módulos de este tipo ya hemos procesado para esta plataforma
+            existing_count = sum(1 for key in self._module_counters.keys() 
+                               if key.startswith(f"{platform}_{module_type}_"))
+            next_number = existing_count + 1
+            # Almacenar el mapeo
+            self._module_counters[unique_key] = next_number
+        
+        # Construir el ID final
+        base_id = f"{letter}{self._module_counters[unique_key]}"
+        
+        # Agregar prefijo 'e' para módulos de Edukrea
+        if platform.lower() == "edukrea":
+            return f"e{base_id}"
+        else:
+            return base_id
+
+    @staticmethod
+    def calculate_module_order(course_module_id, section_sequence):
+        """
+        Calcula el orden del módulo dentro de la sección basado en la secuencia.
+        
+        Args:
+            course_module_id: ID del módulo del curso
+            section_sequence: String con IDs separados por comas que indica el orden
+            
+        Returns:
+            int: Posición del módulo en la secuencia (1-indexado), 0 si no se encuentra
+        """
+        if pd.isna(section_sequence) or section_sequence == '':
+            return 0
+
+        try:
+            # Convertir sequence string a lista de IDs
+            sequence_ids = [id.strip() for id in str(section_sequence).split(',') if id.strip()]
+            
+            # Buscar la posición del course_module_id en la secuencia
+            course_module_str = str(course_module_id)
+            if course_module_str in sequence_ids:
+                # Retornar posición (1-indexado)
+                return sequence_ids.index(course_module_str) + 1
+            else:
+                return 0
+
+        except (ValueError, AttributeError):
+            return 0
+
     @staticmethod
     def is_edukrea_url_module(row):
         if pd.isna(row.module_name):
@@ -79,6 +167,7 @@ class MoodleModulesProcessor(BaseScript):
                     c.course_name,
                     cm.section AS section_id,
                     s.name AS section_name,
+                    s.sequence AS section_sequence,
                     cm.module AS module_type_id,
                     cm.instance,
                     cm.added AS module_creation_date,
@@ -151,6 +240,7 @@ class MoodleModulesProcessor(BaseScript):
                     c.course_name AS course_name,
                     cm.section AS section_id,
                     s.name AS section_name,
+                    s.sequence AS section_sequence,
                     cm.module AS module_type_id,
                     cm.instance,
                     cm.added AS module_creation_date,
@@ -192,6 +282,28 @@ class MoodleModulesProcessor(BaseScript):
 
         # Add 'is_absence_assignment' column to indicate if the module is an assignment for inasistencia
         df["is_absence_assignment"] = df.apply(self.is_inasistencia_assignment, axis=1)
+        
+        # Generar identificador único para cada módulo
+        # Para Edukrea, usar platform="edukrea", para Moodle usar platform="moodle"
+        platform = "edukrea" if edukrea else "moodle"
+        df["module_unique_id"] = df.apply(
+            lambda row: self.generate_module_unique_id(
+                row["module_type"], 
+                row["course_module_id"], 
+                row["instance"],
+                platform
+            ), 
+            axis=1
+        )
+
+        # Calcular el orden del módulo dentro de la sección
+        df["order"] = df.apply(
+            lambda row: self.calculate_module_order(
+                row["course_module_id"], 
+                row["section_sequence"]
+            ), 
+            axis=1
+        )
 
         # Add the week and period columns based on section names
         if edukrea:
@@ -224,7 +336,7 @@ class MoodleModulesProcessor(BaseScript):
         df["planned_end_date"] = df["planned_start_date"] + pd.Timedelta(days=6)
         df["planned_end_date"] = df["planned_end_date"].dt.normalize() + pd.Timedelta(hours=23, minutes=59, seconds=59)
 
-        df = df.drop(columns=["is_absence_assignment", "is_edukrea_access"], errors="ignore")
+        df = df.drop(columns=["is_absence_assignment", "is_edukrea_access", "section_sequence"], errors="ignore")
 
         # Excluir el module_type 23 # bootstrapelements
         df["module_type_id"] = df["module_type_id"].astype(int)
@@ -243,12 +355,14 @@ class MoodleModulesProcessor(BaseScript):
         df["module_creation_date"] = pd.to_datetime(df["module_creation_date"], unit="s", errors="coerce").dt.tz_localize("America/Bogota")
         df["week"] = df["week"].astype(int)
         df["period"] = df["period"].astype(int)
+        df["order"] = df["order"].astype(int)
         df["sede"] = df["sede"].astype(str)
         df["asignatura_name"] = df["asignatura_name"].astype(str)
         df["course_name"] = df["course_name"].astype(str)
         df["section_name"] = df["section_name"].astype(str)
         df["module_type"] = df["module_type"].astype(str)
         df["module_name"] = df["module_name"].astype(str)
+        df["module_unique_id"] = df["module_unique_id"].astype(str)
         df["platform"] = df["platform"].astype(str)
 
         df["course_name"] = df["course_name"].apply(self._clean_text_field)
@@ -319,7 +433,12 @@ class MoodleModulesProcessor(BaseScript):
         # Combinar todos los DataFrames incluyendo Edukrea
         all_modules = pd.concat([modules_combined, edukrea_df], ignore_index=True)
 
-        # Finally, save all modules data to CSV
+        # Procesar tipos de columnas y guardar los módulos con identificadores únicos
+        # Cada módulo ahora tiene:
+        # - 'module_unique_id': Identificador consistente entre años 
+        #   * Moodle: A1, Q2, F3, etc.
+        #   * Edukrea: eA1, eQ2, eF3, etc. (prefijo 'e' para distinguir)
+        # - 'order': Posición del módulo dentro de la secuencia de la sección (1-indexado, 0 si no está)
         output_file = "data/interim/moodle/modules_active.csv"
         self.save_to_csv(self.cast_column_types(all_modules), output_file)
 
