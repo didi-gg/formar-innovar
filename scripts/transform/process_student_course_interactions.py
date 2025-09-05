@@ -311,6 +311,137 @@ class StudentCourseInteractionsProcessor(BaseScript):
         except Exception as e:
             # Log error silencioso para debugging
             return {'mid_week_engagement': 0}
+
+    def calculate_grade_metrics(self, group_data):
+        """Calcular métricas relacionadas con calificaciones"""
+        metrics = {}
+        # Verificar si existe la columna finalgrade
+        if 'finalgrade' in group_data.columns:
+            # Filtrar solo calificaciones válidas (no nulas y > 0)
+            valid_grades = group_data[
+                (group_data['finalgrade'].notna()) & 
+                (group_data['finalgrade'] > 0)
+            ]['finalgrade']
+            if len(valid_grades) > 0:
+                # Máxima calificación obtenida en la asignatura
+                metrics['max_activity_grade'] = round(valid_grades.max(), 2)
+                
+                # Métricas adicionales de calificaciones
+                metrics['avg_activity_grade'] = round(valid_grades.mean(), 2)
+                metrics['min_activity_grade'] = round(valid_grades.min(), 2)
+                metrics['std_activity_grade'] = round(valid_grades.std(), 2) if len(valid_grades) > 1 else 0
+                
+                # Conteo de actividades calificadas
+                metrics['graded_activities_count'] = len(valid_grades)
+                
+                # Porcentaje de actividades calificadas
+                total_activities = len(group_data)
+                if total_activities > 0:
+                    metrics['percent_graded_activities'] = round(len(valid_grades) / total_activities, 4)
+                else:
+                    metrics['percent_graded_activities'] = 0
+            else:
+                # No hay calificaciones válidas
+                metrics['max_activity_grade'] = 0
+                metrics['avg_activity_grade'] = 0
+                metrics['min_activity_grade'] = 0
+                metrics['std_activity_grade'] = 0
+                metrics['graded_activities_count'] = 0
+                metrics['percent_graded_activities'] = 0
+        else:
+            # No existe la columna finalgrade
+            metrics['max_activity_grade'] = 0
+            metrics['avg_activity_grade'] = 0
+            metrics['min_activity_grade'] = 0
+            metrics['std_activity_grade'] = 0
+            metrics['graded_activities_count'] = 0
+            metrics['percent_graded_activities'] = 0
+        
+        return metrics
+
+    def calculate_time_metrics(self, group_data):
+        """
+        Calcular métricas de tiempo total que el estudiante pasa en el curso.
+        Args:
+            group_data (pd.DataFrame): Datos del grupo estudiante-curso
+        Returns:
+            dict: Métricas de tiempo calculadas
+        """
+        metrics = {}
+        # Verificar si existe la columna total_time_minutes
+        if 'total_time_minutes' in group_data.columns:
+            # Filtrar solo registros con tiempo calculado
+            valid_times = group_data[group_data['total_time_minutes'].notna()]['total_time_minutes']
+
+            if len(valid_times) > 0:
+                # Tiempo total en el curso (suma de todos los módulos)
+                metrics['total_course_time_minutes'] = round(valid_times.sum(), 2)
+
+                # Tiempo promedio por módulo accedido
+                metrics['avg_time_per_module'] = round(valid_times.mean(), 2)
+
+                # Tiempo mediano por módulo
+                metrics['median_time_per_module'] = round(valid_times.median(), 2)
+
+                # Tiempo mínimo y máximo por módulo
+                metrics['min_time_per_module'] = round(valid_times.min(), 2)
+                metrics['max_time_per_module'] = round(valid_times.max(), 2)
+
+                # Desviación estándar del tiempo por módulo
+                metrics['std_time_per_module'] = round(valid_times.std(), 2) if len(valid_times) > 1 else 0
+
+                # Número de módulos con tiempo calculado
+                metrics['modules_with_time'] = len(valid_times)
+
+                # Porcentaje de módulos con tiempo calculado
+                total_modules = len(group_data)
+                if total_modules > 0:
+                    metrics['percent_modules_with_time'] = round(len(valid_times) / total_modules, 4)
+                else:
+                    metrics['percent_modules_with_time'] = 0
+
+                # Métricas de distribución de tiempo
+                if len(valid_times) > 0:
+                    # Tiempo total en horas
+                    metrics['total_course_time_hours'] = round(metrics['total_course_time_minutes'] / 60, 2)
+
+                    # Clasificación de engagement por tiempo
+                    if metrics['total_course_time_minutes'] < 30:
+                        metrics['time_engagement_level'] = 'bajo'
+                    elif metrics['total_course_time_minutes'] < 120:
+                        metrics['time_engagement_level'] = 'moderado'
+                    elif metrics['total_course_time_minutes'] < 300:
+                        metrics['time_engagement_level'] = 'alto'
+                    else:
+                        metrics['time_engagement_level'] = 'muy_alto'
+                else:
+                    metrics['total_course_time_hours'] = 0
+                    metrics['time_engagement_level'] = 'sin_datos'
+            else:
+                # No hay datos de tiempo válidos
+                metrics['total_course_time_minutes'] = 0
+                metrics['avg_time_per_module'] = 0
+                metrics['median_time_per_module'] = 0
+                metrics['min_time_per_module'] = 0
+                metrics['max_time_per_module'] = 0
+                metrics['std_time_per_module'] = 0
+                metrics['modules_with_time'] = 0
+                metrics['percent_modules_with_time'] = 0
+                metrics['total_course_time_hours'] = 0
+                metrics['time_engagement_level'] = 'sin_datos'
+        else:
+            # No existe la columna total_time_minutes
+            metrics['total_course_time_minutes'] = 0
+            metrics['avg_time_per_module'] = 0
+            metrics['median_time_per_module'] = 0
+            metrics['min_time_per_module'] = 0
+            metrics['max_time_per_module'] = 0
+            metrics['std_time_per_module'] = 0
+            metrics['modules_with_time'] = 0
+            metrics['percent_modules_with_time'] = 0
+            metrics['total_course_time_hours'] = 0
+            metrics['time_engagement_level'] = 'sin_datos'
+        return metrics
     
     def process_student_engagement_metrics(self):
         """Procesar todas las métricas de engagement para cada estudiante"""
@@ -337,6 +468,8 @@ class StudentCourseInteractionsProcessor(BaseScript):
             'dispersion': 0,
             'relative': 0,
             'mid_week': 0,
+            'grade': 0,
+            'time': 0,
             'filtering': 0
         }
 
@@ -407,6 +540,18 @@ class StudentCourseInteractionsProcessor(BaseScript):
                 mid_week_metrics = self.calculate_mid_week_engagement(group_data, self.modules_featured)
                 result.update(mid_week_metrics)
                 time_metrics['mid_week'] += time.time() - metric_start
+
+                # Calcular métricas de calificaciones
+                metric_start = time.time()
+                grade_metrics = self.calculate_grade_metrics(group_data)
+                result.update(grade_metrics)
+                time_metrics['grade'] += time.time() - metric_start
+
+                # Calcular métricas de tiempo
+                metric_start = time.time()
+                time_metrics_result = self.calculate_time_metrics(group_data)
+                result.update(time_metrics_result)
+                time_metrics['time'] += time.time() - metric_start
                 
                 results.append(result)
 
@@ -466,6 +611,28 @@ class StudentCourseInteractionsProcessor(BaseScript):
             self.logger.info(f"Promedio de vistas totales: {engagement_metrics['total_views'].mean():.2f}")
             self.logger.info(f"Promedio de interacciones totales: {engagement_metrics['total_interactions'].mean():.2f}")
             self.logger.info(f"Promedio de puntualidad: {engagement_metrics['on_time_rate'].mean():.4f}")
+
+            # Estadísticas de calificaciones
+            if 'max_activity_grade' in engagement_metrics.columns:
+                self.logger.info(f"Promedio de calificación máxima: {engagement_metrics['max_activity_grade'].mean():.2f}")
+                self.logger.info(f"Promedio de actividades calificadas: {engagement_metrics['graded_activities_count'].mean():.2f}")
+                self.logger.info(f"Porcentaje promedio de actividades calificadas: {engagement_metrics['percent_graded_activities'].mean():.4f}")
+
+            # Estadísticas de tiempo
+            if 'total_course_time_minutes' in engagement_metrics.columns:
+                self.logger.info(f"\n=== ESTADÍSTICAS DE TIEMPO ===")
+                self.logger.info(f"Promedio de tiempo total por curso: {engagement_metrics['total_course_time_minutes'].mean():.2f} minutos ({engagement_metrics['total_course_time_minutes'].mean()/60:.2f} horas)")
+                self.logger.info(f"Mediana de tiempo total por curso: {engagement_metrics['total_course_time_minutes'].median():.2f} minutos")
+                self.logger.info(f"Promedio de tiempo por módulo: {engagement_metrics['avg_time_per_module'].mean():.2f} minutos")
+                self.logger.info(f"Promedio de módulos con tiempo: {engagement_metrics['modules_with_time'].mean():.2f}")
+                self.logger.info(f"Porcentaje promedio de módulos con tiempo: {engagement_metrics['percent_modules_with_time'].mean():.4f}")
+                # Distribución por nivel de engagement
+                if 'time_engagement_level' in engagement_metrics.columns:
+                    engagement_dist = engagement_metrics['time_engagement_level'].value_counts()
+                    self.logger.info(f"Distribución por nivel de engagement temporal:")
+                    for level, count in engagement_dist.items():
+                        percentage = (count / len(engagement_metrics)) * 100
+                        self.logger.info(f"  - {level}: {count} ({percentage:.1f}%)")
 
             return engagement_metrics
 
