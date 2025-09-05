@@ -10,6 +10,31 @@ from utils.base_script import BaseScript
 
 class CoursesProcessor(BaseScript):
     @staticmethod
+    def _create_module_sequence(df):
+        """
+        Crea una columna 'sequence' con los module_unique_id separados por comas
+        y ordenados por la columna 'order' para cada agrupamiento de curso.
+
+        Args:
+            df: DataFrame con las columnas module_unique_id, order y las columnas de agrupamiento
+
+        Returns:
+            DataFrame con la columna sequence agregada al agrupamiento
+        """
+        # Crear una copia para evitar modificar el original
+        df_copy = df.copy()
+        # Ordenar por orden dentro de cada grupo
+        df_copy = df_copy.sort_values(["id_asignatura", "id_grado", "year", "period", "sede", "order"])
+
+        # Agrupar y crear la secuencia
+        sequence_df = (
+            df_copy.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
+            .agg(sequence=("module_unique_id", lambda x: ",".join(x.astype(str))))
+            .reset_index()
+        )
+        return sequence_df
+
+    @staticmethod
     def _categorize_moodle_modules(df, module_col="module_type"):
         categories = {
             "is_evaluation": ["assign", "quiz", "workshop", "lesson", "choice", "feedback", "lti"],
@@ -234,13 +259,21 @@ class CoursesProcessor(BaseScript):
         moodle_summary_df = CoursesProcessor._group_moodle_modules(modules_df)
         temporal_metrics_df = CoursesProcessor._calculate_module_metrics(modules_df)
 
+        # Crear la secuencia de módulos ordenados
+        sequence_df = CoursesProcessor._create_module_sequence(df)
+
         # Merge on course_id consistently
         moodle_summary_df = moodle_summary_df.merge(temporal_metrics_df, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
         moodle_summary_df = CoursesProcessor._adding_percentages(moodle_summary_df)
 
+        # Agregar la secuencia de módulos
+        moodle_summary_df = moodle_summary_df.merge(sequence_df, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
+
         students_course_summary = CoursesProcessor._process_student_modules(students_modules_moodle)
         moodle_summary_df = moodle_summary_df.merge(students_course_summary, on=["id_asignatura", "id_grado", "year", "period", "sede"], how="left")
 
+        # El DataFrame final ahora incluye una columna 'sequence' que contiene
+        # los module_unique_id separados por comas y ordenados por la columna 'order'
         return moodle_summary_df
 
     def process_course_data(self):
@@ -257,5 +290,5 @@ class CoursesProcessor(BaseScript):
 if __name__ == "__main__":
     processor = CoursesProcessor()
     processor.process_course_data()
-    processor.logger.info("Modules processed successfully.")
+    processor.logger.info("Courses processed successfully.")
     processor.close()
