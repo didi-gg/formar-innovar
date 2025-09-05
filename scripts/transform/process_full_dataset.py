@@ -147,7 +147,6 @@ class FullDatasetProcessor(BaseScript):
         "id_least_viewed_module",
         "students_viewed_least_module",
         "id_most_late_opened_module",
-        "days_before_start",
         "percent_modules_out_of_date",
         "percent_students_viewed",
         "percent_students_interacted",
@@ -183,15 +182,15 @@ class FullDatasetProcessor(BaseScript):
         "interaction_to_view_ratio",
         "log_total_views",
         "log_total_interactions",
-        "avg_days_before_start",
+        "avg_days_from_planned_start",
         "avg_days_after_end",
-        "std_days_before_start",
+        "std_days_from_planned_start",
         "std_days_after_end",
-        "min_days_before_start",
+        "min_days_from_planned_start",
         "min_days_after_end",
         "max_days_after_end",
-        "max_days_before_start",
-        "median_days_before_start",
+        "max_days_from_planned_start",
+        "median_days_from_planned_start",
         "median_days_after_end",
         "on_time_rate",
         "late_rate",
@@ -204,7 +203,46 @@ class FullDatasetProcessor(BaseScript):
         "relative_interaction_percentile",
         "zscore_views",
         "zscore_interactions",
-        "mid_week_engagement"
+        "mid_week_engagement",
+        "max_activity_grade",
+        "avg_activity_grade",
+        "min_activity_grade",
+        "std_activity_grade",
+        "graded_activities_count",
+        "percent_graded_activities",
+        "total_course_time_minutes",
+        "avg_time_per_module",
+        "median_time_per_module",
+        "min_time_per_module",
+        "max_time_per_module",
+        "std_time_per_module",
+        "total_course_time_hours",
+        "time_engagement_level"
+    ]
+    # data/interim/teachers_merged_final.csv
+    # KEY teacher_id_docente - id_docente
+    COLUMNS_TEACHERS_FEATURED = [
+        'teacher_experiencia_ficc_percentil',
+        'teacher_experiencia_total_percentil',
+        'teacher_nivel_educativo_num',
+        'teacher_nivel_educativo_percentil',
+        'teacher_experiencia_nivel',
+        'teacher_experiencia_nivel_ficc',
+    ]
+    
+    COLUMNS_SEQUENCE_ANALYSIS = [
+        "real_sequence_length",
+        "total_accesses",
+        "levenshtein_distance",
+        "levenshtein_normalized",
+        "substring_similarity",
+        "common_bigrams",
+        "common_trigrams",
+        "sequence_match_ratio",
+        "extra_activities",
+        "missing_activities",
+        "correct_order_count",
+        "correct_order_ratio",
     ]
 
     def _load_and_prepare_enrollments(self):
@@ -271,8 +309,31 @@ class FullDatasetProcessor(BaseScript):
         self.logger.info(f"Dataset de interacciones de estudiantes cargado: {student_interactions_df.shape}")
         return student_interactions_df
 
+    def _load_and_prepare_teachers_featured(self):
+        """Carga y prepara el dataset de características de teachers"""
+        teachers_df = pd.read_csv("data/interim/teachers_merged_final.csv")
+        # Seleccionar solo las columnas necesarias incluyendo las llaves de unión
+        columns_to_select = ['teacher_id_docente', 'teacher_year'] + self.COLUMNS_TEACHERS_FEATURED
+        teachers_df = teachers_df[columns_to_select]
+        # Renombrar las llaves para hacer match con courses_base
+        teachers_df = teachers_df.rename(columns={
+            'teacher_id_docente': 'id_docente',
+            'teacher_year': 'year'
+        })
+        self.logger.info(f"Dataset de características de teachers cargado: {teachers_df.shape}")
+        return teachers_df
+
+    def _load_and_prepare_sequence_analysis(self):
+        """Carga y prepara el dataset de análisis de secuencias"""
+        sequence_analysis_df = pd.read_csv("data/interim/moodle/sequence_analysis_features.csv")
+        # Seleccionar solo las columnas necesarias incluyendo las llaves de unión
+        columns_to_select = ['documento_identificación', 'id_asignatura', 'id_grado', 'sede', 'year', 'period'] + self.COLUMNS_SEQUENCE_ANALYSIS
+        sequence_analysis_df = sequence_analysis_df[columns_to_select]
+        self.logger.info(f"Dataset de análisis de secuencias cargado: {sequence_analysis_df.shape}")
+        return sequence_analysis_df
+
     def _verify_duplicates(self, enrollments_df, students_df, grades_df, student_logins_df, 
-                          courses_base_df, courses_df, student_interactions_df):
+                          courses_base_df, courses_df, student_interactions_df, teachers_df, sequence_analysis_df):
         """Verifica la presencia de duplicados en todos los datasets"""
         self.logger.info("=== VERIFICACIÓN DE DUPLICADOS ===")
 
@@ -283,6 +344,10 @@ class FullDatasetProcessor(BaseScript):
         key_columns_student_period = ["documento_identificación", "year", "period"]
         key_columns_course = ["sede", "year", "id_grado", "id_asignatura", "period"]
         key_columns_full_renamed = ["period", "year", "sede", "id_asignatura", "id_grado", "documento_identificación"]
+        key_columns_teachers = ["id_docente", "year"]
+        key_columns_sequence_analysis = ["documento_identificación", "id_asignatura", "id_grado", "sede", "year", "period"]
+        # Para teachers verificar duplicados usando todas las columnas
+        key_columns_teachers_all = teachers_df.columns.tolist()
 
         # Lista de datasets y sus llaves correspondientes
         datasets_to_check = [
@@ -292,7 +357,9 @@ class FullDatasetProcessor(BaseScript):
             (courses_base_df, key_columns_course, "cursos base"),
             (courses_df, key_columns_course, "cursos"),
             (student_interactions_df, key_columns_full_renamed, "interacciones"),
-            (grades_df, key_columns_grades, "calificaciones")
+            (grades_df, key_columns_grades, "calificaciones"),
+            (teachers_df, key_columns_teachers_all, "teachers"),
+            (sequence_analysis_df, key_columns_sequence_analysis, "análisis de secuencias")
         ]
 
         # Verificar duplicados en cada dataset
@@ -404,8 +471,10 @@ class FullDatasetProcessor(BaseScript):
             (self.COLUMNS_GRADES, ['documento_identificación', 'id_asignatura', 'id_grado', 'period', 'year', 'sede'], "Calificaciones"),
             (self.COLUMNS_STUDENTS_LOGINS, ['documento_identificación', 'year', 'period'], "Logins"),
             (self.COLUMNS_COURSES_BASE, ['sede', 'year', 'id_grado', 'id_asignatura', 'period'], "Cursos base"),
+            (self.COLUMNS_TEACHERS_FEATURED, ['id_docente', 'year'], "Teachers featured"),
             (self.COLUMNS_COURSES, ['sede', 'year', 'id_grado', 'id_asignatura', 'period'], "Cursos"),
-            (self.COLUMNS_STUDENT_COURSE_INTERACTIONS, ['documento_identificación', 'year', 'id_grado', 'sede', 'id_asignatura', 'period'], "Interacciones")
+            (self.COLUMNS_STUDENT_COURSE_INTERACTIONS, ['documento_identificación', 'year', 'id_grado', 'sede', 'id_asignatura', 'period'], "Interacciones"),
+            (self.COLUMNS_SEQUENCE_ANALYSIS, ['documento_identificación', 'id_asignatura', 'id_grado', 'sede', 'year', 'period'], "Análisis de secuencias")
         ]
 
         for all_cols, key_cols, name in datasets_analysis:
@@ -492,12 +561,9 @@ class FullDatasetProcessor(BaseScript):
             
         return combined_df
 
-    def _save_dataset(self, combined_df):
-        """Guarda el dataset combinado y muestra información final"""
-        output_path = "data/interim/full_dataset_combined.csv"
-
+    def _save_dataset(self, combined_df, output_path):
         # Guardar el dataset
-        combined_df.to_csv(output_path, index=False)
+        self.save_to_csv(combined_df, output_path)
         self.logger.info(f"Dataset combinado guardado exitosamente: {combined_df.shape}")
 
         # Mostrar información del dataset final
@@ -517,6 +583,7 @@ class FullDatasetProcessor(BaseScript):
         2. estudiantes_clean.csv (por documento_identificación + sede)
         3. calificaciones (por documento_identificación + sede + year + id_grado, expandirá por períodos)
         4. moodle datasets (por llaves correspondientes)
+        5. teachers_merged_final.csv (por id_docente desde courses_base)
 
         NOTA: Se usan INNER JOINS para evitar valores nulos. Solo se incluyen registros 
         que tengan correspondencia en todos los datasets.
@@ -531,10 +598,12 @@ class FullDatasetProcessor(BaseScript):
         courses_base_df = self._load_and_prepare_courses_base()
         courses_df = self._load_and_prepare_courses()
         student_interactions_df = self._load_and_prepare_student_interactions()
+        teachers_df = self._load_and_prepare_teachers_featured()
+        sequence_analysis_df = self._load_and_prepare_sequence_analysis()
 
         # Verificar duplicados
         self._verify_duplicates(enrollments_df, students_df, grades_df, student_logins_df, 
-                               courses_base_df, courses_df, student_interactions_df)
+                               courses_base_df, courses_df, student_interactions_df, teachers_df, sequence_analysis_df)
 
         # Iniciar con el dataset base
         self.logger.info("Iniciando combinación de datasets...")
@@ -546,6 +615,8 @@ class FullDatasetProcessor(BaseScript):
         key_columns_student_period = ["documento_identificación", "year", "period"]
         key_columns_course = ["sede", "year", "id_grado", "id_asignatura", "period"]
         key_columns_full_renamed = ["period", "year", "sede", "id_asignatura", "id_grado", "documento_identificación"]
+        key_columns_teachers = ["id_docente", "year"]
+        key_columns_sequence_analysis = ["documento_identificación", "id_asignatura", "id_grado", "sede", "year", "period"]
 
         # Realizar uniones secuenciales
         combined_df = self._merge_with_analysis(combined_df, students_df, key_columns_student, "estudiantes")
@@ -558,15 +629,27 @@ class FullDatasetProcessor(BaseScript):
         self.logger.info("=== UNIONES RESTANTES (INNER JOINS - SOLO REGISTROS CON CORRESPONDENCIA) ===")
         combined_df = self._merge_with_analysis(combined_df, student_logins_df, key_columns_student_period, "logins de estudiantes")
         combined_df = self._merge_with_analysis(combined_df, courses_base_df, key_columns_course, "cursos base")
+        combined_df = self._merge_with_analysis(combined_df, teachers_df, key_columns_teachers, "teachers featured")
         combined_df = self._merge_courses_with_analysis(combined_df, courses_df, key_columns_course)
         combined_df = self._merge_with_analysis(combined_df, student_interactions_df, key_columns_full_renamed, "interacciones de estudiantes")
+        combined_df = self._merge_with_analysis(combined_df, sequence_analysis_df, key_columns_sequence_analysis, "análisis de secuencias")
 
         # Analizar valores nulos
         self._analyze_null_values(combined_df)
-
+        #Dividir el dataset en 2 datasets:
+        # 1. Asignaturas con moodle
+        # 2. Asignaturas sin moodle
+        # 1. Filtra por asignaturas: 1, 2, 3, 4
+        df_moodle = combined_df[combined_df['id_asignatura'].isin([1, 2, 3, 4])]
+        output_path = "data/interim/full_dataset_combined_moodle.csv"
         # Guardar dataset
-        self._save_dataset(combined_df)
-
+        self._save_dataset(df_moodle, output_path)
+        
+        # 2. Las demás asignaturas
+        df_no_moodle = combined_df[~combined_df['id_asignatura'].isin([1, 2, 3, 4])]
+        output_path = "data/interim/full_dataset_combined_no_moodle.csv"
+        # Guardar dataset
+        self._save_dataset(df_no_moodle, output_path)
         return combined_df
 
 
