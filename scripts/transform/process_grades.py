@@ -178,6 +178,33 @@ class GradesProcessor(BaseScript):
                                                'period', 'year', 'dimensión'])
 
         self.save_to_csv(grades_final, "data/interim/calificaciones/calificaciones_2024_2025_long.csv")
+        
+        # Crear dataset en formato corto (filas originales)
+        self.logger.info("Creando dataset en formato corto...")
+        
+        # Renombrar columnas para el dataset corto
+        grades_short = grades_selected.rename(columns={
+            'Proc': 'proc',
+            'Cog': 'cog', 
+            'Act': 'act',
+            'Axi': 'axi',
+            'Resultado': 'nota_final'
+        })
+        
+        # Calcular el nivel basado en la nota final
+        grades_short['nivel'] = grades_short['nota_final'].apply(calcular_nivel)
+        
+        # Reordenar las columnas para el dataset corto
+        short_column_order = ['documento_identificación', 'id_asignatura', 'id_grado', 
+                             'period', 'year', 'sede', 'estudiante', 'proc', 'cog', 
+                             'act', 'axi', 'nota_final', 'nivel']
+        grades_short_final = grades_short[short_column_order]
+        
+        # Ordenar por documento_identificación, id_asignatura, period, year
+        grades_short_final = grades_short_final.sort_values(['documento_identificación', 'id_asignatura', 
+                                                           'period', 'year'])
+        
+        self.save_to_csv(grades_short_final, "data/interim/calificaciones/calificaciones_2024_2025_short.csv")
         self.logger.info("Procesamiento de calificaciones completado.")
 
 
