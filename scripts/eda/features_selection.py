@@ -25,7 +25,7 @@ import matplotlib
 matplotlib.set_loglevel("WARNING")
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from scripts.transform.encode_categorical_values import CategoricalEncoder
+from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
 
 class XGBoostFeatureSelector:
     """Selector de características usando XGBoost y análisis SHAP."""
