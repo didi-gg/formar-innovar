@@ -14,12 +14,14 @@ import sys
 import os
 import logging
 from pathlib import Path
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils.validation import check_is_fitted
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from utils.base_script import BaseScript
 
-class CategoricalEncoder(BaseScript):
+class CategoricalEncoder(BaseScript, BaseEstimator, TransformerMixin):
 
     def encode_binary_variables(self, df):
         df_copy = df.copy()
@@ -247,6 +249,16 @@ class CategoricalEncoder(BaseScript):
 
         self.logger.info("=== CODIFICACIÓN COMPLETADA ===")
         return df_encoded, all_processed_features
+
+    # Métodos para compatibilidad con sklearn
+    def fit(self, X, y=None):
+        """Ajusta el transformador (no hace nada, solo para compatibilidad sklearn)."""
+        return self
+    
+    def transform(self, X):
+        """Transforma los datos aplicando codificación categórica."""
+        df_encoded, _ = self.encode_categorical_variables(X)
+        return df_encoded
 
     def print_encoding_summary(self, df_original, df_encoded, processed_features):
         """
