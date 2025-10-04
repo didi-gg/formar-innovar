@@ -1,0 +1,96 @@
+================================================================================
+REPORTE DE ANÁLISIS DE HOMOGENEIDAD DE GRUPOS
+================================================================================
+
+RESUMEN EJECUTIVO
+----------------------------------------
+Total de variables numéricas analizadas: 9
+Variables con distribución normal: 0
+Variables de agrupación: 2
+Total de comparaciones realizadas: 18
+Comparaciones estadísticamente significativas: 11
+
+Porcentaje de variables normales: 0.0%
+Porcentaje de comparaciones significativas: 61.1%
+
+ANÁLISIS DE NORMALIDAD
+----------------------------------------
+Variables con distribución normal (0):
+
+Variables sin distribución normal (9):
+  - edad_estudiante
+  - age
+  - horas_semana_estudio_casa
+  - intensidad
+  - total_hermanos
+  - teacher_experiencia_nivel_ficc
+  - teacher_experiencia_nivel
+  - total_hours
+  - nota_final
+
+
+COMPARACIONES SIGNIFICATIVAS
+----------------------------------------
+
+Por variable de agrupación 'sede':
+  - edad_estudiante:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.2466 (Pequeño)
+  - age:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1228 (Pequeño)
+  - horas_semana_estudio_casa:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1386 (Pequeño)
+  - total_hermanos:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.0988 (Muy pequeño)
+  - teacher_experiencia_nivel_ficc:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1632 (Pequeño)
+  - teacher_experiencia_nivel:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.0988 (Muy pequeño)
+  - total_hours:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1284 (Pequeño)
+  - nota_final:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.0787 (Muy pequeño)
+
+Por variable de agrupación 'género':
+  - horas_semana_estudio_casa:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000236
+    * Tamaño del efecto: 0.0384 (Muy pequeño)
+  - total_hermanos:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.0771 (Muy pequeño)
+  - nota_final:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1297 (Pequeño)
+
+
+RECOMENDACIONES
+----------------------------------------
+• La mayoría de variables no siguen distribución normal.
+  Considere usar tests no paramétricos para análisis futuros.
+• Se encontraron diferencias significativas entre grupos.
+  Revise los resultados detallados para interpretación específica.
+
+• Consulte las visualizaciones en los subfolders correspondientes.
+• Los archivos CSV contienen resultados detallados de cada análisis.
+
+================================================================================
+Fin del reporte
+================================================================================

@@ -1,0 +1,302 @@
+================================================================================
+REPORTE DE ANÁLISIS DE HOMOGENEIDAD DE GRUPOS
+================================================================================
+
+RESUMEN EJECUTIVO
+----------------------------------------
+Total de variables numéricas analizadas: 43
+Variables con distribución normal: 0
+Variables de agrupación: 2
+Total de comparaciones realizadas: 86
+Comparaciones estadísticamente significativas: 54
+
+Porcentaje de variables normales: 0.0%
+Porcentaje de comparaciones significativas: 62.8%
+
+ANÁLISIS DE NORMALIDAD
+----------------------------------------
+Variables con distribución normal (0):
+
+Variables sin distribución normal (43):
+  - edad_estudiante
+  - age
+  - horas_semana_estudio_casa
+  - count_login_fri
+  - student_total_interactions
+  - count_login_mon
+  - avg_days_since_last_update
+  - intensidad
+  - total_hermanos
+  - count_login_tue
+  - percent_collaboration
+  - student_total_views
+  - count_login_thu
+  - max_inactividad
+  - interaction_to_view_ratio
+  - percent_modules_viewed
+  - teacher_experiencia_nivel_ficc
+  - teacher_experiencia_nivel
+  - total_course_time_hours
+  - total_hours
+  - median_views_per_module
+  - percent_students_interacted
+  - relative_interaction_percentile
+  - percent_students_viewed
+  - sequence_match_ratio
+  - num_students_viewed
+  - median_days_since_last_update
+  - num_modules
+  - min_days_from_planned_start
+  - std_days_from_planned_start
+  - std_days_after_end
+  - log_total_views
+  - percent_in_english
+  - log_total_interactions
+  - modules_participated
+  - median_days_from_planned_start
+  - median_days_after_end
+  - percent_modules_participated
+  - modules_viewed
+  - avg_days_after_end
+  - avg_days_from_planned_start
+  - percent_modules_viewed_interacciones_de_estudiantes
+  - nota_final
+
+
+COMPARACIONES SIGNIFICATIVAS
+----------------------------------------
+
+Por variable de agrupación 'sede':
+  - edad_estudiante:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.2078 (Pequeño)
+  - age:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.2536 (Pequeño)
+  - horas_semana_estudio_casa:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1034 (Pequeño)
+  - count_login_fri:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.3762 (Moderado)
+  - student_total_interactions:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4073 (Moderado)
+  - count_login_mon:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1752 (Pequeño)
+  - avg_days_since_last_update:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.0807 (Muy pequeño)
+  - intensidad:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000008
+    * Tamaño del efecto: 0.0642 (Muy pequeño)
+  - total_hermanos:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1165 (Pequeño)
+  - count_login_tue:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.2033 (Pequeño)
+  - percent_collaboration:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4064 (Moderado)
+  - student_total_views:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4733 (Moderado)
+  - count_login_thu:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1760 (Pequeño)
+  - max_inactividad:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.2373 (Pequeño)
+  - interaction_to_view_ratio:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.3011 (Moderado)
+  - percent_modules_viewed:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: inf (Grande)
+  - teacher_experiencia_nivel_ficc:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.3603 (Moderado)
+  - teacher_experiencia_nivel:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.3239 (Moderado)
+  - total_course_time_hours:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4110 (Moderado)
+  - total_hours:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1193 (Pequeño)
+  - median_views_per_module:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.2163 (Pequeño)
+  - percent_students_interacted:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: inf (Grande)
+  - relative_interaction_percentile:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.0794 (Muy pequeño)
+  - percent_students_viewed:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: inf (Grande)
+  - sequence_match_ratio:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4451 (Moderado)
+  - num_students_viewed:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.5289 (Grande)
+  - median_days_since_last_update:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000678
+    * Tamaño del efecto: 0.0488 (Muy pequeño)
+  - num_modules:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1644 (Pequeño)
+  - std_days_from_planned_start:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4400 (Moderado)
+  - std_days_after_end:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4400 (Moderado)
+  - log_total_views:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4599 (Moderado)
+  - percent_in_english:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.3095 (Moderado)
+  - log_total_interactions:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4649 (Moderado)
+  - modules_participated:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.5014 (Grande)
+  - median_days_from_planned_start:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.2177 (Pequeño)
+  - median_days_after_end:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.2177 (Pequeño)
+  - percent_modules_participated:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.5008 (Grande)
+  - modules_viewed:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4700 (Moderado)
+  - avg_days_after_end:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4455 (Moderado)
+  - avg_days_from_planned_start:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4455 (Moderado)
+  - percent_modules_viewed_interacciones_de_estudiantes:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.4450 (Moderado)
+  - nota_final:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.001036
+    * Tamaño del efecto: 0.0472 (Muy pequeño)
+
+Por variable de agrupación 'género':
+  - horas_semana_estudio_casa:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000751
+    * Tamaño del efecto: 0.0549 (Muy pequeño)
+  - count_login_fri:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000001
+    * Tamaño del efecto: 0.0705 (Muy pequeño)
+  - count_login_mon:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.001014
+    * Tamaño del efecto: 0.0472 (Muy pequeño)
+  - total_hermanos:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.0953 (Muy pequeño)
+  - count_login_thu:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.042716
+    * Tamaño del efecto: 0.0291 (Muy pequeño)
+  - percent_students_interacted:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.005988
+    * Tamaño del efecto: 0.0395 (Muy pequeño)
+  - percent_students_viewed:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000101
+    * Tamaño del efecto: 0.0559 (Muy pequeño)
+  - num_students_viewed:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.004605
+    * Tamaño del efecto: 0.0407 (Muy pequeño)
+  - num_modules:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000182
+    * Tamaño del efecto: 0.0538 (Muy pequeño)
+  - min_days_from_planned_start:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.014264
+    * Tamaño del efecto: 0.0352 (Muy pequeño)
+  - percent_in_english:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.048630
+    * Tamaño del efecto: 0.0283 (Muy pequeño)
+  - nota_final:
+    * Test utilizado: Mann-Whitney U
+    * p-valor: 0.000000
+    * Tamaño del efecto: 0.1266 (Pequeño)
+
+
+RECOMENDACIONES
+----------------------------------------
+• La mayoría de variables no siguen distribución normal.
+  Considere usar tests no paramétricos para análisis futuros.
+• Se encontraron diferencias significativas entre grupos.
+  Revise los resultados detallados para interpretación específica.
+
+• Consulte las visualizaciones en los subfolders correspondientes.
+• Los archivos CSV contienen resultados detallados de cada análisis.
+
+================================================================================
+Fin del reporte
+================================================================================

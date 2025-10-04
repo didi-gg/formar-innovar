@@ -1,0 +1,43 @@
+REPORTE RESUMEN - ANÁLISIS EXPLORATORIO DE DATOS (EDA)
+============================================================
+
+Fecha de ejecución: 2025-10-04 12:56:31
+Dataset analizado: data/processed/full_short_dataset.csv
+Directorio de resultados: reports/eda_analysis_full
+
+
+FEATURES SELECTION
+----------------------------------------
+Precisión del modelo: 0.7568
+Total de características: 182
+Datos analizados: 16753
+Top 10 características más importantes:
+  1. educación_profesional
+  2. nivel_motivación
+  3. intensidad
+  4. sequence_match_ratio
+  5. teacher_experiencia_nivel
+  6. dia_jueves
+  7. nivel_confianza
+  8. tiene_rol_adicional
+  9. num_students
+  10. unique_students_count
+
+STATISTICAL FILTERING
+----------------------------------------
+Estado: completed
+Variables significativas (Chi-cuadrado): 22
+Variables significativas (Correlación): 93
+Variables significativas (ANOVA): 22
+Total variables significativas únicas: 115
+
+HOMOGENEITY ANALYSIS
+----------------------------------------
+Estado: completed
+Variables analizadas: 43
+Variables con distribución normal: 0
+Comparaciones realizadas: 86
+Comparaciones significativas: 55
+
+
+Archivos generados en: reports/eda_analysis_full/
