@@ -9,6 +9,9 @@ from utils.dataset_processor_base import DatasetProcessorBase
 
 class FullDatasetProcessor(DatasetProcessorBase):
 
+    """ Esta es una implementación que se usa para el dataset largo con calificaciones 
+        La versión corta esta implementada en DatasetProcessorBase
+    """
     # data/interim/calificaciones/calificaciones_2024_2025_long.csv
     COLUMNS_GRADES = [
         "documento_identificación",
@@ -21,7 +24,6 @@ class FullDatasetProcessor(DatasetProcessorBase):
         "resultado", # Variable de interés
         "nivel" # Variable de interés es una clasificación de la variable resultado
     ]
-
 
     def _load_and_prepare_grades(self):
         """Carga y prepara el dataset de calificaciones"""
@@ -138,13 +140,13 @@ class FullDatasetProcessor(DatasetProcessorBase):
         # 2. Asignaturas sin moodle
         # 1. Filtra por asignaturas: 1, 2, 3, 4
         df_moodle = combined_df[combined_df['id_asignatura'].isin([1, 2, 3, 4])]
-        output_path = "data/interim/full_dataset_moodle.csv"
+        output_path = "data/processed/full_dataset_long_moodle.csv"
         # Guardar dataset
         self._save_dataset(df_moodle, output_path)
-        
+
         # 2. Las demás asignaturas
         df_no_moodle = combined_df[~combined_df['id_asignatura'].isin([1, 2, 3, 4])]
-        output_path = "data/interim/full_dataset_no_moodle.csv"
+        output_path = "data/processed/full_dataset_long_no_moodle.csv"
         # Guardar dataset
         self._save_dataset(df_no_moodle, output_path)
         return combined_df

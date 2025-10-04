@@ -240,6 +240,29 @@ class DatasetProcessorBase(BaseScript):
         "correct_order_ratio",
     ]
 
+    # data/interim/calificaciones/calificaciones_2024_2025_short.csv
+    COLUMNS_GRADES = [
+        "documento_identificación",
+        "id_asignatura",
+        "id_grado",
+        "period",
+        "year",
+        "sede",
+        "cog",
+        "act",
+        "axi",
+        "proc",
+        "nota_final", # Variable de interés
+        "nivel" # Variable de interés es una clasificación de la variable resultado
+    ]
+
+    def _load_and_prepare_grades(self):
+        """Carga y prepara el dataset de calificaciones"""
+        grades_df = pd.read_csv("data/interim/calificaciones/calificaciones_2024_2025_short.csv")
+        grades_df = grades_df[self.COLUMNS_GRADES]
+        self.logger.info(f"Dataset de calificaciones cargado: {grades_df.shape}")
+        return grades_df
+
     def _load_and_prepare_enrollments(self):
         """Carga y prepara el dataset base de enrollments"""
         enrollments_df = pd.read_csv("data/interim/estudiantes/enrollments.csv")
@@ -336,7 +359,7 @@ class DatasetProcessorBase(BaseScript):
         match_counts = merged_df['_merge'].value_counts()
         self.logger.info(f"Resultados del {how} join con {dataset_name}:")
         self.logger.info(f"  - Registros con datos en ambos datasets: {match_counts.get('both', 0)}")
-        
+
         if how == 'left':
             left_only_count = match_counts.get('left_only', 0)
             self.logger.info(f"  - Registros solo en dataset izquierdo (sin datos de {dataset_name}): {left_only_count}")
@@ -376,7 +399,7 @@ class DatasetProcessorBase(BaseScript):
                 unique_periods = courses_subset['period'].unique()
                 self.logger.info(f"Asignaturas disponibles: {sorted(unique_asignaturas)}")
                 self.logger.info(f"Períodos disponibles: {sorted(unique_periods)}")
-                
+
                 asignatura_exists = first_no_match['id_asignatura'] in unique_asignaturas
                 period_exists = first_no_match['period'] in unique_periods
                 self.logger.info(f"¿Existe asignatura {first_no_match['id_asignatura']}? {asignatura_exists}")
@@ -400,7 +423,7 @@ class DatasetProcessorBase(BaseScript):
         match_counts = merged_df['_merge'].value_counts()
         self.logger.info(f"Resultados del {how} join con cursos:")
         self.logger.info(f"  - Registros con datos en ambos datasets: {match_counts.get('both', 0)}")
-        
+
         if how == 'left':
             left_only_count = match_counts.get('left_only', 0)
             self.logger.info(f"  - Registros solo en dataset izquierdo (sin datos de cursos): {left_only_count}")
@@ -420,10 +443,10 @@ class DatasetProcessorBase(BaseScript):
     def _remove_duplicate_columns(self, combined_df):
         """Elimina columnas duplicadas que pueden haberse creado durante los merges"""
         self.logger.info("=== LIMPIEZA DE COLUMNAS DUPLICADAS ===")
-        
+
         # Lista de columnas duplicadas conocidas a eliminar
         columns_to_remove = []
-        
+
         # Buscar columnas con sufijos que indican duplicación
         for col in combined_df.columns:
             if col.endswith('_estudiantes') or col.endswith('_calificaciones'):
@@ -431,20 +454,20 @@ class DatasetProcessorBase(BaseScript):
                 if base_col in combined_df.columns:
                     columns_to_remove.append(col)
                     self.logger.info(f"Columna duplicada encontrada: {col} (manteniendo {base_col})")
-        
+
         # Eliminar las columnas duplicadas
         if columns_to_remove:
             combined_df = combined_df.drop(columns=columns_to_remove)
             self.logger.info(f"Eliminadas {len(columns_to_remove)} columnas duplicadas: {columns_to_remove}")
         else:
             self.logger.info("No se encontraron columnas duplicadas para eliminar")
-            
+
         return combined_df
 
     def _calculate_student_age_in_months(self, combined_df):
         """Calcula la edad del estudiante en meses basado en fecha_nacimiento y period"""
         self.logger.info("=== CÁLCULO DE EDAD DE ESTUDIANTES EN MESES ===")
-        
+
         # Inicializar utilidades académicas
         academic_utils = AcademicPeriodUtils()
 
@@ -458,14 +481,14 @@ class DatasetProcessorBase(BaseScript):
                     raise Exception(f"Error calculando edad para estudiante: {row}. Las columnas fecha_nacimiento, year y period deben ser no nulas.")
                 # Obtener fecha de inicio del periodo usando las utilidades académicas
                 period_start_date = academic_utils.get_period_start_date(row)
-                
+
                 if pd.isna(period_start_date):
                     raise Exception(f"No se pudo obtener fecha de inicio para año {row['year']}, periodo {row['period']}")
-                
+
                 # Calcular diferencia en meses
                 months_diff = (period_start_date.year - row['fecha_nacimiento'].year) * 12 + \
                              (period_start_date.month - row['fecha_nacimiento'].month)
-                
+
                 # Ajustar si el día del periodo es anterior al día de nacimiento
                 if period_start_date.day < row['fecha_nacimiento'].day:
                     months_diff -= 1
@@ -476,7 +499,7 @@ class DatasetProcessorBase(BaseScript):
 
         # Aplicar el cálculo
         combined_df['edad_estudiante'] = combined_df.apply(calculate_age_months, axis=1)
-        
+
         # Reportar estadísticas
         valid_ages = combined_df['edad_estudiante'].dropna()
         if len(valid_ages) > 0:
@@ -486,11 +509,11 @@ class DatasetProcessorBase(BaseScript):
             self.logger.info(f"Edad máxima: {valid_ages.max()} meses ({valid_ages.max()/12:.1f} años)")
         else:
             self.logger.warning("No se pudieron calcular edades para ningún estudiante")
-        
+
         invalid_ages = combined_df['edad_estudiante'].isna().sum()
         if invalid_ages > 0:
             self.logger.warning(f"No se pudo calcular edad para {invalid_ages} registros")
-            
+
         return combined_df
 
     def _save_dataset(self, combined_df, output_path):
@@ -504,7 +527,7 @@ class DatasetProcessorBase(BaseScript):
         self.logger.info(f"Forma del dataset: {combined_df.shape}")
         self.logger.info(f"Número de columnas: {len(combined_df.columns)}")
         self.logger.info(f"Número de filas: {len(combined_df)}")
-        
+
         # Verificar valores nulos
         total_nulls = combined_df.isnull().sum().sum()
         self.logger.info(f"Total de valores nulos en el dataset final: {total_nulls}")
