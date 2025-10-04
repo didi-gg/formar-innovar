@@ -26,67 +26,30 @@ matplotlib.set_loglevel("WARNING")
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
+from utils.eda_analysis_base import EDAAnalysisBase
 
-class XGBoostFeatureSelector:
+class XGBoostFeatureSelector(EDAAnalysisBase):
     """Selector de características usando XGBoost y análisis SHAP."""
 
-    excluded_features = [
-        'sede', # No es relevante
-        'year', # No es relevante
-        'documento_identificación', # No es relevante
-        'moodle_user_id', # No es relevante
-        'edukrea_user_id', # No es relevante
-        'fecha_nacimiento', # Ya esta representada en edad_estudiante
-        'id_grado', # No es relevante
-        'id_asignatura', # No es relevante
-        'id_docente', # No es relevante
-        'id_most_late_opened_module', # No es relevante
-        'id_least_opened_module', # No es relevante
-        'id_least_viewed_module', # No es relevante
-        'years_experience_ficc', # Ya esta representada en teacher_experiencia_nivel_ficc
-        'years_experience_total', # Ya esta representada en teacher_experiencia_nivel
-        'nivel', # Variable objetivo categoría
-        'resultado', # Variable objetivo numérica
-        'nota_final', # Variable objetivo numérica
-        'cog', # Colinealidad con nota_final
-        'proc', # Colinealidad con nota_final
-        'act', # Colinealidad con nota_final
-        'axi', # Colinealidad con nota_final
-        'valoración_emocional', # Es una evaluación en lenguaje natural
-        'teacher_experiencia_ficc_percentil', # Ya esta representada en teacher_experiencia_nivel_ficc
-        'teacher_experiencia_total_percentil', # Ya esta representada en teacher_experiencia_nivel
-        'teacher_nivel_educativo_percentil', # Ya esta representada en teacher_experiencia_nivel
-        'teacher_nivel_educativo_num', # Ya esta representada en teacher_experiencia_nivel
-    ]
-
-    def __init__(self):
+    def _initialize_analysis_attributes(self):
+        """Inicializar atributos específicos del análisis XGBoost."""
         self.model = None
         self.feature_importance = None
-        self.level_mapping = {"Bajo": 0, "Básico": 1, "Alto": 2, "Superior": 3}
 
-    def get_features(self, df):
-        """Obtiene las características válidas del dataset."""
-        return [col for col in df.columns if col not in self.excluded_features]
-
-    def cargar_datos(self):
-        """Carga los datos desde el archivo CSV."""
-        df = pd.read_csv('data/interim/full_short_dataset_moodle.csv')
-        print(f"Dataset cargado: {df.shape[0]} filas, {df.shape[1]} columnas")
-        return df
 
     def preprocesar_datos(self, df):
         """Preprocesa los datos aplicando codificación categórica."""
         encoder = CategoricalEncoder()
         df_encoded, features = encoder.encode_categorical_variables(df)
-        print(f"Datos preprocesados: {len(features)} variables categóricas codificadas")
+        self.logger.info(f"Datos preprocesados: {len(features)} variables categóricas codificadas")
         return df_encoded
 
     def entrenar_xgboost(self, X, y):
         """Entrena un modelo XGBoost."""
         # Codificar variable objetivo
         if y.dtype == 'object':
-            y_encoded = y.map(self.level_mapping)
-            le_target = self.level_mapping
+            y_encoded = y.map(self.LEVEL_MAPPING)
+            le_target = self.LEVEL_MAPPING
         else:
             y_encoded = y
             le_target = None
@@ -103,7 +66,7 @@ class XGBoostFeatureSelector:
         for col in categorical_features:
             X_processed[col] = X_processed[col].astype('category')
 
-        print(f"Variables categóricas: {len(categorical_features)}")
+        self.logger.info(f"Variables categóricas: {len(categorical_features)}")
 
         # División de datos
         X_train, X_test, y_train, y_test = train_test_split(
@@ -126,7 +89,7 @@ class XGBoostFeatureSelector:
         # Predicciones
         y_pred = self.model.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred)
-        print(f"📈 Precisión: {accuracy:.4f}")
+        self.logger.info(f"📈 Precisión: {accuracy:.4f}")
 
         # Convertir etiquetas de vuelta
         if le_target:
@@ -219,7 +182,7 @@ class XGBoostFeatureSelector:
         ax1.set_title(f'Top {top_n} Características Más Importantes')
         ax1.invert_yaxis()
         plt.tight_layout()
-        plt.savefig('reports/feature_importance_moodle/top_features.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'{self.results_path}/top_features.png', dpi=300, bbox_inches='tight')
         plt.close()
 
         # 2. Distribución de importancias
@@ -232,7 +195,7 @@ class XGBoostFeatureSelector:
                    label=f'Media: {importance.mean():.4f}')
         ax2.legend()
         plt.tight_layout()
-        plt.savefig('reports/feature_importance_moodle/importance_distribution.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'{self.results_path}/importance_distribution.png', dpi=300, bbox_inches='tight')
         plt.close()
 
         # 3. Matriz de confusión
@@ -252,7 +215,7 @@ class XGBoostFeatureSelector:
         ax3.set_ylabel('Valor Real', fontsize=12)
         ax3.set_title('Matriz de Confusión', fontsize=14)
         plt.tight_layout()
-        plt.savefig('reports/feature_importance_moodle/confusion_matrix.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'{self.results_path}/confusion_matrix.png', dpi=300, bbox_inches='tight')
         plt.close()
 
         # 4. Importancia acumulada
@@ -268,14 +231,14 @@ class XGBoostFeatureSelector:
         ax4.legend()
         ax4.grid(True, alpha=0.3)
         plt.tight_layout()
-        plt.savefig('reports/feature_importance_moodle/cumulative_importance.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'{self.results_path}/cumulative_importance.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-        print("Gráficos XGBoost guardados por separado:")
-        print("  - Top características: top_features.png")
-        print("  - Distribución: importance_distribution.png") 
-        print("  - Matriz confusión: confusion_matrix.png")
-        print("  - Importancia acumulada: cumulative_importance.png")
+        self.logger.info("Gráficos XGBoost guardados por separado:")
+        self.logger.info("  - Top características: top_features.png")
+        self.logger.info("  - Distribución: importance_distribution.png") 
+        self.logger.info("  - Matriz confusión: confusion_matrix.png")
+        self.logger.info("  - Importancia acumulada: cumulative_importance.png")
 
         return importance_df
 
@@ -300,20 +263,20 @@ class XGBoostFeatureSelector:
             legend.set_title('Niveles de Rendimiento')
 
         plt.tight_layout()
-        plt.savefig('reports/feature_importance_moodle/shap_bar_plot.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'{self.results_path}/shap_bar_plot.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-        print("Gráficos SHAP guardados con leyendas personalizadas")
+        self.logger.info("Gráficos SHAP guardados con leyendas personalizadas")
         return shap_values
 
     def analizar(self, df_processed, feature_columns):
         """Ejecuta el análisis completo."""
-        print("Distribución de 'nivel':")
-        print(df_processed['nivel'].value_counts().sort_index())
+        self.logger.info(f"Distribución de '{self.TARGET_CATEGORICAL}':")
+        self.logger.info(f"\n{df_processed[self.TARGET_CATEGORICAL].value_counts().sort_index()}")
 
         X = df_processed[feature_columns].copy()
-        y = df_processed['nivel'].copy()
-        print(f"Datos: X{X.shape}, y{y.shape}")
+        y = df_processed[self.TARGET_CATEGORICAL].copy()
+        self.logger.info(f"Datos: X{X.shape}, y{y.shape}")
 
         # Entrenar modelo
         results = self.entrenar_xgboost(X, y)
@@ -328,8 +291,8 @@ class XGBoostFeatureSelector:
         self.visualizar_shap(X_sample)
 
         # Guardar importancia
-        importance_df.to_csv('reports/feature_importance_moodle/feature_importance.csv', index=False)
-        print("Resultados guardados")
+        importance_df.to_csv(f'{self.results_path}/feature_importance.csv', index=False)
+        self.logger.info("Resultados guardados")
 
         return {
             'model': results['model'],
@@ -342,31 +305,71 @@ class XGBoostFeatureSelector:
             'datos_totales': df_processed.shape[0]
         }
 
-    def main(self):
+    def run_analysis(self):
         """Ejecuta el pipeline completo."""
-        print("Iniciando análisis de características")
+        self.logger.info("Iniciando análisis de características XGBoost")
+        self.logger.info(f"Dataset: {self.dataset_path}")
+        self.logger.info(f"Resultados se guardarán en: {self.results_path}")
+
+        # Validar que el dataset exista
+        if not os.path.exists(self.dataset_path):
+            raise FileNotFoundError(f"No se encontró el dataset en: {self.dataset_path}")
+
+        # Crear directorio de resultados
+        self.create_results_directory()
 
         # Cargar y preprocesar datos
-        df = self.cargar_datos()
+        df = self.load_data()
         df_processed = self.preprocesar_datos(df)
 
-        # Obtener características
-        features = self.get_features(df_processed)
-        print(f"Características seleccionadas: {len(features)}")
+        # Validar que existan las columnas objetivo
+        self.validate_target_variables(df_processed)
 
-        # Crear directorio si no existe
-        os.makedirs('reports/feature_importance_moodle', exist_ok=True)
+        # Obtener características válidas
+        features = self.get_valid_features(df_processed, exclude_targets=True)
+        if len(features) == 0:
+            raise ValueError("No se encontraron características válidas en el dataset")
+
+        self.logger.info(f"Características seleccionadas: {len(features)}")
 
         # Analizar
         resultados = self.analizar(df_processed, features)
 
-        print("\n Análisis completado")
-        print(f"Precisión final: {resultados['accuracy']:.4f}")
-        print(f"Datos analizados: {resultados['datos_totales']}")
+        self.logger.info("✅ Análisis completado exitosamente")
+        self.logger.info(f"Precisión final: {resultados['accuracy']:.4f}")
+        self.logger.info(f"Datos analizados: {resultados['datos_totales']}")
 
         return resultados
 
+def main():
+    """Función principal."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Análisis de selección de características con XGBoost')
+    parser.add_argument('--dataset', '-d', type=str, required=True,
+                       help='Ruta al archivo CSV del dataset (requerido)')
+    parser.add_argument('--results', '-r', type=str, required=True,
+                       help='Nombre del folder para guardar resultados (requerido, se creará en reports/)')
+
+    args = parser.parse_args()
+
+    # Crear y ejecutar analizador
+    selector = XGBoostFeatureSelector(args.dataset, args.results)
+
+    try:
+        selector.run_analysis()
+        selector.logger.info("✅ Análisis completado exitosamente")
+    except FileNotFoundError as e:
+        selector.logger.error(f"❌ Error: {e}")
+        raise
+    except ValueError as e:
+        selector.logger.error(f"❌ Error de validación: {e}")
+        raise
+    except Exception as e:
+        selector.logger.error(f"❌ Error inesperado: {e}")
+        raise
+    finally:
+        selector.close()
 
 if __name__ == "__main__":
-    selector = XGBoostFeatureSelector()
-    selector.main()
+    main()
