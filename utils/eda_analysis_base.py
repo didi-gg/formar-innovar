@@ -30,7 +30,7 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.base_script import BaseScript
 
-
+warnings.filterwarnings('ignore')
 class EDAAnalysisBase(BaseScript, ABC):
     """
     Clase base abstracta para análisis de EDA que contiene:
@@ -72,6 +72,41 @@ class EDAAnalysisBase(BaseScript, ABC):
         'teacher_nivel_educativo_num',  # Ya está representada en teacher_experiencia_nivel
     ]
 
+    # Variables a excluir del análisis por entre 100% y 90% el mismo valor en todos los registros
+    EXCLUDED_FEATURES_NULL_VARIANCE = [
+        'max_days_after_end',
+        'max_days_from_planned_start',
+        'has_viewed_all_modules',
+        'has_participated_all_modules',
+        'min_interactions_per_module',
+        'on_time_rate',
+        'early_access_count',
+        'late_access_count',
+        'min_views_per_module',
+        'mid_week_engagement',
+        'median_interactions_per_module',
+        'std_activity_grade',
+        'login_regularity_score',
+        'extra_activities',
+        'common_trigrams',
+        'count_jornada_madrugada',
+        'avg_activity_grade',
+        'max_activity_grade',
+        'min_activity_grade',
+        'graded_activities_count',
+        'percent_graded_activities'
+        'extra_activities',
+        'min_time_per_module',
+        'late_rate',
+        'min_days_after_end',
+        'min_days_from_planned_start',
+        'interaction_to_view_ratio',
+        'std_interactions_per_module',
+        'max_interactions_in_a_module',
+        'avg_interactions_per_module',
+        
+    ]
+
     # Variables numéricas conocidas
     NUMERIC_COLUMNS = [
         'edad_estudiante', 'participacion_clase', 'age', 'horas_semana_estudio_casa',
@@ -99,7 +134,7 @@ class EDAAnalysisBase(BaseScript, ABC):
         'nivel_motivación', 'demuestra_confianza', 'rol_adicional',
         'nivel_educativo', 'estrato',
         'dia_preferido', 'jornada_preferida', 'time_engagement_level',
-        'antigüedad', 'period'
+        'antigüedad', 'period', 'año_ingreso'
     }
 
     # Variables continuas conocidas (para evitar clasificación errónea)
@@ -183,6 +218,39 @@ class EDAAnalysisBase(BaseScript, ABC):
         if not re.match(r'^[a-zA-Z0-9_/-]+$', self.results_folder):
             raise ValueError("results_folder solo puede contener letras, números, guiones, guiones bajos y barras diagonales")
 
+    def get_beautiful_palette(self, n_colors, palette_name='plasma'):
+        """
+        Obtener una paleta de colores bonita.
+        
+        Args:
+            n_colors (int): Número de colores necesarios
+            palette_name (str): Nombre de la paleta ('plasma', 'viridis', 'inferno', 'magma', 'turbo', 'tab10', 'tab20', 'tab20b', 'tab20c', 'Set2', 'Set3')
+        
+        Returns:
+            list: Lista de colores
+        """
+        palette_options = {
+            'plasma': plt.cm.plasma,
+            'viridis': plt.cm.viridis,
+            'inferno': plt.cm.inferno,
+            'magma': plt.cm.magma,
+            'turbo': plt.cm.turbo,
+            'tab10': plt.cm.tab10,
+            'tab20': plt.cm.tab20,
+            'tab20b': plt.cm.tab20b,
+            'tab20c': plt.cm.tab20c,
+            'Set2': plt.cm.Set2,
+            'Set3': plt.cm.Set3,
+            'rainbow': plt.cm.rainbow,
+            'hsv': plt.cm.hsv
+        }
+        
+        if palette_name in palette_options:
+            return palette_options[palette_name](np.linspace(0, 1, n_colors))
+        else:
+            # Default a plasma si no se encuentra la paleta
+            return plt.cm.plasma(np.linspace(0, 1, n_colors))
+
     @abstractmethod
     def _initialize_analysis_attributes(self):
         """
@@ -226,6 +294,7 @@ class EDAAnalysisBase(BaseScript, ABC):
             list: Lista de características válidas
         """
         excluded = set(self.EXCLUDED_FEATURES)
+        excluded = excluded.union(set(self.EXCLUDED_FEATURES_NULL_VARIANCE))
 
         if exclude_targets:
             excluded.update([self.TARGET_CATEGORICAL, self.TARGET_NUMERIC])
@@ -259,9 +328,13 @@ class EDAAnalysisBase(BaseScript, ABC):
             # Determinar si es categórica o continua
             if col in self.KNOWN_CONTINUOUS:
                 continuous_vars.append(col)
-            elif (df[col].dtype == 'object' or 
-                  col in self.KNOWN_CATEGORICAL or 
-                  (df[col].dtype in ['int64', 'float64'] and df[col].nunique() <= 5)):
+            elif col in self.KNOWN_CATEGORICAL:
+                categorical_vars.append(col)
+            elif df[col].dtype == 'object':
+                categorical_vars.append(col)
+            elif (df[col].dtype in ['int64', 'float64'] and 
+                  df[col].nunique() <= 15 and  # Máximo 15 categorías
+                  col not in self.NUMERIC_COLUMNS):  # No está en la lista de numéricas conocidas
                 categorical_vars.append(col)
             else:
                 continuous_vars.append(col)
