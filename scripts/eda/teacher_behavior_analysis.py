@@ -90,12 +90,8 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
 
         # Debug: Log información sobre los datos
         log_suffix = f" (Sede {sede})" if is_sede else ""
-        self.logger.info(f"Docente {teacher_id}, Asignatura {subject_id}{log_suffix}:")
-        self.logger.info(f"  Total datos: {len(df_combination)}")
-        self.logger.info(f"  Grados únicos: {sorted(df_combination['id_grado'].unique())}")
         for grado in sorted(df_combination['id_grado'].unique()):
             df_grado = df_combination[df_combination['id_grado'] == grado]
-            self.logger.info(f"    Grado {grado}: {len(df_grado)} datos, rango: {df_grado['nota_final'].min():.1f}-{df_grado['nota_final'].max():.1f}")
 
         # Crear boxplot con todos los grados, sin filtrar
         sns.boxplot(data=df_combination, x='id_grado', y='nota_final', 
@@ -189,7 +185,6 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
         df_docentes['nombre'] = df_docentes['primer_nombre'] + ' ' + df_docentes['primer_apellido']
         # Hacer join con la información de docentes
         df = df.merge(df_docentes[['id_docente', 'nombre']], on='id_docente', how='left')
-        self.logger.info("Información de docentes agregada al dataset")
 
         # Cargar información de asignaturas
         asignaturas_path = os.path.join(os.path.dirname(self.dataset_path), "..", "raw", "tablas_maestras", "asignaturas.csv")
@@ -208,7 +203,6 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
         df = df.merge(df_asignaturas[['id_asignatura', 'nombre']], on='id_asignatura', how='left', suffixes=('_docente', '_asignatura'))
         # Renombrar las columnas para mantener consistencia
         df = df.rename(columns={'nombre_docente': 'nombre', 'nombre_asignatura': 'nombre_asignatura'})
-        self.logger.info("Información de asignaturas agregada al dataset")
 
         self.df_merged = df
         return df
@@ -573,9 +567,6 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
         if len(docentes_problematicos) > 0:
             self.logger.warning(f"Se identificaron {len(docentes_problematicos)} docentes con patrones de calificación bajos{sede_suffix}")
 
-            # Guardar tabla de docentes problemáticos
-            docentes_problematicos.to_csv(f"{output_dir}/docentes_patrones_bajos{sede_file_suffix}.csv")
-
             # Crear visualización específica de docentes problemáticos
             fig, ax = plt.subplots(figsize=(12, 8))
 
@@ -607,9 +598,6 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
             plt.close()
         else:
             self.logger.info(f"No se identificaron docentes con patrones de calificación problemáticos{sede_suffix}")
-
-        # Guardar estadísticas completas
-        teacher_stats.to_csv(f"{output_dir}/estadisticas_docentes_completas{sede_file_suffix}.csv")
 
         return teacher_stats
 
