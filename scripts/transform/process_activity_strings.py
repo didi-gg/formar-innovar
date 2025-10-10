@@ -186,20 +186,14 @@ class StudentCourseActivityStringsProcessor(BaseScript):
         logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
         logs_2024 = self._get_module_access_logs(year, logs_parquet, student_courses_file, platform='moodle')
 
-        # Obtener logs de acceso a módulos para 2025
-        self.logger.info("Procesando logs de 2025...")
-        year = 2025
-        logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
-        logs_2025 = self._get_module_access_logs(year, logs_parquet, student_courses_file, platform='moodle')
-
-        # Obtener logs de Edukrea
-        self.logger.info("Procesando logs de Edukrea...")
+        # Para 2025, solo obtener logs de Edukrea (no de Moodle)
+        self.logger.info("Procesando logs de Edukrea para 2025...")
         logs_parquet = MoodlePathResolver.get_paths("Edukrea", logs_table)[0]
-        logs_edukrea = self._get_module_access_logs(2025, logs_parquet, student_courses_file, platform='edukrea')
+        logs_edukrea_2025 = self._get_module_access_logs(2025, logs_parquet, student_courses_file, platform='edukrea')
 
-        # Concatenar todos los logs
+        # Concatenar todos los logs (2024 Moodle + 2025 Edukrea únicamente)
         self.logger.info("Combinando logs de todas las plataformas...")
-        all_logs = pd.concat([logs_2024, logs_2025, logs_edukrea], ignore_index=True)
+        all_logs = pd.concat([logs_2024, logs_edukrea_2025], ignore_index=True)
 
         if all_logs.empty:
             self.logger.warning("No se encontraron logs de acceso a módulos")
