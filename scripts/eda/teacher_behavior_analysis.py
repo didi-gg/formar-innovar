@@ -6,6 +6,7 @@ Analiza el comportamiento de las calificaciones por docente en área, asignatura
 import os
 import sys
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -601,6 +602,324 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
 
         return teacher_stats
 
+    def create_individual_teacher_analysis(self, df_data: pd.DataFrame, output_dir: str, sede: str = None):
+        """Crear análisis detallado individual por docente."""
+        sede_suffix = f" - {sede}" if sede else ""
+        self.logger.info(f"Creando análisis individual por docente{sede_suffix}...")
+
+        # Crear directorio de docentes dentro de la sede
+        docentes_dir = os.path.join(output_dir, "docentes")
+        os.makedirs(docentes_dir, exist_ok=True)
+
+        # Obtener todos los docentes con datos
+        teacher_counts = df_data.groupby('id_docente').size()
+        teachers_with_data = teacher_counts.index.tolist()  # Todos los docentes, sin límite
+
+        if len(teachers_with_data) == 0:
+            self.logger.warning(f"No hay docentes para análisis individual{sede_suffix}")
+            return
+
+        self.logger.info(f"Analizando {len(teachers_with_data)} docentes individualmente{sede_suffix}")
+
+        for teacher_id in teachers_with_data:
+            try:
+                self._create_individual_teacher_report(df_data, teacher_id, docentes_dir, sede)
+            except Exception as e:
+                self.logger.error(f"Error creando reporte para docente {teacher_id}: {e}")
+                continue
+
+        self.logger.info(f"Análisis individual por docente completado{sede_suffix}")
+
+    def _create_individual_teacher_report(self, df_data: pd.DataFrame, teacher_id: int, docentes_dir: str, sede: str = None):
+        """Crear reporte individual detallado para un docente específico."""
+        # Filtrar datos del docente
+        df_teacher = df_data[df_data['id_docente'] == teacher_id].copy()
+        if len(df_teacher) == 0:
+            return
+
+        # Obtener información del docente
+        teacher_name = df_teacher['nombre'].iloc[0] if 'nombre' in df_teacher.columns else f'Docente {teacher_id}'
+        teacher_sede = df_teacher['sede'].iloc[0] if 'sede' in df_teacher.columns else 'N/A'
+        # Crear directorio específico para este docente
+        teacher_name_clean = teacher_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+        teacher_dir = os.path.join(docentes_dir, f"{teacher_id}_{teacher_name_clean}")
+        os.makedirs(teacher_dir, exist_ok=True)
+
+        # Calcular métricas generales del docente
+        metrics = self._calculate_teacher_metrics(df_teacher)
+        # Crear reporte completo en una sola imagen
+        self._create_complete_teacher_report(df_teacher, teacher_dir, teacher_name, teacher_sede, metrics, sede)
+        self.logger.info(f"Reporte creado para {teacher_name} (ID: {teacher_id})")
+
+    def _calculate_teacher_metrics(self, df_teacher: pd.DataFrame) -> dict:
+        """Calcular métricas detalladas para un docente."""
+        notas = df_teacher['nota_final']
+        metrics = {
+            'total_calificaciones': len(notas),
+            'promedio': notas.mean(),
+            'mediana': notas.median(),
+            'desviacion_std': notas.std(),
+            'nota_minima': notas.min(),
+            'nota_maxima': notas.max(),
+            'rango': notas.max() - notas.min(),
+            # Categorías según los rangos correctos
+            'notas_bajo': ((notas >= 1) & (notas <= 59)).sum(),
+            'notas_basico': ((notas >= 60) & (notas <= 79)).sum(),
+            'notas_alto': ((notas >= 80) & (notas <= 94)).sum(),
+            'notas_superior': (notas >= 95).sum(),
+            # Porcentajes
+            'porcentaje_notas_bajo': ((notas >= 1) & (notas <= 59)).mean() * 100,
+            'porcentaje_notas_basico': ((notas >= 60) & (notas <= 79)).mean() * 100,
+            'porcentaje_notas_alto': ((notas >= 80) & (notas <= 94)).mean() * 100,
+            'porcentaje_notas_superior': (notas >= 95).mean() * 100,
+            # Métricas adicionales
+            'coeficiente_variacion': (notas.std() / notas.mean()) * 100 if notas.mean() > 0 else 0,
+            'asignaturas_diferentes': df_teacher['id_asignatura'].nunique(),
+            'grados_diferentes': df_teacher['id_grado'].nunique(),
+            # Métricas de Moodle (medianas)
+            'teacher_views_before_planned': df_teacher['num_teacher_views_before_planned_start_date'].median() if 'num_teacher_views_before_planned_start_date' in df_teacher.columns else 0,
+            'teacher_total_updates': df_teacher['teacher_total_updates'].median() if 'teacher_total_updates' in df_teacher.columns else 0,
+            'teacher_total_views': df_teacher['teacher_total_views'].median() if 'teacher_total_views' in df_teacher.columns else 0
+        }
+        # Redondear valores numéricos
+        for key, value in metrics.items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                metrics[key] = round(value, 2)
+        return metrics
+
+    def _create_complete_teacher_report(self, df_teacher: pd.DataFrame, teacher_dir: str, teacher_name: str, teacher_sede: str, metrics: dict, sede: str = None):
+        """Crear reporte completo del docente en una sola imagen."""
+        sede_suffix = f" - {sede}" if sede else ""
+        # Obtener asignaturas únicas del docente
+        unique_subjects = sorted(df_teacher['id_asignatura'].unique())
+        n_subjects = len(unique_subjects)
+        # Calcular dimensiones del grid
+        # Layout: 3 filas x 4 columnas = 12 subplots
+        # Fila 1: Densidad por asignatura (hasta 4 asignaturas)
+        # Fila 2: Métricas principales + Distribución general + Boxplot por asignatura
+        # Fila 3: Porcentajes por categoría + Interpretación de texto
+        fig = plt.figure(figsize=(20, 16))
+        # Crear grid de subplots
+        gs = fig.add_gridspec(3, 4, hspace=0.3, wspace=0.3)
+        # Fila 1: Gráficas de densidad por asignatura-grado (hasta 4 combinaciones)
+        # Obtener todas las combinaciones asignatura-grado del docente
+        subject_grade_combinations = df_teacher.groupby(['id_asignatura', 'id_grado']).size().reset_index()
+        subject_grade_combinations = subject_grade_combinations[subject_grade_combinations[0] >= 2]  # Al menos 2 datos
+        # Ordenar por asignatura y luego por grado
+        subject_grade_combinations = subject_grade_combinations.sort_values(['id_asignatura', 'id_grado'])
+        # Limitar a 4 combinaciones para el layout
+        n_combinations = min(4, len(subject_grade_combinations))
+        colors = self.get_beautiful_palette(n_combinations, 'tab20b')
+        for i in range(4):  # Siempre 4 subplots en la primera fila
+            ax = fig.add_subplot(gs[0, i])
+            if i < n_combinations:
+                # Obtener datos de la combinación
+                subject_id = subject_grade_combinations.iloc[i]['id_asignatura']
+                grade_id = subject_grade_combinations.iloc[i]['id_grado']
+                df_combination = df_teacher[
+                    (df_teacher['id_asignatura'] == subject_id) & 
+                    (df_teacher['id_grado'] == grade_id)
+                ]
+                notas_combination = df_combination['nota_final']
+                # Obtener nombres
+                subject_name = df_combination['nombre_asignatura'].iloc[0] if 'nombre_asignatura' in df_combination.columns else f'Asignatura {subject_id}'
+                if len(notas_combination) > 1:
+                    # Histograma con curva de densidad
+                    if notas_combination.std() > 0:
+                        # Si hay variabilidad, crear histograma normal
+                        ax.hist(notas_combination, bins=min(15, len(notas_combination)//2), density=True, 
+                               alpha=0.7, color=colors[i], edgecolor='black', linewidth=0.5)
+                    else:
+                        # Si no hay variabilidad (todos los valores iguales), mostrar barra única
+                        unique_value = notas_combination.iloc[0]
+                        ax.bar([unique_value], [1.0], width=0.1, alpha=0.7, color=colors[i], edgecolor='black')
+                        ax.set_xlim(unique_value - 5, unique_value + 5)
+                    # Curva de densidad suavizada
+                    from scipy import stats
+                    if len(notas_combination) >= 3 and notas_combination.std() > 0:
+                        try:
+                            kde = stats.gaussian_kde(notas_combination)
+                            x_range = np.linspace(notas_combination.min(), notas_combination.max(), 100)
+                            ax.plot(x_range, kde(x_range), color='red', linewidth=2, label='Densidad')
+                        except np.linalg.LinAlgError:
+                            # Si hay error de matriz singular (datos sin variabilidad), no mostrar KDE
+                            pass
+                    # Líneas de referencia
+                    ax.axvline(notas_combination.mean(), color='blue', linestyle='--', alpha=0.7, label=f'Promedio: {notas_combination.mean():.1f}')
+                    ax.axvline(notas_combination.median(), color='green', linestyle='--', alpha=0.7, label=f'Mediana: {notas_combination.median():.1f}')
+                    # Estadísticas en el gráfico
+                    stats_text = f'n={len(notas_combination)}\nσ={notas_combination.std():.1f}'
+                    ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
+                           verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+                else:
+                    # Si hay muy pocos datos
+                    ax.text(0.5, 0.5, f'Datos insuficientes\n(n={len(notas_combination)})', 
+                           ha='center', va='center', transform=ax.transAxes)
+                    ax.set_xlim(0, 100)
+                    ax.set_ylim(0, 1)
+                # Configurar el subplot
+                # Truncar nombre de asignatura de manera más inteligente
+                if len(subject_name) > 20:
+                    # Truncar por palabras para evitar cortar en medio de una palabra
+                    words = subject_name.split()
+                    truncated_name = ""
+                    for word in words:
+                        if len(truncated_name + " " + word) <= 20:
+                            truncated_name += (" " + word) if truncated_name else word
+                        else:
+                            break
+                    if len(truncated_name) < len(subject_name):
+                        truncated_name += "..."
+                    title = f'{truncated_name}\nGrado {grade_id}'
+                else:
+                    title = f'{subject_name}\nGrado {grade_id}'
+                ax.set_title(title, fontsize=10)
+                ax.set_xlabel('Calificaciones', fontsize=9)
+                ax.set_ylabel('Densidad', fontsize=9)
+                ax.legend(fontsize=7)
+                ax.grid(True, alpha=0.3)
+            else:
+                # Ocultar subplot vacío
+                ax.set_visible(False)
+        # Fila 2: Métricas principales
+        ax1 = fig.add_subplot(gs[1, 0])
+        metric_names = ['Promedio', 'Mediana', 'Mínima', 'Máxima', 'Desv. Estándar']
+        metric_values = [metrics['promedio'], metrics['mediana'], metrics['nota_minima'], 
+                        metrics['nota_maxima'], metrics['desviacion_std']]
+        colors_metrics = ['skyblue', 'lightgreen', 'lightcoral', 'gold', 'orange']
+        bars = ax1.bar(metric_names, metric_values, color=colors_metrics)
+        ax1.set_title('Métricas Principales', fontsize=11)
+        ax1.set_ylabel('Valor')
+        ax1.tick_params(axis='x', rotation=45, labelsize=8)
+        # Agregar valores en las barras
+        for bar, value in zip(bars, metric_values):
+            ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5, 
+                    f'{value:.1f}', ha='center', va='bottom', fontsize=8)
+        # Distribución general de calificaciones
+        ax2 = fig.add_subplot(gs[1, 1])
+        ax2.hist(df_teacher['nota_final'], bins=20, alpha=0.7, color='skyblue', edgecolor='black')
+        ax2.axvline(metrics['promedio'], color='red', linestyle='--', alpha=0.7, label=f'Promedio: {metrics["promedio"]:.1f}')
+        ax2.axvline(metrics['mediana'], color='green', linestyle='--', alpha=0.7, label=f'Mediana: {metrics["mediana"]:.1f}')
+        ax2.set_title('Distribución General', fontsize=11)
+        ax2.set_xlabel('Calificaciones')
+        ax2.set_ylabel('Frecuencia')
+        ax2.legend(fontsize=8)
+        # Boxplot por asignatura
+        ax3 = fig.add_subplot(gs[1, 2])
+        if 'nombre_asignatura' in df_teacher.columns and n_subjects > 0:
+            df_teacher.boxplot(column='nota_final', by='nombre_asignatura', ax=ax3)
+            ax3.set_title('Distribución por Asignatura', fontsize=11)
+            ax3.set_xlabel('Asignatura')
+            ax3.set_ylabel('Calificaciones')
+            ax3.tick_params(axis='x', rotation=45, labelsize=8)
+            # Truncar etiquetas de asignaturas en el eje x
+            labels = [label.get_text() for label in ax3.get_xticklabels()]
+            truncated_labels = []
+            for label in labels:
+                if len(label) > 15:
+                    # Truncar por palabras
+                    words = label.split()
+                    truncated_label = ""
+                    for word in words:
+                        if len(truncated_label + " " + word) <= 15:
+                            truncated_label += (" " + word) if truncated_label else word
+                        else:
+                            break
+                    if len(truncated_label) < len(label):
+                        truncated_label += "..."
+                    truncated_labels.append(truncated_label)
+                else:
+                    truncated_labels.append(label)
+            ax3.set_xticklabels(truncated_labels)
+        else:
+            ax3.text(0.5, 0.5, 'Información de asignaturas no disponible', 
+                    ha='center', va='center', transform=ax3.transAxes)
+            ax3.set_title('Distribución por Asignatura', fontsize=11)
+        # Porcentajes de notas por categoría
+        ax4 = fig.add_subplot(gs[1, 3])
+        categories = ['Bajo\n(1-59)', 'Básico\n(60-79)', 'Alto\n(80-94)', 'Superior\n(95-100)']
+        percentages = [metrics['porcentaje_notas_bajo'], metrics['porcentaje_notas_basico'], 
+                     metrics['porcentaje_notas_alto'], metrics['porcentaje_notas_superior']]
+        colors_pct = ['red', 'orange', 'lightgreen', 'darkgreen']
+        bars4 = ax4.bar(categories, percentages, color=colors_pct)
+        ax4.set_title('Distribución por Categoría', fontsize=11)
+        ax4.set_ylabel('Porcentaje (%)')
+        ax4.tick_params(axis='x', rotation=45, labelsize=8)
+        # Agregar valores en las barras
+        for bar, value in zip(bars4, percentages):
+            ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5, 
+                    f'{value:.1f}%', ha='center', va='bottom', fontsize=8)
+        # Fila 3: Información textual y resumen
+        ax5 = fig.add_subplot(gs[2, :2])
+        ax5.axis('off')
+        # Crear texto con métricas detalladas
+        info_text = f"""INFORMACIÓN DEL DOCENTE
+Nombre: {teacher_name}
+Sede: {teacher_sede}
+Total calificaciones: {metrics['total_calificaciones']}
+Asignaturas diferentes: {metrics['asignaturas_diferentes']}
+Grados diferentes: {metrics['grados_diferentes']}
+
+ESTADÍSTICAS DESCRIPTIVAS
+Promedio: {metrics['promedio']:.2f}    Mediana: {metrics['mediana']:.2f}
+Desviación estándar: {metrics['desviacion_std']:.2f}    Coeficiente de variación: {metrics['coeficiente_variacion']:.2f}%
+Nota mínima: {metrics['nota_minima']:.2f}    Nota máxima: {metrics['nota_maxima']:.2f}
+Rango: {metrics['rango']:.2f}
+
+DISTRIBUCIÓN POR CATEGORÍAS
+Bajo (1-59): {metrics['notas_bajo']} ({metrics['porcentaje_notas_bajo']:.1f}%)
+Básico (60-79): {metrics['notas_basico']} ({metrics['porcentaje_notas_basico']:.1f}%)
+Alto (80-94): {metrics['notas_alto']} ({metrics['porcentaje_notas_alto']:.1f}%)
+Superior (95-100): {metrics['notas_superior']} ({metrics['porcentaje_notas_superior']:.1f}%)
+
+MÉTRICAS DE MOODLE (MEDIANAS)
+Vistas antes de fecha planificada: {metrics['teacher_views_before_planned']:.1f}
+Total de actualizaciones: {metrics['teacher_total_updates']:.1f}
+Total de vistas: {metrics['teacher_total_views']:.1f}"""
+        ax5.text(0.05, 0.95, info_text, transform=ax5.transAxes, fontsize=10, 
+                verticalalignment='top', fontfamily='monospace',
+                bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgray', alpha=0.8))
+        # Interpretación automática
+        ax6 = fig.add_subplot(gs[2, 2:])
+        ax6.axis('off')
+        # Generar interpretación
+        interpretation = "INTERPRETACIÓN DEL COMPORTAMIENTO\n\n"
+        if metrics['promedio'] >= 80:
+            interpretation += "• Promedio alto (≥80): Calificaciones generosas\n"
+        elif metrics['promedio'] >= 60:
+            interpretation += "• Promedio moderado (60-79): Calificaciones equilibradas\n"
+        else:
+            interpretation += "• Promedio bajo (<60): Calificaciones estrictas\n"
+        if metrics['coeficiente_variacion'] < 15:
+            interpretation += "• Baja variabilidad: Calificaciones consistentes\n"
+        elif metrics['coeficiente_variacion'] < 25:
+            interpretation += "• Variabilidad moderada: Calificaciones variables\n"
+        else:
+            interpretation += "• Alta variabilidad: Calificaciones inconsistentes\n"
+        # Análisis por categorías
+        if metrics['porcentaje_notas_superior'] >= 20:
+            interpretation += "• Más del 20% de notas superiores (95-100)\n"
+        elif metrics['porcentaje_notas_alto'] >= 50:
+            interpretation += "• Más del 50% de notas altas (80-94)\n"
+        elif metrics['porcentaje_notas_basico'] >= 50:
+            interpretation += "• Más del 50% de notas básicas (60-79)\n"
+        else:
+            interpretation += "• Predominan las notas bajas (<60)\n"
+        if metrics['porcentaje_notas_bajo'] >= 30:
+            interpretation += "• Más del 30% de notas bajas (1-59)\n"
+        else:
+            interpretation += "• Menos del 30% de notas bajas (1-59)\n"
+        # Agregar fecha
+        interpretation += f"\nAnálisis realizado: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        ax6.text(0.05, 0.95, interpretation, transform=ax6.transAxes, fontsize=10, 
+                verticalalignment='top', fontfamily='monospace',
+                bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.8))
+        # Título general
+        plt.suptitle(f'REPORTE COMPLETO DEL DOCENTE{sede_suffix}\n{teacher_name} - {teacher_sede}', 
+                    fontsize=16, y=0.98)
+        plt.savefig(f"{teacher_dir}/reporte_completo_docente.png", dpi=300, bbox_inches='tight')
+        plt.close()
+
 
     def create_visualizations(self, output_dir: str):
         """Crear todas las visualizaciones."""
@@ -634,6 +953,8 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
             self.create_teacher_grade_boxplots(df_sede, sede_dir, sede)
             self.create_teacher_subject_grade_boxplots(df_sede, sede_dir, sede)
             self.analyze_teacher_grading_patterns(df_sede, sede_dir, sede)
+            # Crear análisis individual por docente para esta sede
+            self.create_individual_teacher_analysis(df_sede, sede_dir, sede)
 
         # Crear visualizaciones generales (todas las sedes juntas)
         self.logger.info("Creando visualizaciones generales...")
