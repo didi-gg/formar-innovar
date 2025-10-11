@@ -376,7 +376,7 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
             teacher_stats_sorted = teacher_stats.sort_values('promedio')
 
         # Crear visualización de patrones de calificación
-        fig, axes = plt.subplots(2, 4, figsize=(32, 12))
+        fig, axes = plt.subplots(2, 5, figsize=(40, 12))
 
         # Preparar etiquetas de docentes con información de sede
         teacher_labels = []
@@ -554,6 +554,123 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
         axes[0, 3].set_xlabel('Promedio de Calificaciones')
         axes[0, 3].set_ylabel('Frecuencia')
         axes[0, 3].legend()
+
+        # 9. Vistas antes de iniciar planificación (solo si hay datos de Moodle)
+        if 'num_teacher_views_before_planned_start_date' in df_data.columns:
+            # Calcular métricas de Moodle por docente
+            moodle_stats = df_data.groupby('id_docente').agg({
+                'num_teacher_views_before_planned_start_date': 'median'
+            }).round(1)
+
+            # Agregar nombres de docentes
+            moodle_stats = moodle_stats.merge(teacher_info[['nombre']], left_index=True, right_index=True, how='left')
+
+            # Ordenar por sede y nombre si es análisis general
+            if sede is None:
+                moodle_stats = moodle_stats.merge(teacher_info[['sede']], left_index=True, right_index=True, how='left', suffixes=('', '_dup'))
+                moodle_stats_sorted = moodle_stats.sort_values(['sede', 'num_teacher_views_before_planned_start_date'], ascending=[True, False])
+            else:
+                moodle_stats_sorted = moodle_stats.sort_values('num_teacher_views_before_planned_start_date', ascending=False)
+
+            # Preparar datos para gráfica con separadores de sede
+            bar_values_9 = []
+            bar_colors_9 = []
+            bar_positions_9 = []
+            current_sede_9 = None
+            position_9 = 0
+
+            for idx, (teacher_id, row) in enumerate(moodle_stats_sorted.iterrows()):
+                if sede is None and current_sede_9 != row.get('sede', ''):
+                    # Agregar separador de sede
+                    teacher_labels.append(f"--- {row.get('sede', '')} ---")
+                    bar_positions_9.append(position_9)
+                    bar_values_9.append(0)
+                    bar_colors_9.append('lightgray')
+                    position_9 += 1
+                    current_sede_9 = row.get('sede', '')
+
+                # Agregar datos del docente
+                name = row['nombre'][:10] + '...' if len(row['nombre']) > 10 else row['nombre']
+                teacher_labels.append(name)
+                bar_positions_9.append(position_9)
+                bar_values_9.append(row['num_teacher_views_before_planned_start_date'])
+                bar_colors_9.append('lightcoral')
+                position_9 += 1
+
+            axes[0, 4].bar(bar_positions_9, bar_values_9, color=bar_colors_9)
+            axes[0, 4].set_title('Vistas Antes de Iniciar Planificación por Docente', fontsize=12)
+            axes[0, 4].set_xlabel('Docentes (agrupados por sede)', fontsize=10)
+            axes[0, 4].set_ylabel('Número de Vistas', fontsize=10)
+            axes[0, 4].set_xticks(range(len(teacher_labels)))
+            axes[0, 4].set_xticklabels(teacher_labels, rotation=45, ha='right', fontsize=8)
+            axes[0, 4].tick_params(axis='x', pad=8)
+        else:
+            axes[0, 4].text(0.5, 0.5, 'Datos de Moodle no disponibles', ha='center', va='center', transform=axes[0, 4].transAxes)
+            axes[0, 4].set_title('Vistas Antes de Iniciar Planificación', fontsize=12)
+
+        # 10. Total de vistas y actualizaciones por docente (dos barras por docente)
+        if 'teacher_total_views' in df_data.columns and 'teacher_total_updates' in df_data.columns:
+            # Calcular métricas de Moodle por docente
+            moodle_stats_2 = df_data.groupby('id_docente').agg({
+                'teacher_total_views': 'median',
+                'teacher_total_updates': 'median'
+            }).round(1)
+
+            # Agregar nombres de docentes
+            moodle_stats_2 = moodle_stats_2.merge(teacher_info[['nombre']], left_index=True, right_index=True, how='left')
+
+            # Ordenar por sede y actividad total si es análisis general
+            if sede is None:
+                moodle_stats_2 = moodle_stats_2.merge(teacher_info[['sede']], left_index=True, right_index=True, how='left', suffixes=('', '_dup'))
+                moodle_stats_2['actividad_total'] = moodle_stats_2['teacher_total_views'] + moodle_stats_2['teacher_total_updates']
+                moodle_stats_2_sorted = moodle_stats_2.sort_values(['sede', 'actividad_total'], ascending=[True, False])
+            else:
+                moodle_stats_2['actividad_total'] = moodle_stats_2['teacher_total_views'] + moodle_stats_2['teacher_total_updates']
+                moodle_stats_2_sorted = moodle_stats_2.sort_values('actividad_total', ascending=False)
+
+            # Preparar datos para gráfica de barras agrupadas con separadores de sede
+            x_positions_10 = []
+            current_sede_10 = None
+            x_pos = 0
+            width = 0.35
+
+            views_data = []
+            updates_data = []
+
+            for idx, (teacher_id, row) in enumerate(moodle_stats_2_sorted.iterrows()):
+                if sede is None and current_sede_10 != row.get('sede', ''):
+                    # Agregar separador de sede
+                    teacher_labels.append(f"--- {row.get('sede', '')} ---")
+                    x_positions_10.append(x_pos)
+                    views_data.append(0)
+                    updates_data.append(0)
+                    x_pos += 1
+                    current_sede_10 = row.get('sede', '')
+
+                # Agregar datos del docente
+                name = row['nombre'][:10] + '...' if len(row['nombre']) > 10 else row['nombre']
+                teacher_labels.append(name)
+                x_positions_10.append(x_pos)
+                views_data.append(row['teacher_total_views'])
+                updates_data.append(row['teacher_total_updates'])
+                x_pos += 1
+
+            x_array = np.arange(len(x_positions_10))
+
+            # Crear barras agrupadas
+            axes[1, 4].bar(x_array - width/2, views_data, width, label='Total Vistas', color='lightblue', alpha=0.8)
+            axes[1, 4].bar(x_array + width/2, updates_data, width, label='Total Actualizaciones', color='lightgreen', alpha=0.8)
+
+            axes[1, 4].set_title('Total de Vistas y Actualizaciones por Docente', fontsize=12)
+            axes[1, 4].set_xlabel('Docentes (agrupados por sede)', fontsize=10)
+            axes[1, 4].set_ylabel('Número de Eventos', fontsize=10)
+            axes[1, 4].set_xticks(x_array)
+            axes[1, 4].set_xticklabels(teacher_labels, rotation=45, ha='right', fontsize=8)
+            axes[1, 4].tick_params(axis='x', pad=8)
+            axes[1, 4].legend(fontsize=9)
+        else:
+            axes[1, 4].text(0.5, 0.5, 'Datos de Moodle no disponibles', ha='center', va='center', transform=axes[1, 4].transAxes)
+            axes[1, 4].set_title('Total de Vistas y Actualizaciones', fontsize=12)
 
         plt.suptitle(f'Análisis de Patrones de Calificación de Docentes{sede_suffix}', fontsize=16, y=0.95)
         plt.tight_layout(rect=[0, 0, 1, 0.93])
@@ -963,7 +1080,6 @@ Total de vistas: {metrics['teacher_total_views']:.1f}"""
         self.create_teacher_grade_boxplots(self.df_merged, output_dir)
         self.create_teacher_subject_grade_boxplots(self.df_merged, output_dir)
         self.analyze_teacher_grading_patterns(self.df_merged, output_dir)
-
 
     def run_analysis(self):
         """Ejecutar análisis completo."""
