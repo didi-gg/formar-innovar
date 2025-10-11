@@ -51,8 +51,8 @@ class FullShortDatasetProcessor(DatasetProcessorBase):
 
     def _process_moodle_subjects(self, combined_df, student_logins_df, courses_base_df, courses_df, 
                                 student_interactions_df, teachers_df, sequence_analysis_df):
-        """Procesa asignaturas con Moodle usando INNER JOIN para dataset completo sin nulos"""
-        self.logger.info("=== PROCESANDO ASIGNATURAS CON MOODLE (INNER JOINS) ===")
+        """Procesa asignaturas con Moodle usando LEFT JOIN para mantener todos los registros"""
+        self.logger.info("=== PROCESANDO ASIGNATURAS CON MOODLE (LEFT JOINS) ===")
 
         # Filtrar solo asignaturas Moodle (1, 2, 3, 4)
         moodle_df = combined_df[combined_df['id_asignatura'].isin([1, 2, 3, 4])].copy()
@@ -61,12 +61,12 @@ class FullShortDatasetProcessor(DatasetProcessorBase):
         # Obtener definiciones de llaves comunes
         key_cols = self._get_key_columns_definitions()
 
-        # Realizar uniones con INNER JOIN
-        moodle_df = self._merge_with_analysis(moodle_df, student_logins_df, key_cols['student_period'], "logins de estudiantes", how='inner')
-        moodle_df = self._merge_with_analysis(moodle_df, courses_base_df, key_cols['course'], "cursos base", how='inner')
-        moodle_df = self._merge_with_analysis(moodle_df, teachers_df, key_cols['teachers'], "teachers featured", how='inner')
-        moodle_df = self._merge_courses_with_analysis(moodle_df, courses_df, key_cols['course'], how='inner')
-        moodle_df = self._merge_with_analysis(moodle_df, student_interactions_df, key_cols['student_course_interaction'], "interacciones de estudiantes", how='inner')
+        # Realizar uniones con LEFT JOIN
+        moodle_df = self._merge_with_analysis(moodle_df, student_logins_df, key_cols['student_period'], "logins de estudiantes", how='left')
+        moodle_df = self._merge_with_analysis(moodle_df, courses_base_df, key_cols['course'], "cursos base", how='left')
+        moodle_df = self._merge_with_analysis(moodle_df, teachers_df, key_cols['teachers'], "teachers featured", how='left')
+        moodle_df = self._merge_courses_with_analysis(moodle_df, courses_df, key_cols['course'], how='left')
+        moodle_df = self._merge_with_analysis(moodle_df, student_interactions_df, key_cols['student_course_interaction'], "interacciones de estudiantes", how='left')
         moodle_df = self._merge_with_analysis(moodle_df, sequence_analysis_df, key_cols['sequence_analysis'], "análisis de secuencias", how='inner')
 
         # Guardar dataset Moodle
@@ -103,16 +103,16 @@ class FullShortDatasetProcessor(DatasetProcessorBase):
     def process_full_dataset(self):
         """
         Combina todos los datasets usando enrollments.csv como base
-        Procesamiento diferenciado:
-        - Asignaturas Moodle (1,2,3,4): INNER JOINS para dataset completo sin nulos
-        - Asignaturas no Moodle: LEFT JOINS para mantener todos los registros
+        Estrategia de uniones:
+        - Dataset base: INNER JOINS (enrollments + estudiantes + calificaciones)
+        - Datos adicionales: LEFT JOINS para mantener todos los registros y agregar información cuando exista
 
         1. enrollments.csv (base)
-        2. estudiantes_clean.csv (por documento_identificación + sede)
-        3. calificaciones (por documento_identificación + sede + year + id_grado, expandirá por períodos)
-        4. Procesamiento diferenciado por tipo de asignatura
+        2. estudiantes_clean.csv (por documento_identificación + sede) - INNER JOIN
+        3. calificaciones (por documento_identificación + sede + year + id_grado, expandirá por períodos) - INNER JOIN
+        4. Datos adicionales (logins, courses, teachers, interactions, etc.) - LEFT JOINS
         """
-        self.logger.info("Iniciando procesamiento del dataset completo con estrategia diferenciada...")
+        self.logger.info("Iniciando procesamiento del dataset completo con LEFT JOINS para datos adicionales...")
 
         # Cargar todos los datasets
         enrollments_df = self._load_and_prepare_enrollments()
@@ -146,9 +146,6 @@ class FullShortDatasetProcessor(DatasetProcessorBase):
         combined_df = self._calculate_student_age_in_months(combined_df)
 
         # Procesamiento diferenciado por tipo de asignatura
-        self.logger.info("=== PROCESAMIENTO DIFERENCIADO POR TIPO DE ASIGNATURA ===")
-
-        # Procesar asignaturas Moodle con INNER JOIN
         df_moodle = self._process_moodle_subjects(
             combined_df, student_logins_df, courses_base_df, courses_df, 
             student_interactions_df, teachers_df, sequence_analysis_df
