@@ -104,7 +104,7 @@ class EDAAnalysisBase(BaseScript, ABC):
         'std_interactions_per_module',
         'max_interactions_in_a_module',
         'avg_interactions_per_module',
-        
+
     ]
 
     # Variables numéricas conocidas
@@ -221,11 +221,11 @@ class EDAAnalysisBase(BaseScript, ABC):
     def get_beautiful_palette(self, n_colors, palette_name='plasma'):
         """
         Obtener una paleta de colores bonita.
-        
+
         Args:
             n_colors (int): Número de colores necesarios
             palette_name (str): Nombre de la paleta ('plasma', 'viridis', 'inferno', 'magma', 'turbo', 'tab10', 'tab20', 'tab20b', 'tab20c', 'Set2', 'Set3')
-        
+
         Returns:
             list: Lista de colores
         """
@@ -244,7 +244,7 @@ class EDAAnalysisBase(BaseScript, ABC):
             'rainbow': plt.cm.rainbow,
             'hsv': plt.cm.hsv
         }
-        
+
         if palette_name in palette_options:
             return palette_options[palette_name](np.linspace(0, 1, n_colors))
         else:
