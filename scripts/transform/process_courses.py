@@ -15,20 +15,29 @@ class CoursesProcessor(BaseScript):
         Crea una columna 'sequence' con los module_unique_id separados por comas
         y ordenados por la columna 'order' para cada agrupamiento de curso.
 
+        Para el año 2025, solo incluye módulos de la plataforma Edukrea.
+
         Args:
-            df: DataFrame con las columnas module_unique_id, order y las columnas de agrupamiento
+            df: DataFrame con las columnas module_unique_id, order, year, platform y las columnas de agrupamiento
 
         Returns:
             DataFrame con la columna sequence agregada al agrupamiento
         """
         # Crear una copia para evitar modificar el original
         df_copy = df.copy()
+
+        # Filtrar solo módulos de Edukrea para el año 2025
+        df_filtered = df_copy[
+            (df_copy["year"] != 2025) | 
+            ((df_copy["year"] == 2025) & (df_copy["platform"] == "edukrea"))
+        ]
+
         # Ordenar por orden dentro de cada grupo
-        df_copy = df_copy.sort_values(["id_asignatura", "id_grado", "year", "period", "sede", "order"])
+        df_filtered = df_filtered.sort_values(["id_asignatura", "id_grado", "year", "period", "sede", "order"])
 
         # Agrupar y crear la secuencia
         sequence_df = (
-            df_copy.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
+            df_filtered.groupby(["id_asignatura", "id_grado", "year", "period", "sede"])
             .agg(sequence=("module_unique_id", lambda x: ",".join(x.astype(str))))
             .reset_index()
         )
