@@ -192,10 +192,12 @@ class StudentCourseInteractionsProcessor(BaseScript):
             metrics['iqr_views'] = round(q75 - q25, 2)
 
             # Asimetría (skewness)
-            metrics['skew_views'] = round(stats.skew(views), 4)
+            skew_value = stats.skew(views)
+            metrics['skew_views'] = round(skew_value, 4) if not np.isnan(skew_value) else 0
 
             # Curtosis
-            metrics['kurtosis_views'] = round(stats.kurtosis(views), 4)
+            kurtosis_value = stats.kurtosis(views)
+            metrics['kurtosis_views'] = round(kurtosis_value, 4) if not np.isnan(kurtosis_value) else 0
         else:
             metrics['iqr_views'] = 0
             metrics['skew_views'] = 0
