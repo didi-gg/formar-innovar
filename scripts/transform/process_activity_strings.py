@@ -44,7 +44,7 @@ class StudentCourseActivityStringsProcessor(BaseScript):
         except Exception as e:
             self.logger.error(f"Error al cargar los logs de módulos: {str(e)}")
             raise
-    
+
     def _load_module_mapping(self):
         """
         Carga el mapeo de course_module_id a module_unique_id desde modules_active.csv
@@ -57,7 +57,7 @@ class StudentCourseActivityStringsProcessor(BaseScript):
         except Exception as e:
             self.logger.error(f"Error al cargar el mapeo de módulos: {str(e)}")
             raise
-    
+
     def _generate_activity_sequences(self, logs_df, modules_df, student_courses_df):
         """
         Genera secuencias de actividades cronológicas por estudiante-curso-período-año
@@ -66,7 +66,7 @@ class StudentCourseActivityStringsProcessor(BaseScript):
         if not logs_df.empty:
             # Convertir timestamp a datetime
             logs_df['access_datetime'] = pd.to_datetime(logs_df['timecreated'], unit='s')
-            
+
             # Merge con información de módulos para obtener período y week
             logs_with_modules = logs_df.merge(
                 modules_df[['course_module_id', 'module_unique_id', 'period', 'week']], 
@@ -76,13 +76,13 @@ class StudentCourseActivityStringsProcessor(BaseScript):
 
             # Filtrar solo logs que tienen module_unique_id (módulos válidos)
             logs_with_modules = logs_with_modules.dropna(subset=['module_unique_id'])
-            
+
             if not logs_with_modules.empty:
                 # Ordenar por estudiante, curso, período y tiempo de acceso
                 logs_with_modules = logs_with_modules.sort_values([
                     'documento_identificación', 'courseid', 'year', 'period', 'access_datetime'
                 ])
-                
+
                 # Remover accesos duplicados del mismo estudiante al mismo módulo el mismo día
                 logs_with_modules['access_date'] = logs_with_modules['access_datetime'].dt.date
                 logs_unique = logs_with_modules.drop_duplicates(
@@ -102,7 +102,7 @@ class StudentCourseActivityStringsProcessor(BaseScript):
                     })
                     .reset_index()
                 )
-                
+
                 # Aplanar nombres de columnas
                 sequences_with_activity.columns = [
                     'documento_identificación', 'id_asignatura', 'id_grado', 'sede', 'year', 'period',
@@ -129,7 +129,7 @@ class StudentCourseActivityStringsProcessor(BaseScript):
             period_base = base_asignaturas.copy()
             period_base['period'] = period
             base_periods.append(period_base)
-        
+
         complete_base = pd.concat(base_periods, ignore_index=True)
 
         # Asegurar tipos de datos consistentes para el merge
@@ -175,7 +175,7 @@ class StudentCourseActivityStringsProcessor(BaseScript):
         # Cargar mapeo de módulos
         self.logger.info("Cargando mapeo de módulos...")
         module_mapping, modules_df = self._load_module_mapping()
-        
+
         # Cargar base de estudiantes-cursos
         self.logger.info("Cargando base de estudiantes-cursos...")
         student_courses_df = pd.read_csv(student_courses_file)
@@ -206,7 +206,7 @@ class StudentCourseActivityStringsProcessor(BaseScript):
         # Guardar resultado
         output_file = "data/interim/moodle/student_activity_sequences.csv"
         self.save_to_csv(activity_sequences, output_file)
-        
+
         self.logger.info(f"Secuencias de actividades generadas: {len(activity_sequences)} registros")
         self.logger.info(f"Estudiantes únicos: {activity_sequences['documento_identificación'].nunique()}")
         self.logger.info(f"Asignaturas únicas: {activity_sequences['id_asignatura'].nunique()}")
@@ -216,7 +216,7 @@ class StudentCourseActivityStringsProcessor(BaseScript):
         moodle_only = (activity_sequences['platforms_used'] == 'moodle').sum()
         edukrea_only = (activity_sequences['platforms_used'] == 'edukrea').sum()
         both_platforms = (activity_sequences['platforms_used'].str.contains(',', na=False)).sum()
-        
+
         self.logger.info(f"Solo Moodle: {moodle_only}")
         self.logger.info(f"Solo Edukrea: {edukrea_only}")
         self.logger.info(f"Ambas plataformas: {both_platforms}")
