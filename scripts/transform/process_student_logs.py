@@ -26,6 +26,9 @@ class StudentLoginProcessor(BaseScript):
                 logs.timecreated,
                 logs.origin,
                 logs.ip,
+                student_courses.sede,
+                student_courses.id_asignatura,
+                student_courses.id_grado,
                 '{platform}' AS platform
             FROM '{logs_parquet}' AS logs
             INNER JOIN '{student_courses_file}' AS student_courses ON student_courses.course_id = logs.courseid AND student_courses.moodle_user_id = logs.userid AND student_courses.platform = '{platform}'
@@ -43,7 +46,7 @@ class StudentLoginProcessor(BaseScript):
     def process_student_logs(self):
         student_courses_file = "data/interim/moodle/student_courses.csv"
         logs_table = "logstore_standard_log"
-
+        
         # Get logs for 2024
         year = 2024
         logs_parquet = MoodlePathResolver.get_paths(year, logs_table)[0]
