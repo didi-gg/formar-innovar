@@ -519,6 +519,57 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         self.results['grade_behavior'] = grade_behavior
         return grade_behavior
 
+    def analyze_sequence_patterns(self):
+        """Analiza los patrones de navegación por secuencias."""
+        self.logger.info("Analizando patrones de secuencia de navegación...")
+
+        # Filtrar solo asignaturas 1, 2, 3, 4
+        asignaturas_filtradas = [1, 2, 3, 4]
+
+        sequence_data = self.sequence_features_df[
+            self.sequence_features_df['id_asignatura'].isin(asignaturas_filtradas)
+        ].copy()
+
+        # Calcular métricas por asignatura, grado y sede
+        sequence_metrics = (
+            sequence_data.groupby(['id_asignatura', 'id_grado', 'sede'], as_index=False)
+            .agg({
+                'sequence_match_ratio': 'median',  # Mediana de adherencia a la secuencia
+                'levenshtein_normalized': 'median',  # Mediana de distancia normalizada
+                'correct_order_ratio': 'median',  # Mediana de orden correcto
+                'missing_activities': 'median',  # Mediana de actividades faltantes
+                'extra_activities': 'median',  # Mediana de actividades extras
+                'documento_identificación': 'nunique'  # Total de estudiantes
+            })
+            .rename(columns={
+                'documento_identificación': 'total_estudiantes'
+            })
+        )
+
+        # Convertir de decimal a porcentaje (0-100)
+        sequence_metrics['sequence_match_ratio'] = (sequence_metrics['sequence_match_ratio'] * 100).round(1)
+        sequence_metrics['levenshtein_normalized'] = (sequence_metrics['levenshtein_normalized'] * 100).round(1)
+        sequence_metrics['correct_order_ratio'] = (sequence_metrics['correct_order_ratio'] * 100).round(1)
+
+        self.logger.info(f"Total de combinaciones asignatura-grado-sede analizadas: {len(sequence_metrics)}")
+
+        # Log por sede
+        for sede in sequence_metrics['sede'].unique():
+            sede_data = sequence_metrics[sequence_metrics['sede'] == sede]
+            avg_match = sede_data['sequence_match_ratio'].mean()
+            avg_distance = sede_data['levenshtein_normalized'].mean()
+            total_students = sede_data['total_estudiantes'].sum()
+
+            self.logger.info(
+                f"Sede {sede}: {len(sede_data)} combinaciones | "
+                f"Adherencia promedio: {avg_match:.1f}% | "
+                f"Distancia promedio: {avg_distance:.1f}% | "
+                f"Total estudiantes: {int(total_students)}"
+            )
+
+        self.results['sequence_metrics'] = sequence_metrics
+        return sequence_metrics
+
     def plot_monthly_accesses_by_sede(self):
         """Genera gráfico de barras de accesos mensuales por sede."""
         self.logger.info("Generando gráfico de accesos mensuales por sede...")
@@ -1106,6 +1157,163 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         return output_paths
 
+    def plot_sequence_patterns_heatmaps(self):
+        """Genera heatmaps de patrones de secuencia por sede."""
+        self.logger.info("Generando heatmaps de patrones de secuencia...")
+
+        sequence_metrics = self.results['sequence_metrics']
+
+        # Filtrar solo asignaturas 1, 2, 3, 4
+        asignaturas_filtradas = [1, 2, 3, 4]
+
+        # Obtener sedes únicas
+        sedes = sorted(sequence_metrics['sede'].unique())
+
+        output_paths = []
+
+        for sede in sedes:
+            self.logger.info(f"Generando heatmaps de secuencia para sede: {sede}")
+
+            # Filtrar datos de la sede
+            sede_data = sequence_metrics[sequence_metrics['sede'] == sede].copy()
+
+            if len(sede_data) == 0:
+                continue
+
+            # Crear figura con 3 heatmaps
+            fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20, 8))
+
+            # === HEATMAP 1: ADHERENCIA A LA SECUENCIA (sequence_match_ratio) ===
+            pivot_match = sede_data.pivot_table(
+                index='id_grado',
+                columns='id_asignatura',
+                values='sequence_match_ratio',
+                aggfunc='median'
+            )
+
+            # Asegurar que tenemos las 4 asignaturas
+            for asig in asignaturas_filtradas:
+                if asig not in pivot_match.columns:
+                    pivot_match[asig] = np.nan
+
+            pivot_match = pivot_match[asignaturas_filtradas]
+            pivot_match = pivot_match.sort_index()
+
+            sns.heatmap(
+                pivot_match,
+                annot=True,
+                fmt='.1f',
+                cmap='RdYlGn',
+                vmin=0,
+                vmax=100,
+                cbar_kws={'label': '% Adherencia'},
+                linewidths=0.5,
+                linecolor='gray',
+                ax=ax1,
+                square=True
+            )
+
+            ax1.set_title('Adherencia a la Secuencia Ideal\n(Sequence Match Ratio)', 
+                         fontsize=12, fontweight='bold')
+            ax1.set_xlabel('Asignatura', fontsize=10, fontweight='bold')
+            ax1.set_ylabel('Grado', fontsize=10, fontweight='bold')
+            ax1.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_match.columns], 
+                               rotation=45, ha='right', fontsize=9)
+            ax1.set_yticklabels([f'Grado {int(y)}' for y in pivot_match.index], 
+                               rotation=0, fontsize=9)
+
+            # === HEATMAP 2: DISTANCIA DE NAVEGACIÓN (levenshtein_normalized) ===
+            pivot_distance = sede_data.pivot_table(
+                index='id_grado',
+                columns='id_asignatura',
+                values='levenshtein_normalized',
+                aggfunc='median'
+            )
+
+            for asig in asignaturas_filtradas:
+                if asig not in pivot_distance.columns:
+                    pivot_distance[asig] = np.nan
+
+            pivot_distance = pivot_distance[asignaturas_filtradas]
+            pivot_distance = pivot_distance.sort_index()
+
+            sns.heatmap(
+                pivot_distance,
+                annot=True,
+                fmt='.1f',
+                cmap='RdYlGn_r',  # Invertido: bajo es bueno
+                vmin=0,
+                vmax=100,
+                cbar_kws={'label': '% Distancia'},
+                linewidths=0.5,
+                linecolor='gray',
+                ax=ax2,
+                square=True
+            )
+
+            ax2.set_title('Distancia de la Secuencia Ideal\n(Levenshtein Normalizado)', 
+                         fontsize=12, fontweight='bold')
+            ax2.set_xlabel('Asignatura', fontsize=10, fontweight='bold')
+            ax2.set_ylabel('Grado', fontsize=10, fontweight='bold')
+            ax2.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_distance.columns], 
+                               rotation=45, ha='right', fontsize=9)
+            ax2.set_yticklabels([f'Grado {int(y)}' for y in pivot_distance.index], 
+                               rotation=0, fontsize=9)
+
+            # === HEATMAP 3: ACTIVIDADES FALTANTES (missing_activities) ===
+            pivot_missing = sede_data.pivot_table(
+                index='id_grado',
+                columns='id_asignatura',
+                values='missing_activities',
+                aggfunc='median'
+            )
+
+            for asig in asignaturas_filtradas:
+                if asig not in pivot_missing.columns:
+                    pivot_missing[asig] = np.nan
+
+            pivot_missing = pivot_missing[asignaturas_filtradas]
+            pivot_missing = pivot_missing.sort_index()
+
+            sns.heatmap(
+                pivot_missing,
+                annot=True,
+                fmt='.0f',
+                cmap='YlOrRd',
+                cbar_kws={'label': 'N° Actividades'},
+                linewidths=0.5,
+                linecolor='gray',
+                ax=ax3,
+                square=True
+            )
+
+            ax3.set_title('Actividades Faltantes\n(Missing Activities)', 
+                         fontsize=12, fontweight='bold')
+            ax3.set_xlabel('Asignatura', fontsize=10, fontweight='bold')
+            ax3.set_ylabel('Grado', fontsize=10, fontweight='bold')
+            ax3.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_missing.columns], 
+                               rotation=45, ha='right', fontsize=9)
+            ax3.set_yticklabels([f'Grado {int(y)}' for y in pivot_missing.index], 
+                               rotation=0, fontsize=9)
+
+            # Título general
+            fig.suptitle(f'Patrones de Navegación en Secuencias de Actividades - Sede: {sede}',
+                        fontsize=14, fontweight='bold', y=0.98)
+
+
+            plt.tight_layout(rect=[0, 0.02, 1, 0.96])
+
+            # Guardar
+            sede_safe = sede.replace(' ', '_').replace('/', '_')
+            output_path = f'{self.results_path}/sequence_patterns_{sede_safe}.png'
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            plt.close()
+
+            output_paths.append(output_path)
+            self.logger.info(f"✅ Heatmaps de secuencia guardados: {output_path}")
+
+        return output_paths
+
     def plot_grades_without_moodle_access(self):
         """Analiza las calificaciones de estudiantes que NO accedieron a Moodle vs los que SÍ accedieron."""
         self.logger.info("Analizando calificaciones de estudiantes sin acceso a Moodle...")
@@ -1395,16 +1603,20 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             # 8. Análisis por grado
             self.analyze_behavior_by_grade()
 
-            # 9. Generar gráficos
+            # 9. Análisis de patrones de secuencia
+            self.analyze_sequence_patterns()
+
+            # 10. Generar gráficos
             self.logger.info("Generando gráficos...")
             self.plot_monthly_accesses_by_sede()
             self.plot_unique_students_by_month_sede()
             self.plot_hourly_patterns()
             self.plot_course_participation_rate()
             self.plot_participation_diagnostic()  # Gráfica de diagnóstico
+            self.plot_sequence_patterns_heatmaps()  # Patrones de secuencia
             self.plot_grades_without_moodle_access()  # Calificaciones sin acceso a Moodle
 
-            # 8. Generar resumen
+            # 11. Generar resumen
             self.generate_summary_statistics()
 
             self.logger.info("=" * 60)
