@@ -94,12 +94,10 @@ Análisis de la distribución de accesos y estudiantes únicos por hora del día
 ### Visualizaciones
 
 #### Sede: Fusagasugá
-![Heatmap Vistas - Fusagasugá](heatmap_vistas_Fusagasugá.png)
-![Heatmap Participación - Fusagasugá](heatmap_participacion_Fusagasugá.png)
+![Heatmap - Fusagasugá](heatmap_moodle_Fusagasugá.png)
 
 #### Sede: Girardot
-![Heatmap Vistas - Girardot](heatmap_vistas_Girardot.png)
-![Heatmap Participación - Girardot](heatmap_participacion_Girardot.png)
+![Heatmap - Girardot](heatmap_moodle_Girardot.png)
 
 ### Descripción
 

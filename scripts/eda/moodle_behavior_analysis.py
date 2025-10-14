@@ -801,7 +801,9 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 course_participation_filtered['sede'] == sede
             ].copy()
 
-            # === MAPA 1: % DE MÓDULOS VISTOS ===
+            # === PREPARAR DATOS PARA AMBOS HEATMAPS ===
+            
+            # MAPA 1: % DE MÓDULOS VISTOS
             pivot_vistas = sede_data.pivot_table(
                 index='id_grado',
                 columns='id_asignatura',
@@ -817,41 +819,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             pivot_vistas = pivot_vistas[asignaturas_filtradas]
             pivot_vistas = pivot_vistas.sort_index()
 
-            # Crear figura para vistas
-            fig, ax = plt.subplots(figsize=(14, 10))
-
-            sns.heatmap(
-                pivot_vistas,
-                annot=True,
-                fmt='.1f',
-                cmap='RdYlGn',
-                vmin=0,
-                vmax=100,
-                cbar_kws={'label': 'Mediana % Módulos Vistos', 'shrink': 0.8},
-                linewidths=0.5,
-                linecolor='gray',
-                ax=ax,
-                square=True
-            )
-
-            ax.set_title(f'Mediana de % de Módulos Vistos en Moodle\nAsignatura por Grado - Sede: {sede}',
-                        fontsize=16, fontweight='bold', pad=20)
-            ax.set_xlabel('Asignatura', fontsize=14, fontweight='bold')
-            ax.set_ylabel('Grado', fontsize=14, fontweight='bold')
-
-            ax.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_vistas.columns], rotation=45, ha='right')
-            ax.set_yticklabels([f'Grado {int(y)}' for y in pivot_vistas.index], rotation=0)
-
-            plt.tight_layout(rect=[0, 0.03, 1, 1])
-
-            sede_safe = sede.replace(' ', '_').replace('/', '_')
-            output_path_vistas = f'{self.results_path}/heatmap_vistas_{sede_safe}.png'
-            plt.savefig(output_path_vistas, dpi=300, bbox_inches='tight')
-            plt.close()
-
-            output_paths.append(output_path_vistas)
-
-            # === MAPA 2: % DE PARTICIPACIÓN EN ACTIVIDADES ===
+            # MAPA 2: % DE PARTICIPACIÓN EN ACTIVIDADES
             pivot_participacion = sede_data.pivot_table(
                 index='id_grado',
                 columns='id_asignatura',
@@ -867,9 +835,34 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             pivot_participacion = pivot_participacion[asignaturas_filtradas]
             pivot_participacion = pivot_participacion.sort_index()
 
-            # Crear figura para participación
-            fig, ax = plt.subplots(figsize=(14, 10))
+            # === CREAR FIGURA COMBINADA CON AMBOS HEATMAPS ===
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 10))
 
+            # Heatmap de Vistas (izquierda)
+            sns.heatmap(
+                pivot_vistas,
+                annot=True,
+                fmt='.1f',
+                cmap='RdYlGn',
+                vmin=0,
+                vmax=100,
+                cbar_kws={'label': 'Mediana % Módulos Vistos', 'shrink': 0.8},
+                linewidths=0.5,
+                linecolor='gray',
+                ax=ax1,
+                square=True
+            )
+
+            ax1.set_title(f'Mediana de % de Módulos Vistos\nAsignatura por Grado',
+                         fontsize=14, fontweight='bold', pad=15)
+            ax1.set_xlabel('Asignatura', fontsize=12, fontweight='bold')
+            ax1.set_ylabel('Grado', fontsize=12, fontweight='bold')
+            ax1.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_vistas.columns], 
+                               rotation=45, ha='right', fontsize=11)
+            ax1.set_yticklabels([f'Grado {int(y)}' for y in pivot_vistas.index], 
+                               rotation=0, fontsize=11)
+
+            # Heatmap de Participación (derecha)
             sns.heatmap(
                 pivot_participacion,
                 annot=True,
@@ -880,25 +873,32 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 cbar_kws={'label': 'Mediana % Módulos con Participación', 'shrink': 0.8},
                 linewidths=0.5,
                 linecolor='gray',
-                ax=ax,
+                ax=ax2,
                 square=True
             )
 
-            ax.set_title(f'Mediana de % de Módulos con Participación Activa en Moodle\nAsignatura por Grado - Sede: {sede}',
-                        fontsize=16, fontweight='bold', pad=20)
-            ax.set_xlabel('Asignatura', fontsize=14, fontweight='bold')
-            ax.set_ylabel('Grado', fontsize=14, fontweight='bold')
+            ax2.set_title(f'Mediana de % de Módulos con Participación Activa\nAsignatura por Grado',
+                         fontsize=14, fontweight='bold', pad=15)
+            ax2.set_xlabel('Asignatura', fontsize=12, fontweight='bold')
+            ax2.set_ylabel('Grado', fontsize=12, fontweight='bold')
+            ax2.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_participacion.columns], 
+                               rotation=45, ha='right', fontsize=11)
+            ax2.set_yticklabels([f'Grado {int(y)}' for y in pivot_participacion.index], 
+                               rotation=0, fontsize=11)
 
-            ax.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_participacion.columns], rotation=45, ha='right')
-            ax.set_yticklabels([f'Grado {int(y)}' for y in pivot_participacion.index], rotation=0)
+            # Título general de la figura
+            fig.suptitle(f'Análisis de Participación en Moodle - Sede: {sede}',
+                        fontsize=16, fontweight='bold', y=0.98)
 
-            plt.tight_layout(rect=[0, 0.03, 1, 1])
+            plt.tight_layout(rect=[0, 0.03, 1, 0.96])
 
-            output_path_participacion = f'{self.results_path}/heatmap_participacion_{sede_safe}.png'
-            plt.savefig(output_path_participacion, dpi=300, bbox_inches='tight')
+            # Guardar imagen combinada
+            sede_safe = sede.replace(' ', '_').replace('/', '_')
+            output_path_combined = f'{self.results_path}/heatmap_moodle_{sede_safe}.png'
+            plt.savefig(output_path_combined, dpi=300, bbox_inches='tight')
             plt.close()
 
-            output_paths.append(output_path_participacion)
+            output_paths.append(output_path_combined)
 
         return output_paths
 
@@ -1521,7 +1521,7 @@ def main():
                        default='data/interim/moodle',
                        help='Ruta al directorio de datasets de Moodle')
     parser.add_argument('--results', '-r', type=str, 
-                       default='moodle_behavior_analysis',
+                       default='eda_analysis_moodle_behavior',
                        help='Nombre del folder para guardar resultados')
 
     args = parser.parse_args()
