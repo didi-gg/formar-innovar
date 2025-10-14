@@ -62,7 +62,9 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             'student_logs': f'{base_path}/student_logs.csv',
             'modules_active': f'{base_path}/modules_active.csv',
             'sequence_features': f'{base_path}/sequence_analysis_features.csv',
-            'activity_sequences': f'{base_path}/student_activity_sequences.csv'
+            'activity_sequences': f'{base_path}/student_activity_sequences.csv',
+            'enrollments': f'{base_path}/../estudiantes/enrollments.csv',
+            'asignaturas': f'data/raw/tablas_maestras/asignaturas.csv'
         }
 
         # Verificar que existan los archivos
@@ -71,14 +73,12 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 raise FileNotFoundError(f"No se encontró el dataset {name} en: {path}")
 
         # Cargar datasets con optimizaciones de memoria
-        self.logger.info("Cargando student_course_interactions.csv...")
         self.student_interactions_df = pd.read_csv(
             datasets['student_interactions'], 
             dtype={'year': 'int16', 'period': 'int8', 'id_grado': 'int8'},
             low_memory=False
         )
 
-        self.logger.info("Cargando student_logs.csv...")
         # Para logs, solo cargar columnas necesarias para reducir memoria
         logs_columns = ['year', 'documento_identificación', 'courseid', 'timecreated', 'eventname', 'component', 'id_asignatura', 'id_grado', 'sede']
         self.student_logs_df = pd.read_csv(
@@ -88,59 +88,32 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             low_memory=False
         )
 
-        self.logger.info("Cargando modules_active.csv...")
         self.modules_active_df = pd.read_csv(
             datasets['modules_active'],
             dtype={'year': 'int16', 'period': 'int8', 'id_grado': 'int8'},
             low_memory=False
         )
 
-        self.logger.info("Cargando sequence_analysis_features.csv...")
         self.sequence_features_df = pd.read_csv(
             datasets['sequence_features'],
             dtype={'year': 'int16', 'period': 'float32', 'id_grado': 'int8'},
             low_memory=False
         )
 
-        self.logger.info("Cargando student_activity_sequences.csv...")
         self.activity_sequences_df = pd.read_csv(
             datasets['activity_sequences'],
             dtype={'year': 'int16', 'period': 'float32', 'id_grado': 'int8'},
             low_memory=False
         )
 
-        # Cargar datos de inscripciones
-        enrollments_path = f'{base_path}/../estudiantes/enrollments.csv'
-        if os.path.exists(enrollments_path):
-            self.logger.info("Cargando enrollments.csv...")
-            self.enrollments_df = pd.read_csv(
-                enrollments_path,
-                dtype={'year': 'int16', 'id_grado': 'int8'},
-                low_memory=False
-            )
-            self.logger.info(f"Enrollments: {self.enrollments_df.shape[0]:,} registros")
-        else:
-            self.logger.warning(f"No se encontró el archivo de inscripciones: {enrollments_path}")
-            self.enrollments_df = None
+        self.enrollments_df = pd.read_csv(
+            datasets['enrollments'],
+            dtype={'year': 'int16', 'id_grado': 'int8'},
+            low_memory=False
+        )
 
-        # Cargar mapeo de nombres de asignaturas
-        asignaturas_path = 'data/raw/tablas_maestras/asignaturas.csv'
-        if os.path.exists(asignaturas_path):
-            self.logger.info("Cargando mapeo de asignaturas...")
-            asignaturas_df = pd.read_csv(asignaturas_path)
-            # Crear diccionario id -> nombre
-            self.asignaturas_map = dict(zip(asignaturas_df['id_asignatura'], asignaturas_df['nombre']))
-            self.logger.info(f"Mapeo de asignaturas cargado: {len(self.asignaturas_map)} asignaturas")
-        else:
-            self.logger.warning(f"No se encontró el archivo de asignaturas: {asignaturas_path}")
-            self.asignaturas_map = {}
-
-        # Log de información básica
-        self.logger.info(f"Student interactions: {self.student_interactions_df.shape[0]:,} registros")
-        self.logger.info(f"Student logs: {self.student_logs_df.shape[0]:,} registros")
-        self.logger.info(f"Modules active: {self.modules_active_df.shape[0]:,} registros")
-        self.logger.info(f"Sequence features: {self.sequence_features_df.shape[0]:,} registros")
-        self.logger.info(f"Activity sequences: {self.activity_sequences_df.shape[0]:,} registros")
+        asignaturas_df = pd.read_csv(datasets['asignaturas'])
+        self.asignaturas_map = dict(zip(asignaturas_df['id_asignatura'], asignaturas_df['nombre']))
 
         return True
 
@@ -150,7 +123,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
     def prepare_temporal_data(self):
         """Prepara los datos temporales para análisis de accesos diarios."""
-        self.logger.info("Preparando datos temporales...")
 
         # Convertir timestamp a datetime (UTC)
         self.student_logs_df['datetime'] = pd.to_datetime(
@@ -161,7 +133,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         )
 
         # Convertir a hora de Bogotá (UTC-5)
-        self.logger.info("Convirtiendo timestamps de UTC a hora de Bogotá (UTC-5)...")
         self.student_logs_df['datetime'] = self.student_logs_df['datetime'].dt.tz_convert('America/Bogota')
 
         # Remover información de zona horaria para facilitar el procesamiento
@@ -174,14 +145,12 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         # Filtrar datos válidos
         valid_logs = self.student_logs_df.dropna(subset=['datetime'])
-        self.logger.info(f"Registros con fecha válida: {len(valid_logs):,}")
 
         self.student_logs_df = valid_logs
         return True
 
     def analyze_daily_accesses(self):
         """Analiza los accesos diarios a Moodle."""
-        self.logger.info("Analizando accesos diarios...")
 
         # Accesos por día
         daily_accesses = (
@@ -209,9 +178,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             'total_dias_actividad': len(daily_accesses)
         }
 
-        self.logger.info(f"Promedio de accesos por día: {stats['promedio_accesos_dia']:.1f}")
-        self.logger.info(f"Promedio de estudiantes únicos por día: {stats['promedio_estudiantes_dia']:.1f}")
-
         self.results['daily_accesses'] = daily_accesses
         self.results['daily_stats'] = stats
 
@@ -219,7 +185,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
     def analyze_monthly_accesses_by_sede(self):
         """Analiza los accesos mensuales por sede con tasa por estudiante inscrito."""
-        self.logger.info("Analizando accesos mensuales por sede...")
 
         # Filtrar solo registros con sede conocida
         logs_with_sede = self.student_logs_df.dropna(subset=['sede'])
@@ -244,7 +209,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         # Calcular tasa por estudiante inscrito si tenemos los datos
         if self.enrollments_df is not None:
-            self.logger.info("Calculando tasa de accesos por cada 10 estudiantes inscritos...")
 
             # Inscripciones por año y sede
             enrollments_by_year_sede = (
@@ -265,9 +229,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 monthly_accesses['total_accesos'] / monthly_accesses['estudiantes_inscritos'] * 10
             ).fillna(0)
 
-            self.logger.info("Resumen de inscripciones por año y sede:")
-            for _, row in enrollments_by_year_sede.iterrows():
-                self.logger.info(f"  {row['year']} - {row['sede']}: {row['estudiantes_inscritos']} inscritos")
         else:
             self.logger.warning("No se encontraron datos de inscripciones, no se calcularán tasas")
             monthly_accesses['estudiantes_inscritos'] = 0
@@ -275,10 +236,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         # Obtener lista de sedes únicas
         sedes_list = sorted(monthly_accesses['sede'].unique().tolist())
-
-        self.logger.info(f"Sedes encontradas: {sedes_list}")
-        self.logger.info(f"Períodos analizados: {sorted(monthly_accesses['year_month_str'].unique())}")
-
         self.results['monthly_accesses'] = monthly_accesses
         self.results['sedes_list_monthly'] = sedes_list
 
@@ -286,7 +243,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
     def analyze_unique_students_by_month_sede(self):
         """Analiza los estudiantes únicos por año-mes y sede con porcentajes de inscripciones."""
-        self.logger.info("Analizando estudiantes únicos por año-mes y sede...")
 
         # Filtrar solo registros con sede conocida
         logs_with_sede = self.student_logs_df.dropna(subset=['sede'])
@@ -305,7 +261,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         # Calcular inscripciones por año y sede si tenemos los datos
         if self.enrollments_df is not None:
-            self.logger.info("Calculando porcentajes basados en inscripciones...")
 
             # Inscripciones por año y sede
             enrollments_by_year_sede = (
@@ -326,9 +281,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 unique_students['estudiantes_unicos'] / unique_students['estudiantes_inscritos'] * 100
             ).fillna(0)
 
-            self.logger.info("Resumen de inscripciones por año y sede:")
-            for _, row in enrollments_by_year_sede.iterrows():
-                self.logger.info(f"  {row['year']} - {row['sede']}: {row['estudiantes_inscritos']} inscritos")
         else:
             self.logger.warning("No se encontraron datos de inscripciones, no se calcularán porcentajes")
             unique_students['estudiantes_inscritos'] = 0
@@ -343,19 +295,11 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         sedes_list = sorted(unique_students['sede'].unique())
 
-        self.logger.info(f"Meses analizados: {months_with_data}")
-        self.logger.info(f"Sedes encontradas: {sedes_list}")
-        self.logger.info(f"Total combinaciones año-mes encontradas: {len(unique_students)}")
-
         # Mostrar resumen por mes
         month_summary = unique_students.groupby('year_month_str').agg({
             'estudiantes_unicos': 'sum',
             'porcentaje_acceso': 'mean'
         }).sort_index()
-
-        self.logger.info("Resumen por mes:")
-        for month, row in month_summary.iterrows():
-            self.logger.info(f"  {month}: {row['estudiantes_unicos']} estudiantes únicos ({row['porcentaje_acceso']:.1f}% promedio)")
 
         self.results['unique_students_by_month'] = unique_students
         self.results['months_list'] = months_with_data
@@ -365,7 +309,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
     def analyze_hourly_patterns(self):
         """Analiza los patrones de acceso por hora del día."""
-        self.logger.info("Analizando patrones por hora...")
 
         hourly_accesses = (
             self.student_logs_df.groupby('hour', as_index=False)
@@ -389,7 +332,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
     def analyze_course_participation_rate(self):
         """Analiza la tasa de vistas y participación usando mediana (métrica robusta)."""
-        self.logger.info("Analizando tasa de participación de cursos por sede...")
 
         # Calcular métricas usando MEDIANA (más robusta que promedio)
         # 1. Mediana de % de módulos vistos
@@ -467,8 +409,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         top_participation = course_participation.head(15)
         bottom_participation = course_participation.tail(15)
 
-        self.logger.info(f"Total de cursos-sede analizados: {len(course_participation)}")
-        self.logger.info("Nota: Usando MEDIANA (métrica robusta, no afectada por outliers)")
         for sede in course_participation['sede'].unique():
             sede_data = course_participation[course_participation['sede'] == sede]
             if len(sede_data) > 0:
@@ -477,13 +417,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 total_students = sede_data['estudiantes_inscritos'].sum()
                 students_with_access = sede_data['estudiantes_con_acceso'].sum()
                 students_with_part = sede_data['estudiantes_con_participacion'].sum()
-                self.logger.info(
-                    f"Sede {sede}: {len(sede_data)} cursos | "
-                    f"Mediana vistas: {median_views:.1f}% | "
-                    f"Mediana participación: {median_participation:.1f}% | "
-                    f"Estudiantes: {int(students_with_access)}/{int(total_students)} con acceso, "
-                    f"{int(students_with_part)}/{int(total_students)} con participación"
-                )
 
         self.results['course_participation'] = course_participation
         self.results['top_participation'] = top_participation
@@ -493,7 +426,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
     def analyze_behavior_by_grade(self):
         """Analiza el comportamiento por grado usando student_interactions."""
-        self.logger.info("Analizando comportamiento por grado...")
 
         # Usar student_interactions que tiene información de grado
         grade_behavior = (
@@ -524,14 +456,11 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             if col in grade_behavior.columns:
                 grade_behavior[col] = grade_behavior[col].round(2)
 
-        self.logger.info(f"Grados analizados: {sorted(grade_behavior['id_grado'].tolist())}")
-
         self.results['grade_behavior'] = grade_behavior
         return grade_behavior
 
     def analyze_sequence_patterns(self):
         """Analiza los patrones de navegación por secuencias."""
-        self.logger.info("Analizando patrones de secuencia de navegación...")
 
         # Filtrar solo asignaturas 1, 2, 3, 4
         asignaturas_filtradas = [1, 2, 3, 4]
@@ -561,8 +490,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         sequence_metrics['levenshtein_normalized'] = (sequence_metrics['levenshtein_normalized'] * 100).round(1)
         sequence_metrics['correct_order_ratio'] = (sequence_metrics['correct_order_ratio'] * 100).round(1)
 
-        self.logger.info(f"Total de combinaciones asignatura-grado-sede analizadas: {len(sequence_metrics)}")
-
         # Log por sede
         for sede in sequence_metrics['sede'].unique():
             sede_data = sequence_metrics[sequence_metrics['sede'] == sede]
@@ -570,19 +497,11 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             avg_distance = sede_data['levenshtein_normalized'].mean()
             total_students = sede_data['total_estudiantes'].sum()
 
-            self.logger.info(
-                f"Sede {sede}: {len(sede_data)} combinaciones | "
-                f"Adherencia promedio: {avg_match:.1f}% | "
-                f"Distancia promedio: {avg_distance:.1f}% | "
-                f"Total estudiantes: {int(total_students)}"
-            )
-
         self.results['sequence_metrics'] = sequence_metrics
         return sequence_metrics
 
     def plot_monthly_accesses_by_sede(self):
         """Genera gráfico de barras de accesos mensuales por sede."""
-        self.logger.info("Generando gráfico de accesos mensuales por sede...")
 
         monthly_accesses = self.results['monthly_accesses']
         sedes_list = self.results['sedes_list_monthly']
@@ -655,19 +574,14 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
 
-        self.logger.info(f"✅ Gráfico guardado: {output_path}")
         return output_path
 
     def plot_unique_students_by_month_sede(self):
         """Genera gráfico de barras de porcentaje de estudiantes únicos por año-mes y sede."""
-        self.logger.info("Generando gráfico de porcentaje de estudiantes únicos por año-mes y sede...")
 
         unique_students = self.results['unique_students_by_month']
         months_list = self.results['months_list']
         sedes_list = self.results['sedes_list_months']
-
-        self.logger.info(f"Meses a graficar: {months_list}")
-        self.logger.info(f"Sedes a graficar: {sedes_list}")
 
         # Crear pivot tables para porcentajes y conteos
         pivot_percentage = unique_students.pivot(index='year_month_str', columns='sede', values='porcentaje_acceso')
@@ -692,9 +606,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         pivot_percentage = pivot_percentage[sedes_list]
         pivot_count = pivot_count.reindex(months_list)
         pivot_count = pivot_count[sedes_list]
-
-        self.logger.info(f"Dimensiones del pivot: {pivot_percentage.shape}")
-        self.logger.info(f"Meses en pivot: {list(pivot_percentage.index)}")
 
         # Configurar el gráfico - más ancho para acomodar la leyenda
         fig, ax = plt.subplots(figsize=(max(18, len(months_list) * 1.2), 8))
@@ -760,12 +671,10 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
 
-        self.logger.info(f"✅ Gráfico guardado: {output_path}")
         return output_path
 
     def plot_hourly_patterns(self):
         """Genera gráfico de patrones de acceso por hora."""
-        self.logger.info("Generando gráfico de patrones por hora...")
 
         hourly_accesses = self.results['hourly_accesses']
 
@@ -801,12 +710,10 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
 
-        self.logger.info(f"✅ Gráfico guardado: {output_path}")
         return output_path
 
     def plot_course_participation_rate(self):
         """Genera dos mapas de calor por sede: % vistas y % participación (usando mediana)."""
-        self.logger.info("Generando mapas de calor de participación por sede...")
 
         course_participation = self.results['course_participation']
 
@@ -836,8 +743,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         output_paths = []
 
         for sede in sedes:
-            self.logger.info(f"Generando mapas de calor para sede: {sede}")
-
             # Filtrar datos de la sede
             sede_data = course_participation_filtered[
                 course_participation_filtered['sede'] == sede
@@ -892,7 +797,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             plt.close()
 
             output_paths.append(output_path_vistas)
-            self.logger.info(f"✅ Mapa de vistas guardado: {output_path_vistas}")
 
             # === MAPA 2: % DE PARTICIPACIÓN EN ACTIVIDADES ===
             pivot_participacion = sede_data.pivot_table(
@@ -942,13 +846,11 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             plt.close()
 
             output_paths.append(output_path_participacion)
-            self.logger.info(f"✅ Mapa de participación guardado: {output_path_participacion}")
 
         return output_paths
 
     def plot_participation_diagnostic(self):
         """Genera gráficas de diagnóstico: Embudo + Pérdida de estudiantes por asignatura."""
-        self.logger.info("Generando gráficas de diagnóstico de participación...")
 
         course_participation = self.results['course_participation']
 
@@ -974,8 +876,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         output_paths = []
 
         for sede in sedes:
-            self.logger.info(f"Generando diagnóstico para sede: {sede}")
-
             # Filtrar datos de la sede
             sede_data = course_participation_filtered[
                 course_participation_filtered['sede'] == sede
@@ -1159,7 +1059,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             plt.close()
 
             output_paths.append(output_path)
-            self.logger.info(f"✅ Diagnóstico guardado: {output_path}")
 
         return output_paths
 
@@ -1215,7 +1114,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
     def plot_sequence_patterns_heatmaps(self):
         """Genera heatmaps de patrones de secuencia por sede."""
-        self.logger.info("Generando heatmaps de patrones de secuencia...")
 
         sequence_metrics = self.results['sequence_metrics']
         sedes = sorted(sequence_metrics['sede'].unique())
@@ -1253,8 +1151,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         ]
 
         for sede in sedes:
-            self.logger.info(f"Generando heatmaps de secuencia para sede: {sede}")
-
             sede_data = sequence_metrics[sequence_metrics['sede'] == sede].copy()
             if len(sede_data) == 0:
                 continue
@@ -1279,17 +1175,14 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             plt.close()
 
             output_paths.append(output_path)
-            self.logger.info(f"✅ Heatmaps de secuencia guardados: {output_path}")
 
         return output_paths
 
     def plot_grades_without_moodle_access(self):
         """Analiza las calificaciones de estudiantes que NO accedieron a Moodle vs los que SÍ accedieron."""
-        self.logger.info("Analizando calificaciones de estudiantes sin acceso a Moodle...")
 
         # Cargar calificaciones reales
         grades_path = 'data/interim/calificaciones/calificaciones_2024_2025_short.csv'
-        self.logger.info(f"Cargando calificaciones desde {grades_path}...")
 
         try:
             grades_df = pd.read_csv(
@@ -1298,10 +1191,8 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                       'period': 'int8', 'sede': 'str'},  # Forzar sede como string
                 low_memory=False
             )
-            self.logger.info(f"Calificaciones cargadas: {len(grades_df):,} registros")
         except Exception as e:
-            self.logger.error(f"Error cargando calificaciones: {e}")
-            return []
+            raise Exception(f"Error cargando calificaciones: {e}")
 
         # Asegurar que sede sea string en ambos dataframes
         grades_df['sede'] = grades_df['sede'].astype(str)
@@ -1326,10 +1217,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         # Llenar NaN en modules_viewed con 0 (estudiantes sin acceso a Moodle)
         grades_with_moodle['modules_viewed'] = grades_with_moodle['modules_viewed'].fillna(0)
 
-        self.logger.info(f"Total estudiantes con calificaciones: {len(grades_with_moodle):,}")
-        self.logger.info(f"Estudiantes SIN acceso a Moodle: {(grades_with_moodle['modules_viewed'] == 0).sum():,}")
-        self.logger.info(f"Estudiantes CON acceso a Moodle: {(grades_with_moodle['modules_viewed'] > 0).sum():,}")
-
         # Filtrar solo asignaturas 1, 2, 3, 4
         asignaturas_filtradas = [1, 2, 3, 4]
 
@@ -1341,10 +1228,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         for sede in sedes:
             # Filtrar sedes inválidas (nan, None, etc.)
             if pd.isna(sede) or str(sede).lower() in ['nan', 'none', '']:
-                self.logger.warning(f"Saltando sede inválida: {sede}")
-                continue
-
-            self.logger.info(f"Analizando calificaciones para sede: {sede}")
+                raise Exception(f"Sede inválida: {sede}")
 
             # Datos de la sede
             sede_data = grades_with_moodle[
@@ -1386,13 +1270,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 con_acceso_grades = con_acceso[
                     (con_acceso[grade_col].notna()) & (con_acceso[grade_col] > 0)
                 ][grade_col]
-
-                # Log para debug
-                self.logger.info(f"  {self.get_asignatura_name(asignatura)}: "
-                               f"Sin acceso con notas={len(sin_acceso_grades)}, "
-                               f"Con acceso con notas={len(con_acceso_grades)}, "
-                               f"Sin acceso total={len(sin_acceso)}, "
-                               f"Con acceso total={len(con_acceso)}")
 
                 # Crear histogramas superpuestos (escala 0-100)
                 bins = np.linspace(0, 100, 21)  # Bins de 5 puntos en escala 0-100
@@ -1460,39 +1337,11 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             plt.close()
 
             output_paths.append(output_path)
-            self.logger.info(f"✅ Análisis de calificaciones sin Moodle guardado: {output_path}")
-
-            # Log resumen estadístico
-            for asignatura in asignaturas_filtradas:
-                asig_data = sede_data[sede_data['id_asignatura'] == asignatura]
-                if len(asig_data) > 0:
-                    sin_acceso = asig_data[asig_data['modules_viewed'] == 0]
-                    con_acceso = asig_data[asig_data['modules_viewed'] > 0]
-
-                    if len(sin_acceso) > 0:
-                        sin_grades = sin_acceso['nota_final'].dropna()
-                        if len(sin_grades) > 0:
-                            self.logger.info(
-                                f"  {self.get_asignatura_name(asignatura)} SIN acceso: {len(sin_grades)} estudiantes, "
-                                f"Media={sin_grades.mean():.1f}, "
-                                f"Aprobados={(sin_grades >= 60).sum()} ({(sin_grades >= 60).sum()/len(sin_grades)*100:.1f}%)"
-                            )
-
-                    if len(con_acceso) > 0:
-                        con_grades = con_acceso['nota_final'].dropna()
-                        if len(con_grades) > 0:
-                            self.logger.info(
-                                f"  {self.get_asignatura_name(asignatura)} CON acceso: {len(con_grades)} estudiantes, "
-                                f"Media={con_grades.mean():.1f}, "
-                                f"Aprobados={(con_grades >= 60).sum()} ({(con_grades >= 60).sum()/len(con_grades)*100:.1f}%)"
-                            )
 
         return output_paths
 
     def generate_summary_statistics(self):
         """Genera estadísticas resumen del análisis."""
-        self.logger.info("Generando estadísticas resumen...")
-
         # Estadísticas generales
         total_students = self.student_logs_df['documento_identificación'].nunique()
         total_courses = self.student_logs_df['courseid'].nunique()
@@ -1535,7 +1384,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                     f.write(f"Curso {course_id}: {int(row['total_accesos']):,} accesos, "
                            f"{int(row['estudiantes_unicos'])} estudiantes únicos\n")
 
-        self.logger.info(f"✅ Resumen guardado: {summary_path}")
         return summary_path
 
     def run_analysis(self):
@@ -1595,7 +1443,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                     task_func()
                     self.logger.info(f"✅ [{idx}/{len(plotting_tasks)}] Completado: {task_name}")
                 except Exception as e:
-                    self.logger.error(f"❌ Error en {task_name}: {e}")
+                    raise Exception(f"Error en {task_name}: {e}")
 
             # 11. Generar resumen
             self.generate_summary_statistics()
