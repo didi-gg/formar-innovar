@@ -588,7 +588,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         fig, ax = plt.subplots(figsize=(16, 8))
 
         # Obtener colores para cada sede
-        colors = self.get_beautiful_palette(len(sedes_list), palette_name='Set2')
+        colors = self.get_beautiful_palette(len(sedes_list), palette_name='tab20b')
 
         # Crear gráfico de barras agrupadas
         x_pos = np.arange(len(pivot_rate.index))
@@ -689,8 +689,8 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         # Configurar el gráfico - más ancho para acomodar la leyenda
         fig, ax = plt.subplots(figsize=(max(18, len(months_list) * 1.2), 8))
 
-        # Obtener colores para cada sede
-        colors = self.get_beautiful_palette(len(sedes_list), palette_name='Set1')
+        # Obtener colores para cada sede (consistente con otras gráficas)
+        colors = self.get_beautiful_palette(len(sedes_list), palette_name='tab20b')
 
         # Crear gráfico de barras agrupadas
         x_pos = np.arange(len(months_list))
@@ -760,10 +760,13 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         hourly_accesses = self.results['hourly_accesses']
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        
+        # Colores consistentes con la paleta tab20b
+        color_palette = self.get_beautiful_palette(2, palette_name='tab20b')
 
         # Gráfico 1: Barras de accesos por hora
         bars1 = ax1.bar(hourly_accesses['hour'], hourly_accesses['total_accesos'], 
-                       color='#F18F01', alpha=0.8, edgecolor='black', linewidth=0.5)
+                       color=color_palette[0], alpha=0.8, edgecolor='black', linewidth=0.5)
         ax1.set_title('Distribución de Accesos por Hora del Día', 
                      fontsize=14, fontweight='bold', pad=15)
         ax1.set_xlabel('Hora del Día', fontsize=12, fontweight='bold')
@@ -773,7 +776,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         # Gráfico 2: Estudiantes únicos por hora
         bars2 = ax2.bar(hourly_accesses['hour'], hourly_accesses['estudiantes_unicos'], 
-                       color='#C73E1D', alpha=0.8, edgecolor='black', linewidth=0.5)
+                       color=color_palette[1], alpha=0.8, edgecolor='black', linewidth=0.5)
         ax2.set_title('Estudiantes Únicos por Hora del Día', 
                      fontsize=14, fontweight='bold', pad=15)
         ax2.set_xlabel('Hora del Día', fontsize=12, fontweight='bold')
@@ -1023,7 +1026,8 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             bar_width = 0.15
             x_pos = np.arange(n_asignaturas)
 
-            colors = ['#2ecc71', '#3498db', '#f39c12', '#e74c3c', '#9b59b6']
+            # Usar paleta tab20b consistente
+            colors = self.get_beautiful_palette(max(n_asignaturas, 5), palette_name='tab20b')
 
             for idx, asig_data in enumerate(diagnostico_data):
                 total = asig_data['total_inscritos']
