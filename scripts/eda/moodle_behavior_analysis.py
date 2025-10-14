@@ -112,6 +112,18 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         else:
             self.logger.warning(f"No se encontró el archivo de inscripciones: {enrollments_path}")
             self.enrollments_df = None
+        
+        # Cargar mapeo de nombres de asignaturas
+        asignaturas_path = 'data/raw/tablas_maestras/asignaturas.csv'
+        if os.path.exists(asignaturas_path):
+            self.logger.info("Cargando mapeo de asignaturas...")
+            asignaturas_df = pd.read_csv(asignaturas_path)
+            # Crear diccionario id -> nombre
+            self.asignaturas_map = dict(zip(asignaturas_df['id_asignatura'], asignaturas_df['nombre']))
+            self.logger.info(f"Mapeo de asignaturas cargado: {len(self.asignaturas_map)} asignaturas")
+        else:
+            self.logger.warning(f"No se encontró el archivo de asignaturas: {asignaturas_path}")
+            self.asignaturas_map = {}
 
         # Log de información básica
         self.logger.info(f"Student interactions: {self.student_interactions_df.shape[0]:,} registros")
@@ -122,6 +134,10 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         return True
 
+    def get_asignatura_name(self, id_asignatura):
+        """Obtiene el nombre de la asignatura dado su ID."""
+        return self.asignaturas_map.get(id_asignatura, f'Asig. {id_asignatura}')
+    
     def prepare_temporal_data(self):
         """Prepara los datos temporales para análisis de accesos diarios."""
         self.logger.info("Preparando datos temporales...")
@@ -793,7 +809,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             ax.set_xlabel('Asignatura', fontsize=14, fontweight='bold')
             ax.set_ylabel('Grado', fontsize=14, fontweight='bold')
 
-            ax.set_xticklabels([f'Asig. {int(x)}' for x in pivot_vistas.columns], rotation=0)
+            ax.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_vistas.columns], rotation=45, ha='right')
             ax.set_yticklabels([f'Grado {int(y)}' for y in pivot_vistas.index], rotation=0)
 
             plt.tight_layout(rect=[0, 0.03, 1, 1])
@@ -848,7 +864,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             ax.set_xlabel('Asignatura', fontsize=14, fontweight='bold')
             ax.set_ylabel('Grado', fontsize=14, fontweight='bold')
 
-            ax.set_xticklabels([f'Asig. {int(x)}' for x in pivot_participacion.columns], rotation=0)
+            ax.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_participacion.columns], rotation=45, ha='right')
             ax.set_yticklabels([f'Grado {int(y)}' for y in pivot_participacion.index], rotation=0)
 
             plt.tight_layout(rect=[0, 0.03, 1, 1])
@@ -972,8 +988,8 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 etapas = ['Inscritos', 'Accedieron', 'Participaron', 'Completaron']
                 y_pos = np.arange(len(etapas))
 
-                bars = ax1.barh(y_pos + idx * bar_width, embudo, bar_width, 
-                               label=f'Asig. {asig_data["asignatura"]}',
+                bars = ax1.barh(y_pos + idx * bar_width, embudo, bar_width,
+                               label=self.get_asignatura_name(asig_data["asignatura"]),
                                color=colors[idx % len(colors)], alpha=0.8)
 
                 # Agregar valores en las barras
@@ -1003,7 +1019,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             parciales_vals = [d['parcialmente_activos'] for d in diagnostico_data]
             muy_activos_vals = [d['muy_activos'] for d in diagnostico_data]
 
-            asignaturas_labels = [f"Asig. {d['asignatura']}" for d in diagnostico_data]
+            asignaturas_labels = [self.get_asignatura_name(d['asignatura']) for d in diagnostico_data]
             x_pos2 = np.arange(len(asignaturas_labels))
 
             # Crear barras apiladas
@@ -1060,16 +1076,16 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                                 ha='center', va='center', fontweight='bold', fontsize=9, color='white')
 
             ax2.set_xticks(x_pos2)
-            ax2.set_xticklabels(asignaturas_labels)
+            ax2.set_xticklabels(asignaturas_labels, rotation=20, ha='right', fontsize=10)
             ax2.set_ylabel('Número de Estudiantes', fontsize=12, fontweight='bold')
             ax2.set_title(f'Distribución de Estudiantes por Nivel de Actividad\nSede: {sede}',
                          fontsize=14, fontweight='bold', pad=15)
-            ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), fontsize=9, 
+            ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.18), fontsize=9,
                       framealpha=0.95, ncol=2)
             ax2.grid(True, alpha=0.3, axis='y')
 
             plt.tight_layout()
-            plt.subplots_adjust(bottom=0.15)
+            plt.subplots_adjust(bottom=0.2)
 
             # Guardar
             sede_safe = sede.replace(' ', '_').replace('/', '_')
@@ -1187,7 +1203,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 ][grade_col]
 
                 # Log para debug
-                self.logger.info(f"  Asig {asignatura}: "
+                self.logger.info(f"  {self.get_asignatura_name(asignatura)}: "
                                f"Sin acceso con notas={len(sin_acceso_grades)}, "
                                f"Con acceso con notas={len(con_acceso_grades)}, "
                                f"Sin acceso total={len(sin_acceso)}, "
@@ -1224,7 +1240,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                 # Configurar gráfica
                 ax.set_xlabel('Calificación (0-100)', fontsize=11, fontweight='bold')
                 ax.set_ylabel('Número de Estudiantes', fontsize=11, fontweight='bold')
-                ax.set_title(f'Asignatura {asignatura}', fontsize=13, fontweight='bold')
+                ax.set_title(self.get_asignatura_name(asignatura), fontsize=13, fontweight='bold')
                 ax.legend(fontsize=7, loc='upper left', framealpha=0.9, bbox_to_anchor=(0.01, 0.99))
                 ax.grid(True, alpha=0.3, axis='y')
                 ax.set_xlim(0, 100)
@@ -1272,7 +1288,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                         sin_grades = sin_acceso['nota_final'].dropna()
                         if len(sin_grades) > 0:
                             self.logger.info(
-                                f"  Asig {asignatura} SIN acceso: {len(sin_grades)} estudiantes, "
+                                f"  {self.get_asignatura_name(asignatura)} SIN acceso: {len(sin_grades)} estudiantes, "
                                 f"Media={sin_grades.mean():.1f}, "
                                 f"Aprobados={(sin_grades >= 60).sum()} ({(sin_grades >= 60).sum()/len(sin_grades)*100:.1f}%)"
                             )
@@ -1281,7 +1297,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                         con_grades = con_acceso['nota_final'].dropna()
                         if len(con_grades) > 0:
                             self.logger.info(
-                                f"  Asig {asignatura} CON acceso: {len(con_grades)} estudiantes, "
+                                f"  {self.get_asignatura_name(asignatura)} CON acceso: {len(con_grades)} estudiantes, "
                                 f"Media={con_grades.mean():.1f}, "
                                 f"Aprobados={(con_grades >= 60).sum()} ({(con_grades >= 60).sum()/len(con_grades)*100:.1f}%)"
                             )
