@@ -674,33 +674,86 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         return output_path
 
     def plot_hourly_patterns(self):
-        """Genera gráfico de patrones de acceso por hora."""
+        """Genera gráfico de patrones de acceso por hora, separado por sede."""
 
-        hourly_accesses = self.results['hourly_accesses']
+        # Filtrar logs con sede conocida
+        logs_with_sede = self.student_logs_df.dropna(subset=['sede'])
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        # Calcular accesos por hora y sede
+        hourly_by_sede = (
+            logs_with_sede.groupby(['hour', 'sede'], as_index=False)
+            .agg({
+                'documento_identificación': 'nunique',
+                'timecreated': 'count'
+            })
+            .rename(columns={
+                'documento_identificación': 'estudiantes_unicos',
+                'timecreated': 'total_accesos'
+            })
+        )
+
+        # Obtener lista de sedes
+        sedes_list = sorted(hourly_by_sede['sede'].unique())
         
-        # Colores consistentes con la paleta tab20b
-        color_palette = self.get_beautiful_palette(2, palette_name='tab20b')
+        # Crear pivot tables
+        pivot_accesos = hourly_by_sede.pivot(index='hour', columns='sede', values='total_accesos').fillna(0)
+        pivot_estudiantes = hourly_by_sede.pivot(index='hour', columns='sede', values='estudiantes_unicos').fillna(0)
 
-        # Gráfico 1: Barras de accesos por hora
-        bars1 = ax1.bar(hourly_accesses['hour'], hourly_accesses['total_accesos'], 
-                       color=color_palette[0], alpha=0.8, edgecolor='black', linewidth=0.5)
+        # Asegurar que tenemos todas las horas (0-23)
+        for hour in range(24):
+            if hour not in pivot_accesos.index:
+                pivot_accesos.loc[hour] = 0
+                pivot_estudiantes.loc[hour] = 0
+
+        pivot_accesos = pivot_accesos.sort_index()
+        pivot_estudiantes = pivot_estudiantes.sort_index()
+
+        # Crear figura con 2 subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 6))
+        
+        # Colores consistentes con otras gráficas
+        colors = self.get_beautiful_palette(len(sedes_list), palette_name='tab20b')
+
+        # Configuración de barras agrupadas
+        x_pos = np.arange(24)
+        bar_width = 0.8 / len(sedes_list) if len(sedes_list) > 0 else 0.8
+
+        # Gráfico 1: Total de accesos por hora y sede
+        for i, sede in enumerate(sedes_list):
+            if sede in pivot_accesos.columns:
+                values = pivot_accesos[sede].values
+                positions = x_pos + (i - len(sedes_list)/2 + 0.5) * bar_width
+                
+                ax1.bar(positions, values, bar_width, 
+                       label=sede, color=colors[i], alpha=0.8, 
+                       edgecolor='black', linewidth=0.5)
+
         ax1.set_title('Distribución de Accesos por Hora del Día', 
                      fontsize=14, fontweight='bold', pad=15)
         ax1.set_xlabel('Hora del Día', fontsize=12, fontweight='bold')
         ax1.set_ylabel('Total de Accesos', fontsize=12, fontweight='bold')
-        ax1.set_xticks(range(0, 24, 2))
+        ax1.set_xticks(x_pos[::2])  # Mostrar cada 2 horas
+        ax1.set_xticklabels(range(0, 24, 2))
+        ax1.legend(title='Sede', fontsize=10, title_fontsize=11, loc='upper left')
         ax1.grid(True, alpha=0.3, linestyle='--', axis='y')
 
-        # Gráfico 2: Estudiantes únicos por hora
-        bars2 = ax2.bar(hourly_accesses['hour'], hourly_accesses['estudiantes_unicos'], 
-                       color=color_palette[1], alpha=0.8, edgecolor='black', linewidth=0.5)
+        # Gráfico 2: Estudiantes únicos por hora y sede
+        for i, sede in enumerate(sedes_list):
+            if sede in pivot_estudiantes.columns:
+                values = pivot_estudiantes[sede].values
+                positions = x_pos + (i - len(sedes_list)/2 + 0.5) * bar_width
+                
+                ax2.bar(positions, values, bar_width, 
+                       label=sede, color=colors[i], alpha=0.8, 
+                       edgecolor='black', linewidth=0.5)
+
         ax2.set_title('Estudiantes Únicos por Hora del Día', 
                      fontsize=14, fontweight='bold', pad=15)
         ax2.set_xlabel('Hora del Día', fontsize=12, fontweight='bold')
         ax2.set_ylabel('Estudiantes Únicos', fontsize=12, fontweight='bold')
-        ax2.set_xticks(range(0, 24, 2))
+        ax2.set_xticks(x_pos[::2])  # Mostrar cada 2 horas
+        ax2.set_xticklabels(range(0, 24, 2))
+        ax2.legend(title='Sede', fontsize=10, title_fontsize=11, loc='upper left')
         ax2.grid(True, alpha=0.3, linestyle='--', axis='y')
 
         plt.tight_layout()
