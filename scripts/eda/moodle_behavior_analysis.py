@@ -112,7 +112,7 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
         else:
             self.logger.warning(f"No se encontró el archivo de inscripciones: {enrollments_path}")
             self.enrollments_df = None
-        
+
         # Cargar mapeo de nombres de asignaturas
         asignaturas_path = 'data/raw/tablas_maestras/asignaturas.csv'
         if os.path.exists(asignaturas_path):
@@ -137,19 +137,27 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
     def get_asignatura_name(self, id_asignatura):
         """Obtiene el nombre de la asignatura dado su ID."""
         return self.asignaturas_map.get(id_asignatura, f'Asig. {id_asignatura}')
-    
+
     def prepare_temporal_data(self):
         """Prepara los datos temporales para análisis de accesos diarios."""
         self.logger.info("Preparando datos temporales...")
 
-        # Convertir timestamp a datetime
+        # Convertir timestamp a datetime (UTC)
         self.student_logs_df['datetime'] = pd.to_datetime(
             self.student_logs_df['timecreated'], 
             unit='s', 
-            errors='coerce'
+            errors='coerce',
+            utc=True
         )
 
-        # Crear columnas de fecha y hora
+        # Convertir a hora de Bogotá (UTC-5)
+        self.logger.info("Convirtiendo timestamps de UTC a hora de Bogotá (UTC-5)...")
+        self.student_logs_df['datetime'] = self.student_logs_df['datetime'].dt.tz_convert('America/Bogota')
+
+        # Remover información de zona horaria para facilitar el procesamiento
+        self.student_logs_df['datetime'] = self.student_logs_df['datetime'].dt.tz_localize(None)
+
+        # Crear columnas de fecha y hora (ya en hora de Bogotá)
         self.student_logs_df['date'] = self.student_logs_df['datetime'].dt.date
         self.student_logs_df['hour'] = self.student_logs_df['datetime'].dt.hour
         self.student_logs_df['day_of_week'] = self.student_logs_df['datetime'].dt.day_name()
