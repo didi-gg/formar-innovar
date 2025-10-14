@@ -24,6 +24,16 @@ logging.getLogger('PIL').setLevel(logging.ERROR)
 # Silenciar mensajes de debug adicionales
 matplotlib.set_loglevel("WARNING")
 
+# Configurar fuente Roboto para todas las gráficas
+plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['font.sans-serif'] = ['Roboto', 'DejaVu Sans', 'Arial', 'Helvetica']
+plt.rcParams['font.size'] = 10
+plt.rcParams['axes.titlesize'] = 12
+plt.rcParams['axes.labelsize'] = 11
+plt.rcParams['xtick.labelsize'] = 9
+plt.rcParams['ytick.labelsize'] = 9
+plt.rcParams['legend.fontsize'] = 10
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from utils.eda_analysis_base import EDAAnalysisBase
 
@@ -1565,15 +1575,27 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             # 9. Análisis de patrones de secuencia
             self.analyze_sequence_patterns()
 
-            # 10. Generar gráficos
+            # 10. Generar gráficos secuencialmente (matplotlib no es thread-safe)
             self.logger.info("Generando gráficos...")
-            self.plot_monthly_accesses_by_sede()
-            self.plot_unique_students_by_month_sede()
-            self.plot_hourly_patterns()
-            self.plot_course_participation_rate()
-            self.plot_participation_diagnostic()  # Gráfica de diagnóstico
-            self.plot_sequence_patterns_heatmaps()  # Patrones de secuencia
-            self.plot_grades_without_moodle_access()  # Calificaciones sin acceso a Moodle
+            
+            plotting_tasks = [
+                ('Accesos mensuales por sede', self.plot_monthly_accesses_by_sede),
+                ('Estudiantes únicos por mes', self.plot_unique_students_by_month_sede),
+                ('Patrones por hora', self.plot_hourly_patterns),
+                ('Tasas de participación', self.plot_course_participation_rate),
+                ('Diagnóstico de participación', self.plot_participation_diagnostic),
+                ('Patrones de secuencia', self.plot_sequence_patterns_heatmaps),
+                ('Calificaciones sin Moodle', self.plot_grades_without_moodle_access)
+            ]
+            
+            # Ejecutar plots secuencialmente con indicador de progreso
+            for idx, (task_name, task_func) in enumerate(plotting_tasks, 1):
+                try:
+                    self.logger.info(f"[{idx}/{len(plotting_tasks)}] Generando: {task_name}...")
+                    task_func()
+                    self.logger.info(f"✅ [{idx}/{len(plotting_tasks)}] Completado: {task_name}")
+                except Exception as e:
+                    self.logger.error(f"❌ Error en {task_name}: {e}")
 
             # 11. Generar resumen
             self.generate_summary_statistics()
