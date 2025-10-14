@@ -873,10 +873,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
             plt.tight_layout(rect=[0, 0.03, 1, 1])
 
-            fig.text(0.99, 0.01, 
-                    'Nota: Mediana del % de módulos que el estudiante típico visualizó',
-                    ha='right', va='bottom', fontsize=9, style='italic', color='gray')
-
             sede_safe = sede.replace(' ', '_').replace('/', '_')
             output_path_vistas = f'{self.results_path}/heatmap_vistas_{sede_safe}.png'
             plt.savefig(output_path_vistas, dpi=300, bbox_inches='tight')
@@ -927,10 +923,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
             ax.set_yticklabels([f'Grado {int(y)}' for y in pivot_participacion.index], rotation=0)
 
             plt.tight_layout(rect=[0, 0.03, 1, 1])
-
-            fig.text(0.99, 0.01, 
-                    'Nota: Mediana del % de módulos donde el estudiante típico participó activamente',
-                    ha='right', va='bottom', fontsize=9, style='italic', color='gray')
 
             output_path_participacion = f'{self.results_path}/heatmap_participacion_{sede_safe}.png'
             plt.savefig(output_path_participacion, dpi=300, bbox_inches='tight')
@@ -1157,149 +1149,112 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         return output_paths
 
+    def _create_heatmap(self, sede_data, column, title, cbar_label, fmt='.1f', 
+                       cmap='RdYlGn', vmin=0, vmax=100, ax=None):
+        """Método auxiliar para crear un heatmap reutilizable."""
+        asignaturas_filtradas = [1, 2, 3, 4]
+
+        # Crear pivot table
+        pivot = sede_data.pivot_table(
+            index='id_grado',
+            columns='id_asignatura',
+            values=column,
+            aggfunc='median'
+        )
+
+        # Asegurar que tenemos las 4 asignaturas
+        for asig in asignaturas_filtradas:
+            if asig not in pivot.columns:
+                pivot[asig] = np.nan
+
+        pivot = pivot[asignaturas_filtradas].sort_index()
+
+        # Configurar heatmap
+        heatmap_kwargs = {
+            'annot': True,
+            'fmt': fmt,
+            'cmap': cmap,
+            'cbar_kws': {'label': cbar_label},
+            'linewidths': 0.5,
+            'linecolor': 'gray',
+            'ax': ax,
+            'square': True
+        }
+
+        # Solo agregar vmin/vmax si están definidos
+        if vmin is not None and vmax is not None:
+            heatmap_kwargs['vmin'] = vmin
+            heatmap_kwargs['vmax'] = vmax
+
+        sns.heatmap(pivot, **heatmap_kwargs)
+
+        # Configurar ejes
+        ax.set_title(title, fontsize=12, fontweight='bold')
+        ax.set_xlabel('Asignatura', fontsize=10, fontweight='bold')
+        ax.set_ylabel('Grado', fontsize=10, fontweight='bold')
+        ax.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot.columns], 
+                          rotation=45, ha='right', fontsize=9)
+        ax.set_yticklabels([f'Grado {int(y)}' for y in pivot.index], 
+                          rotation=0, fontsize=9)
+
+        return pivot
+
     def plot_sequence_patterns_heatmaps(self):
         """Genera heatmaps de patrones de secuencia por sede."""
         self.logger.info("Generando heatmaps de patrones de secuencia...")
 
         sequence_metrics = self.results['sequence_metrics']
-
-        # Filtrar solo asignaturas 1, 2, 3, 4
-        asignaturas_filtradas = [1, 2, 3, 4]
-
-        # Obtener sedes únicas
         sedes = sorted(sequence_metrics['sede'].unique())
-
         output_paths = []
+
+        # Configuración de los 3 heatmaps
+        heatmap_configs = [
+            {
+                'column': 'sequence_match_ratio',
+                'title': 'Adherencia a la Secuencia Ideal\n(Sequence Match Ratio)',
+                'cbar_label': '% Adherencia',
+                'cmap': 'RdYlGn',
+                'fmt': '.1f',
+                'vmin': 0,
+                'vmax': 100
+            },
+            {
+                'column': 'levenshtein_normalized',
+                'title': 'Distancia de la Secuencia Ideal\n(Levenshtein Normalizado)',
+                'cbar_label': '% Distancia',
+                'cmap': 'RdYlGn_r',  # Invertido
+                'fmt': '.1f',
+                'vmin': 0,
+                'vmax': 100
+            },
+            {
+                'column': 'missing_activities',
+                'title': 'Actividades Faltantes\n(Missing Activities)',
+                'cbar_label': 'N° Actividades',
+                'cmap': 'YlOrRd',
+                'fmt': '.0f',
+                'vmin': None,  # Escala automática
+                'vmax': None
+            }
+        ]
 
         for sede in sedes:
             self.logger.info(f"Generando heatmaps de secuencia para sede: {sede}")
 
-            # Filtrar datos de la sede
             sede_data = sequence_metrics[sequence_metrics['sede'] == sede].copy()
-
             if len(sede_data) == 0:
                 continue
 
             # Crear figura con 3 heatmaps
-            fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20, 8))
+            fig, axes = plt.subplots(1, 3, figsize=(20, 8))
 
-            # === HEATMAP 1: ADHERENCIA A LA SECUENCIA (sequence_match_ratio) ===
-            pivot_match = sede_data.pivot_table(
-                index='id_grado',
-                columns='id_asignatura',
-                values='sequence_match_ratio',
-                aggfunc='median'
-            )
-
-            # Asegurar que tenemos las 4 asignaturas
-            for asig in asignaturas_filtradas:
-                if asig not in pivot_match.columns:
-                    pivot_match[asig] = np.nan
-
-            pivot_match = pivot_match[asignaturas_filtradas]
-            pivot_match = pivot_match.sort_index()
-
-            sns.heatmap(
-                pivot_match,
-                annot=True,
-                fmt='.1f',
-                cmap='RdYlGn',
-                vmin=0,
-                vmax=100,
-                cbar_kws={'label': '% Adherencia'},
-                linewidths=0.5,
-                linecolor='gray',
-                ax=ax1,
-                square=True
-            )
-
-            ax1.set_title('Adherencia a la Secuencia Ideal\n(Sequence Match Ratio)', 
-                         fontsize=12, fontweight='bold')
-            ax1.set_xlabel('Asignatura', fontsize=10, fontweight='bold')
-            ax1.set_ylabel('Grado', fontsize=10, fontweight='bold')
-            ax1.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_match.columns], 
-                               rotation=45, ha='right', fontsize=9)
-            ax1.set_yticklabels([f'Grado {int(y)}' for y in pivot_match.index], 
-                               rotation=0, fontsize=9)
-
-            # === HEATMAP 2: DISTANCIA DE NAVEGACIÓN (levenshtein_normalized) ===
-            pivot_distance = sede_data.pivot_table(
-                index='id_grado',
-                columns='id_asignatura',
-                values='levenshtein_normalized',
-                aggfunc='median'
-            )
-
-            for asig in asignaturas_filtradas:
-                if asig not in pivot_distance.columns:
-                    pivot_distance[asig] = np.nan
-
-            pivot_distance = pivot_distance[asignaturas_filtradas]
-            pivot_distance = pivot_distance.sort_index()
-
-            sns.heatmap(
-                pivot_distance,
-                annot=True,
-                fmt='.1f',
-                cmap='RdYlGn_r',  # Invertido: bajo es bueno
-                vmin=0,
-                vmax=100,
-                cbar_kws={'label': '% Distancia'},
-                linewidths=0.5,
-                linecolor='gray',
-                ax=ax2,
-                square=True
-            )
-
-            ax2.set_title('Distancia de la Secuencia Ideal\n(Levenshtein Normalizado)', 
-                         fontsize=12, fontweight='bold')
-            ax2.set_xlabel('Asignatura', fontsize=10, fontweight='bold')
-            ax2.set_ylabel('Grado', fontsize=10, fontweight='bold')
-            ax2.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_distance.columns], 
-                               rotation=45, ha='right', fontsize=9)
-            ax2.set_yticklabels([f'Grado {int(y)}' for y in pivot_distance.index], 
-                               rotation=0, fontsize=9)
-
-            # === HEATMAP 3: ACTIVIDADES FALTANTES (missing_activities) ===
-            pivot_missing = sede_data.pivot_table(
-                index='id_grado',
-                columns='id_asignatura',
-                values='missing_activities',
-                aggfunc='median'
-            )
-
-            for asig in asignaturas_filtradas:
-                if asig not in pivot_missing.columns:
-                    pivot_missing[asig] = np.nan
-
-            pivot_missing = pivot_missing[asignaturas_filtradas]
-            pivot_missing = pivot_missing.sort_index()
-
-            sns.heatmap(
-                pivot_missing,
-                annot=True,
-                fmt='.0f',
-                cmap='YlOrRd',
-                cbar_kws={'label': 'N° Actividades'},
-                linewidths=0.5,
-                linecolor='gray',
-                ax=ax3,
-                square=True
-            )
-
-            ax3.set_title('Actividades Faltantes\n(Missing Activities)', 
-                         fontsize=12, fontweight='bold')
-            ax3.set_xlabel('Asignatura', fontsize=10, fontweight='bold')
-            ax3.set_ylabel('Grado', fontsize=10, fontweight='bold')
-            ax3.set_xticklabels([self.get_asignatura_name(int(x)) for x in pivot_missing.columns], 
-                               rotation=45, ha='right', fontsize=9)
-            ax3.set_yticklabels([f'Grado {int(y)}' for y in pivot_missing.index], 
-                               rotation=0, fontsize=9)
+            # Generar cada heatmap usando el método auxiliar
+            for ax, config in zip(axes, heatmap_configs):
+                self._create_heatmap(sede_data, ax=ax, **config)
 
             # Título general
             fig.suptitle(f'Patrones de Navegación en Secuencias de Actividades - Sede: {sede}',
                         fontsize=14, fontweight='bold', y=0.98)
-
 
             plt.tight_layout(rect=[0, 0.02, 1, 0.96])
 
