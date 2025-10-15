@@ -5,6 +5,7 @@ Analiza la composición y características de los cursos con mapas de calor curs
 
 import os
 import sys
+import re
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -43,11 +44,21 @@ class CourseAnalysis(EDAAnalysisBase):
         df = pd.read_csv(self.dataset_path)
         self.logger.info(f"Dataset principal cargado: {df.shape[0]} filas, {df.shape[1]} columnas")
 
+        # Filtrar solo asignaturas 1, 2, 3, 4
+        if 'id_asignatura' in df.columns:
+            df = df[df['id_asignatura'].isin([1, 2, 3, 4])].copy()
+            self.logger.info(f"Dataset filtrado a asignaturas 1,2,3,4: {df.shape[0]} filas")
+
         # Cargar información de cursos (courses.csv)
         courses_path = os.path.join(os.path.dirname(self.dataset_path), "..", "interim", "moodle", "courses.csv")
         if os.path.exists(courses_path):
             self.df_courses = pd.read_csv(courses_path)
             self.logger.info(f"Información de cursos cargada: {self.df_courses.shape[0]} cursos")
+
+            # Filtrar solo asignaturas 1, 2, 3, 4
+            if 'id_asignatura' in self.df_courses.columns:
+                self.df_courses = self.df_courses[self.df_courses['id_asignatura'].isin([1, 2, 3, 4])].copy()
+                self.logger.info(f"Cursos filtrados a asignaturas 1,2,3,4: {self.df_courses.shape[0]} cursos")
 
             # Cargar información de asignaturas para enriquecer los datos
             asignaturas_path = os.path.join(os.path.dirname(self.dataset_path), "..", "raw", "tablas_maestras", "asignaturas.csv")
@@ -72,6 +83,11 @@ class CourseAnalysis(EDAAnalysisBase):
         if os.path.exists(courses_base_path):
             self.df_courses_base = pd.read_csv(courses_base_path)
             self.logger.info(f"Información base de cursos cargada: {self.df_courses_base.shape[0]} registros")
+
+            # Filtrar solo asignaturas 1, 2, 3, 4
+            if 'id_asignatura' in self.df_courses_base.columns:
+                self.df_courses_base = self.df_courses_base[self.df_courses_base['id_asignatura'].isin([1, 2, 3, 4])].copy()
+                self.logger.info(f"Cursos base filtrados a asignaturas 1,2,3,4: {self.df_courses_base.shape[0]} registros")
         else:
             self.logger.warning(f"No se encontró el archivo de cursos base en: {courses_base_path}")
             self.df_courses_base = pd.DataFrame()
@@ -81,6 +97,11 @@ class CourseAnalysis(EDAAnalysisBase):
         if os.path.exists(modules_active_path):
             self.df_modules_active = pd.read_csv(modules_active_path)
             self.logger.info(f"Información de módulos activos cargada: {self.df_modules_active.shape[0]} módulos")
+
+            # Filtrar solo asignaturas 1, 2, 3, 4
+            if 'id_asignatura' in self.df_modules_active.columns:
+                self.df_modules_active = self.df_modules_active[self.df_modules_active['id_asignatura'].isin([1, 2, 3, 4])].copy()
+                self.logger.info(f"Módulos activos filtrados a asignaturas 1,2,3,4: {self.df_modules_active.shape[0]} módulos")
         else:
             self.logger.warning(f"No se encontró el archivo de módulos activos en: {modules_active_path}")
             self.df_modules_active = pd.DataFrame()
@@ -90,6 +111,34 @@ class CourseAnalysis(EDAAnalysisBase):
         if os.path.exists(modules_featured_path):
             self.df_modules_featured = pd.read_csv(modules_featured_path)
             self.logger.info(f"Información de módulos destacados cargada: {self.df_modules_featured.shape[0]} módulos")
+
+            # Filtrar solo asignaturas 1, 2, 3, 4
+            if 'id_asignatura' in self.df_modules_featured.columns:
+                self.df_modules_featured = self.df_modules_featured[self.df_modules_featured['id_asignatura'].isin([1, 2, 3, 4])].copy()
+                self.logger.info(f"Módulos destacados filtrados a asignaturas 1,2,3,4: {self.df_modules_featured.shape[0]} módulos")
+
+            # Agregar nombres de asignaturas
+            asignaturas_path = os.path.join(os.path.dirname(self.dataset_path), "..", "raw", "tablas_maestras", "asignaturas.csv")
+            if os.path.exists(asignaturas_path):
+                df_asignaturas = pd.read_csv(asignaturas_path)
+                self.logger.info(f"Tabla de asignaturas cargada: {df_asignaturas.shape[0]} asignaturas")
+                if 'id_asignatura' in df_asignaturas.columns and 'nombre' in df_asignaturas.columns:
+                    self.df_modules_featured = self.df_modules_featured.merge(
+                        df_asignaturas[['id_asignatura', 'nombre']], 
+                        on='id_asignatura', 
+                        how='left'
+                    )
+                    self.logger.info(f"Merge con nombres de asignaturas completado")
+                    # Renombrar columna para consistencia
+                    if 'nombre' in self.df_modules_featured.columns:
+                        self.df_modules_featured = self.df_modules_featured.rename(columns={'nombre': 'asignatura_name'})
+                        self.logger.info(f"Columna 'nombre' renombrada a 'asignatura_name'")
+                        # Verificar nombres únicos
+                        try:
+                            nombres_unicos = self.df_modules_featured['asignatura_name'].drop_duplicates().tolist()
+                            self.logger.info(f"Nombres de asignaturas encontrados: {nombres_unicos}")
+                        except Exception as e:
+                            self.logger.warning(f"Error al listar nombres únicos: {e}")
         else:
             self.logger.warning(f"No se encontró el archivo de módulos destacados en: {modules_featured_path}")
             self.df_modules_featured = pd.DataFrame()
@@ -163,7 +212,7 @@ class CourseAnalysis(EDAAnalysisBase):
         self.logger.info(f"Creando mapa de calor de composición de cursos{sede_suffix}...")
 
         # Filtrar por sede en el dataset principal
-        if sede:
+        if sede is not None and sede != '':
             df_main_data = self.df_merged[self.df_merged['sede'] == sede].copy()
         else:
             df_main_data = self.df_merged.copy()
@@ -177,7 +226,7 @@ class CourseAnalysis(EDAAnalysisBase):
         self.logger.info(f"Combinaciones asignatura-grado en dataset principal: {len(combinaciones_principales)}")
 
         # Filtrar courses para que solo tenga estas combinaciones
-        if sede and not self.df_courses.empty:
+        if sede is not None and sede != '' and not self.df_courses.empty:
             df_courses_data = self.df_courses[self.df_courses['sede'] == sede].copy()
         else:
             df_courses_data = self.df_courses.copy()
@@ -300,7 +349,7 @@ class CourseAnalysis(EDAAnalysisBase):
         self.logger.info(f"Creando gráfico de conteo por asignatura-grado{sede_suffix}...")
 
         # Filtrar por sede en el dataset principal
-        if sede:
+        if sede is not None and sede != '':
             df_main_data = self.df_merged[self.df_merged['sede'] == sede].copy()
         else:
             df_main_data = self.df_merged.copy()
@@ -396,209 +445,6 @@ class CourseAnalysis(EDAAnalysisBase):
 
         self.logger.info(f"Gráfico de conteo por asignatura-grado creado{sede_suffix}")
 
-    def create_modules_by_subject_grade_chart(self, output_dir: str, sede: str = None):
-        """
-        Crear gráficos de barras comparando cantidad de módulos por asignatura, grado y período.
-        Incluye 2024 (con períodos múltiples) y 2025 (con eje X asignaturas) en la misma imagen.
-        Solo muestra combinaciones asignatura-grado que están en el dataset principal.
-
-        Args:
-            output_dir: Directorio de salida
-            sede: Filtrar por sede específica (opcional)
-        """
-        sede_suffix = f" - {sede}" if sede else ""
-        sede_file_suffix = f"_{sede.lower()}" if sede else ""
-        self.logger.info(f"Creando gráficos de módulos por asignatura-grado-período (2024-2025){sede_suffix}...")
-
-        # Primero obtener combinaciones del dataset principal
-        if sede:
-            df_main_data = self.df_merged[self.df_merged['sede'] == sede].copy()
-        else:
-            df_main_data = self.df_merged.copy()
-
-        if df_main_data.empty:
-            self.logger.warning(f"No hay datos en el dataset principal{sede_suffix}")
-            return
-
-        # Obtener combinaciones únicas de asignatura-grado del dataset principal
-        combinaciones_principales = df_main_data[['id_asignatura', 'id_grado']].drop_duplicates()
-        self.logger.info(f"Combinaciones asignatura-grado en dataset principal: {len(combinaciones_principales)}")
-
-        # Filtrar courses por sede para 2024 y 2025
-        if sede and not self.df_courses.empty:
-            df_courses_2024 = self.df_courses[
-                (self.df_courses['sede'] == sede) & (self.df_courses['year'] == 2024)
-            ].copy()
-            df_courses_2025 = self.df_courses[
-                (self.df_courses['sede'] == sede) & (self.df_courses['year'] == 2025)
-            ].copy()
-        else:
-            if not self.df_courses.empty:
-                df_courses_2024 = self.df_courses[self.df_courses['year'] == 2024].copy()
-                df_courses_2025 = self.df_courses[self.df_courses['year'] == 2025].copy()
-            else:
-                df_courses_2024 = pd.DataFrame()
-                df_courses_2025 = pd.DataFrame()
-
-        if df_courses_2024.empty and df_courses_2025.empty:
-            self.logger.warning(f"No hay datos de cursos para años 2024 o 2025{sede_suffix}")
-            return
-
-        if 'num_modules' not in self.df_courses.columns:
-            self.logger.warning(f"No hay información de módulos disponible{sede_suffix}")
-            return
-
-        # Procesar 2024 si hay datos
-        has_2024 = False
-        if not df_courses_2024.empty and 'period' in df_courses_2024.columns:
-            df_courses_2024 = df_courses_2024.merge(combinaciones_principales, on=['id_asignatura', 'id_grado'], how='inner')
-            if not df_courses_2024.empty:
-                has_2024 = True
-
-        # Procesar 2025 si hay datos
-        has_2025 = False
-        if not df_courses_2025.empty:
-            df_courses_2025 = df_courses_2025.merge(combinaciones_principales, on=['id_asignatura', 'id_grado'], how='inner')
-            if not df_courses_2025.empty:
-                has_2025 = True
-
-        if not has_2024 and not has_2025:
-            self.logger.warning(f"No hay datos de cursos que coincidan con el dataset principal para 2024 o 2025{sede_suffix}")
-            return
-
-        # Crear imagen con dos gráficas: una para 2024 y otra para 2025
-        fig = plt.figure(figsize=(28, 18))
-        gs = fig.add_gridspec(2, 1, height_ratios=[1.5, 1], hspace=0.5)
-
-        # Gráfica 1: 2024 con períodos (barras agrupadas por grado y período)
-        if has_2024:
-            ax_2024 = fig.add_subplot(gs[0])
-            self._create_modules_chart_2024(df_courses_2024, ax_2024, sede_suffix)
-
-        # Gráfica 2: 2025 con eje X = asignaturas
-        if has_2025:
-            ax_2025 = fig.add_subplot(gs[1])
-            self._create_modules_chart_2025(df_courses_2025, ax_2025, sede_suffix)
-
-        plt.suptitle(f'Total de Módulos por Asignatura y Grado - Años 2024-2025{sede_suffix}', 
-                     fontsize=18, weight='bold', y=0.99)
-        plt.tight_layout(rect=[0, 0.02, 1, 0.98])
-        plt.savefig(f"{output_dir}/modulos_por_asignatura_grado_2024_2025{sede_file_suffix}.png", 
-                   dpi=300, bbox_inches='tight')
-        plt.close()
-
-        self.logger.info(f"Gráfico de módulos por asignatura-grado (2024-2025) creado{sede_suffix}")
-
-    def _create_modules_chart_2024(self, df_courses_2024: pd.DataFrame, ax, sede_suffix: str):
-        """Crear gráfica de 2024 con períodos múltiples, eje X = grados"""
-        # Calcular sumatoria por asignatura-grado-período
-        df_agg = df_courses_2024.groupby(['id_asignatura', 'id_grado', 'period'])['num_modules'].sum().reset_index()
-
-        # Obtener nombres de asignaturas
-        if 'asignatura' in df_courses_2024.columns:
-            asig_names = df_courses_2024[['id_asignatura', 'asignatura']].drop_duplicates()
-            df_agg = df_agg.merge(asig_names, on='id_asignatura', how='left')
-
-        # Obtener todas las combinaciones únicas
-        asignaturas = sorted(df_agg['id_asignatura'].unique())
-        periodos = sorted(df_agg['period'].unique())
-
-        # Crear etiqueta combinada asignatura-grado
-        def create_label(row):
-            asig = row.get('asignatura', f"Asig{row['id_asignatura']}")
-            return f"{asig} - G{row['id_grado']}"
-
-        df_agg['asig_grado'] = df_agg.apply(create_label, axis=1)
-
-        # Obtener todas las combinaciones asignatura-grado únicas
-        asig_grado_combos = sorted(df_agg['asig_grado'].unique())
-
-        # Configurar posiciones
-        x = np.arange(len(asig_grado_combos))
-        width = 0.8 / len(periodos)
-        colors = ['steelblue', 'coral', 'seagreen', 'gold']
-
-        # Crear barras para cada período
-        for i, periodo in enumerate(periodos):
-            df_p = df_agg[df_agg['period'] == periodo]
-            valores = []
-            for combo in asig_grado_combos:
-                val = df_p[df_p['asig_grado'] == combo]['num_modules']
-                valores.append(val.iloc[0] if len(val) > 0 else 0)
-
-            offset = (i - len(periodos)/2 + 0.5) * width
-            bars = ax.bar(x + offset, valores, width, label=f'P{periodo}', 
-                         color=colors[i % len(colors)], alpha=0.7, edgecolor='black', linewidth=0.5)
-
-            for bar, value in zip(bars, valores):
-                if value > 0:
-                    ax.text(bar.get_x() + bar.get_width()/2., bar.get_height(),
-                           f'{int(value)}', ha='center', va='bottom', fontsize=7, weight='bold')
-
-        ax.set_xticks(x)
-        ax.set_xticklabels(asig_grado_combos, rotation=60, ha='right', fontsize=8)
-        ax.set_xlabel('Asignatura - Grado', fontsize=12, labelpad=15)
-        ax.set_ylabel('Total de Módulos', fontsize=12)
-        ax.set_title(f'Año 2024 - Por Período{sede_suffix}', fontsize=14, weight='bold', pad=20)
-        ax.legend(fontsize=11, loc='upper right')
-        ax.grid(axis='y', alpha=0.3, linestyle='--')
-        ax.set_axisbelow(True)
-        ax.tick_params(axis='x', pad=12)
-
-    def _create_modules_chart_2025(self, df_courses_2025: pd.DataFrame, ax, sede_suffix: str):
-        """Crear gráfica de 2025, eje X = asignaturas, barras por grado"""
-        # Calcular sumatoria por asignatura-grado
-        df_agg = df_courses_2025.groupby(['id_asignatura', 'id_grado'])['num_modules'].sum().reset_index()
-
-        # Obtener nombres de asignaturas
-        if 'asignatura' in df_courses_2025.columns:
-            asig_names = df_courses_2025[['id_asignatura', 'asignatura']].drop_duplicates()
-            df_agg = df_agg.merge(asig_names, on='id_asignatura', how='left')
-
-        # Obtener asignaturas y grados únicos
-        asignaturas = sorted(df_agg['id_asignatura'].unique())
-        grados = sorted(df_agg['id_grado'].unique())
-
-        # Crear etiquetas de asignaturas
-        asig_labels = []
-        for id_asig in asignaturas:
-            nombre = df_agg[df_agg['id_asignatura'] == id_asig]['asignatura'].iloc[0] if 'asignatura' in df_agg.columns else f'Asig {id_asig}'
-            if len(nombre) > 15:
-                nombre = nombre[:12] + '...'
-            asig_labels.append(nombre)
-
-        # Configurar posiciones
-        x = np.arange(len(asignaturas))
-        width = 0.8 / len(grados)
-        colors = ['steelblue', 'coral', 'seagreen', 'gold', 'mediumpurple']
-
-        # Crear barras para cada grado
-        for i, grado in enumerate(grados):
-            df_g = df_agg[df_agg['id_grado'] == grado]
-            valores = []
-            for id_asig in asignaturas:
-                val = df_g[df_g['id_asignatura'] == id_asig]['num_modules']
-                valores.append(val.iloc[0] if len(val) > 0 else 0)
-
-            offset = (i - len(grados)/2 + 0.5) * width
-            bars = ax.bar(x + offset, valores, width, label=f'Grado {grado}', 
-                         color=colors[i % len(colors)], alpha=0.7, edgecolor='black', linewidth=0.5)
-
-            for bar, value in zip(bars, valores):
-                if value > 0:
-                    ax.text(bar.get_x() + bar.get_width()/2., bar.get_height(),
-                           f'{int(value)}', ha='center', va='bottom', fontsize=8, weight='bold')
-
-        ax.set_xticks(x)
-        ax.set_xticklabels(asig_labels, rotation=45, ha='right', fontsize=11)
-        ax.set_xlabel('Asignatura', fontsize=12, labelpad=15)
-        ax.set_ylabel('Total de Módulos', fontsize=12)
-        ax.set_title(f'Año 2025 - Por Grado{sede_suffix}', fontsize=14, weight='bold', pad=20)
-        ax.legend(fontsize=11, loc='upper right')
-        ax.grid(axis='y', alpha=0.3, linestyle='--')
-        ax.set_axisbelow(True)
-        ax.tick_params(axis='x', pad=12)
-
     def analyze_course_composition(self, output_dir: str, sede: str = None):
         """
         Analizar la composición de cursos (módulos, actividades, estudiantes).
@@ -612,7 +458,7 @@ class CourseAnalysis(EDAAnalysisBase):
         self.logger.info(f"Analizando composición de cursos{sede_suffix}...")
 
         # Filtrar por sede si se especifica
-        if sede and not self.df_courses.empty:
+        if sede is not None and sede != '' and not self.df_courses.empty:
             df_courses_data = self.df_courses[self.df_courses['sede'] == sede].copy()
         else:
             df_courses_data = self.df_courses.copy()
@@ -637,17 +483,8 @@ class CourseAnalysis(EDAAnalysisBase):
         else:
             axes[0].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[0].transAxes)
 
-        # 2. Distribución de estudiantes por curso
-        if 'num_students' in df_courses_data.columns:
-            axes[1].hist(df_courses_data['num_students'].dropna(), bins=20, color='lightgreen', edgecolor='black')
-            axes[1].set_title('Distribución de Estudiantes por Curso', fontsize=11)
-            axes[1].set_xlabel('Número de Estudiantes')
-            axes[1].set_ylabel('Frecuencia')
-            axes[1].axvline(df_courses_data['num_students'].median(), color='red', linestyle='--',
-                           label=f'Mediana: {df_courses_data["num_students"].median():.1f}')
-            axes[1].legend()
-        else:
-            axes[1].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[1].transAxes)
+        # 2. (Gráfica eliminada por solicitud)
+        axes[1].axis('off')
 
         # 3. Porcentaje de módulos actualizados
         if 'percent_updated' in df_courses_data.columns:
@@ -674,17 +511,8 @@ class CourseAnalysis(EDAAnalysisBase):
         else:
             axes[3].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[3].transAxes)
 
-        # 5. Vistas de estudiantes vs interacciones
-        if 'student_total_views' in df_courses_data.columns and 'student_total_interactions' in df_courses_data.columns:
-            axes[4].scatter(df_courses_data['student_total_views'], 
-                           df_courses_data['student_total_interactions'],
-                           alpha=0.5, s=30, color='teal')
-            axes[4].set_title('Vistas vs Interacciones de Estudiantes', fontsize=11)
-            axes[4].set_xlabel('Total de Vistas')
-            axes[4].set_ylabel('Total de Interacciones')
-            axes[4].grid(True, alpha=0.3)
-        else:
-            axes[4].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[4].transAxes)
+        # 5. (Gráfica eliminada por solicitud)
+        axes[4].axis('off')
 
         # 6. Actividad docente (vistas antes de inicio planificado)
         if 'num_teacher_views_before_planned_start_date' in df_courses_data.columns:
@@ -700,48 +528,14 @@ class CourseAnalysis(EDAAnalysisBase):
         else:
             axes[5].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[5].transAxes)
 
-        # 7. Porcentaje de estudiantes que vieron vs interactuaron
-        if 'percent_students_viewed' in df_courses_data.columns and 'percent_students_interacted' in df_courses_data.columns:
-            axes[6].scatter(df_courses_data['percent_students_viewed'] * 100,
-                           df_courses_data['percent_students_interacted'] * 100,
-                           alpha=0.5, s=30, color='purple')
-            axes[6].set_title('% Estudiantes que Vieron vs Interactuaron', fontsize=11)
-            axes[6].set_xlabel('% Estudiantes que Vieron')
-            axes[6].set_ylabel('% Estudiantes que Interactuaron')
-            axes[6].plot([0, 100], [0, 100], 'r--', alpha=0.5, label='Línea de Igualdad')
-            axes[6].legend()
-            axes[6].grid(True, alpha=0.3)
-        else:
-            axes[6].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[6].transAxes)
+        # 7. (Gráfica eliminada por solicitud)
+        axes[6].axis('off')
 
-        # 8. Boxplot de actualizaciones de docentes por periodo
-        if 'teacher_total_updates' in df_courses_data.columns and 'period' in df_courses_data.columns:
-            df_plot = df_courses_data[['period', 'teacher_total_updates']].dropna()
-            if len(df_plot) > 0:
-                period_order = sorted(df_plot['period'].unique())
-                sns.boxplot(data=df_plot, x='period', y='teacher_total_updates', 
-                           order=period_order, ax=axes[7], palette='Set2')
-                axes[7].set_title('Actualizaciones de Docentes por Periodo', fontsize=11)
-                axes[7].set_xlabel('Periodo')
-                axes[7].set_ylabel('Total de Actualizaciones')
-            else:
-                axes[7].text(0.5, 0.5, 'Datos insuficientes', ha='center', va='center', transform=axes[7].transAxes)
-        else:
-            axes[7].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[7].transAxes)
+        # 8. (Gráfica eliminada por solicitud)
+        axes[7].axis('off')
 
-        # 9. Distribución de contenido en inglés
-        if 'percent_in_english' in df_courses_data.columns:
-            axes[8].hist(df_courses_data['percent_in_english'].dropna() * 100, 
-                        bins=20, color='lightblue', edgecolor='black')
-            axes[8].set_title('Porcentaje de Contenido en Inglés', fontsize=11)
-            axes[8].set_xlabel('Porcentaje (%)')
-            axes[8].set_ylabel('Frecuencia')
-            median_val = df_courses_data['percent_in_english'].median() * 100
-            axes[8].axvline(median_val, color='red', linestyle='--',
-                           label=f'Mediana: {median_val:.1f}%')
-            axes[8].legend()
-        else:
-            axes[8].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[8].transAxes)
+        # 9. (Gráfica eliminada por solicitud)
+        axes[8].axis('off')
 
         plt.suptitle(f'Análisis de Composición de Cursos{sede_suffix}', fontsize=16, y=0.995)
         plt.tight_layout(rect=[0, 0, 1, 0.99])
@@ -749,168 +543,6 @@ class CourseAnalysis(EDAAnalysisBase):
         plt.close()
 
         self.logger.info(f"Análisis de composición de cursos completado{sede_suffix}")
-
-    def create_course_metrics_summary(self, output_dir: str, sede: str = None):
-        """
-        Crear resumen de métricas clave de cursos.
-
-        Args:
-            output_dir: Directorio de salida
-            sede: Filtrar por sede específica (opcional)
-        """
-        sede_suffix = f" - {sede}" if sede else ""
-        sede_file_suffix = f"_{sede.lower()}" if sede else ""
-        self.logger.info(f"Creando resumen de métricas de cursos{sede_suffix}...")
-
-        # Filtrar por sede si se especifica
-        if sede and not self.df_courses.empty:
-            df_courses_data = self.df_courses[self.df_courses['sede'] == sede].copy()
-        else:
-            df_courses_data = self.df_courses.copy()
-
-        if df_courses_data.empty:
-            self.logger.warning(f"No hay datos de cursos para crear resumen{sede_suffix}")
-            return
-
-        # Calcular métricas
-        metrics = {
-            'Total de Cursos': len(df_courses_data),
-            'Promedio de Módulos': df_courses_data['num_modules'].mean() if 'num_modules' in df_courses_data.columns else 0,
-            'Promedio de Estudiantes': df_courses_data['num_students'].mean() if 'num_students' in df_courses_data.columns else 0,
-            'Promedio de Vistas por Estudiante': df_courses_data['avg_views_per_student'].mean() if 'avg_views_per_student' in df_courses_data.columns else 0,
-            'Promedio de Interacciones por Estudiante': df_courses_data['avg_interactions_per_student'].mean() if 'avg_interactions_per_student' in df_courses_data.columns else 0,
-            'Porcentaje Promedio de Módulos Actualizados': df_courses_data['percent_updated'].mean() * 100 if 'percent_updated' in df_courses_data.columns else 0,
-            'Porcentaje Promedio de Estudiantes que Vieron': df_courses_data['percent_students_viewed'].mean() * 100 if 'percent_students_viewed' in df_courses_data.columns else 0,
-            'Porcentaje Promedio de Estudiantes que Interactuaron': df_courses_data['percent_students_interacted'].mean() * 100 if 'percent_students_interacted' in df_courses_data.columns else 0,
-        }
-
-        # Crear figura con tabla de resumen
-        fig, ax = plt.subplots(figsize=(12, 8))
-        ax.axis('off')
-
-        # Preparar datos para la tabla
-        table_data = []
-        for metric_name, metric_value in metrics.items():
-            if isinstance(metric_value, float):
-                table_data.append([metric_name, f"{metric_value:.2f}"])
-            else:
-                table_data.append([metric_name, str(metric_value)])
-
-        # Crear tabla
-        table = ax.table(
-            cellText=table_data,
-            colLabels=['Métrica', 'Valor'],
-            cellLoc='left',
-            loc='center',
-            colWidths=[0.7, 0.3]
-        )
-
-        table.auto_set_font_size(False)
-        table.set_fontsize(11)
-        table.scale(1, 2)
-
-        # Estilizar encabezados
-        for i in range(2):
-            table[(0, i)].set_facecolor('#4CAF50')
-            table[(0, i)].set_text_props(weight='bold', color='white')
-
-        # Alternar colores de filas
-        for i in range(1, len(table_data) + 1):
-            if i % 2 == 0:
-                table[(i, 0)].set_facecolor('#f0f0f0')
-                table[(i, 1)].set_facecolor('#f0f0f0')
-
-        ax.set_title(f'Resumen de Métricas de Cursos{sede_suffix}', fontsize=16, pad=20, weight='bold')
-
-        plt.tight_layout()
-        plt.savefig(f"{output_dir}/resumen_metricas_cursos{sede_file_suffix}.png", dpi=300, bbox_inches='tight')
-        plt.close()
-
-        self.logger.info(f"Resumen de métricas de cursos creado{sede_suffix}")
-
-    def create_course_timeline_analysis(self, output_dir: str, sede: str = None):
-        """
-        Analizar la evolución de cursos a lo largo del tiempo.
-
-        Args:
-            output_dir: Directorio de salida
-            sede: Filtrar por sede específica (opcional)
-        """
-        sede_suffix = f" - {sede}" if sede else ""
-        sede_file_suffix = f"_{sede.lower()}" if sede else ""
-        self.logger.info(f"Analizando línea temporal de cursos{sede_suffix}...")
-
-        # Filtrar por sede si se especifica
-        if sede and not self.df_courses.empty:
-            df_courses_data = self.df_courses[self.df_courses['sede'] == sede].copy()
-        else:
-            df_courses_data = self.df_courses.copy()
-
-        if df_courses_data.empty or 'year' not in df_courses_data.columns or 'period' not in df_courses_data.columns:
-            self.logger.warning(f"No hay datos suficientes para análisis temporal{sede_suffix}")
-            return
-
-        # Crear periodo combinado
-        df_courses_data['year_period'] = df_courses_data['year'].astype(str) + '-P' + df_courses_data['period'].astype(str)
-
-        # Crear figura
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-        axes = axes.flatten()
-
-        # 1. Número de cursos por periodo
-        courses_by_period = df_courses_data.groupby('year_period').size()
-        axes[0].plot(courses_by_period.index, courses_by_period.values, marker='o', linewidth=2, markersize=8)
-        axes[0].set_title('Número de Cursos por Periodo', fontsize=12)
-        axes[0].set_xlabel('Periodo')
-        axes[0].set_ylabel('Número de Cursos')
-        axes[0].tick_params(axis='x', rotation=45)
-        axes[0].grid(True, alpha=0.3)
-
-        # 2. Promedio de estudiantes por periodo
-        if 'num_students' in df_courses_data.columns:
-            students_by_period = df_courses_data.groupby('year_period')['num_students'].mean()
-            axes[1].plot(students_by_period.index, students_by_period.values, 
-                        marker='o', linewidth=2, markersize=8, color='green')
-            axes[1].set_title('Promedio de Estudiantes por Periodo', fontsize=12)
-            axes[1].set_xlabel('Periodo')
-            axes[1].set_ylabel('Promedio de Estudiantes')
-            axes[1].tick_params(axis='x', rotation=45)
-            axes[1].grid(True, alpha=0.3)
-        else:
-            axes[1].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[1].transAxes)
-
-        # 3. Promedio de módulos por periodo
-        if 'num_modules' in df_courses_data.columns:
-            modules_by_period = df_courses_data.groupby('year_period')['num_modules'].mean()
-            axes[2].plot(modules_by_period.index, modules_by_period.values,
-                        marker='o', linewidth=2, markersize=8, color='orange')
-            axes[2].set_title('Promedio de Módulos por Periodo', fontsize=12)
-            axes[2].set_xlabel('Periodo')
-            axes[2].set_ylabel('Promedio de Módulos')
-            axes[2].tick_params(axis='x', rotation=45)
-            axes[2].grid(True, alpha=0.3)
-        else:
-            axes[2].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[2].transAxes)
-
-        # 4. Actividad de docentes por periodo
-        if 'teacher_total_updates' in df_courses_data.columns:
-            teacher_activity_by_period = df_courses_data.groupby('year_period')['teacher_total_updates'].mean()
-            axes[3].plot(teacher_activity_by_period.index, teacher_activity_by_period.values,
-                        marker='o', linewidth=2, markersize=8, color='red')
-            axes[3].set_title('Promedio de Actualizaciones de Docentes por Periodo', fontsize=12)
-            axes[3].set_xlabel('Periodo')
-            axes[3].set_ylabel('Promedio de Actualizaciones')
-            axes[3].tick_params(axis='x', rotation=45)
-            axes[3].grid(True, alpha=0.3)
-        else:
-            axes[3].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[3].transAxes)
-
-        plt.suptitle(f'Análisis Temporal de Cursos{sede_suffix}', fontsize=16, y=0.995)
-        plt.tight_layout(rect=[0, 0, 1, 0.99])
-        plt.savefig(f"{output_dir}/analisis_temporal_cursos{sede_file_suffix}.png", dpi=300, bbox_inches='tight')
-        plt.close()
-
-        self.logger.info(f"Análisis temporal de cursos completado{sede_suffix}")
 
     def create_honeycomb_module_charts(self, output_dir: str, asignaturas: list = [1, 2, 3, 4], sede: str = None):
         """
@@ -939,7 +571,7 @@ class CourseAnalysis(EDAAnalysisBase):
             return
 
         # Filtrar por sede si se especifica
-        if sede:
+        if sede is not None and sede != '':
             df_modules = self.df_modules_featured[self.df_modules_featured['sede'] == sede].copy()
         else:
             df_modules = self.df_modules_featured.copy()
@@ -979,8 +611,18 @@ class CourseAnalysis(EDAAnalysisBase):
             self.logger.warning(f"No hay datos para asignatura {id_asignatura}{sede_suffix}")
             return
 
-        # Obtener nombre de la asignatura
-        asignatura_name = df_asig['asignatura_name'].iloc[0] if 'asignatura_name' in df_asig.columns else f"Asignatura {id_asignatura}"
+        # Obtener nombre de la asignatura desde el archivo
+        asignaturas_path = os.path.join(os.path.dirname(self.dataset_path), "..", "raw", "tablas_maestras", "asignaturas.csv")
+        asignatura_name = f"asignatura_{id_asignatura}"
+
+        if os.path.exists(asignaturas_path):
+            df_asignaturas = pd.read_csv(asignaturas_path)
+            asig_row = df_asignaturas[df_asignaturas['id_asignatura'] == id_asignatura]
+            if not asig_row.empty and 'nombre' in df_asignaturas.columns:
+                asignatura_name = str(asig_row['nombre'].iloc[0]).strip()
+
+        # Crear slug para el nombre del archivo
+        asignatura_slug = re.sub(r'[^a-zA-Z0-9]+', '_', asignatura_name.lower()).strip('_')
 
         self.logger.info(f"Creando gráfica para {asignatura_name} con {len(df_asig)} módulos{sede_suffix}")
 
@@ -1177,7 +819,7 @@ class CourseAnalysis(EDAAnalysisBase):
 
         ax.set_title(f'{titulo_base}{densidad_info}\n'
                     f'Total: {len(df_asig)} modulos | Forma: Estrella=Interactivo / Circulo=Lectura\n'
-                    f'Color: Rosa=Ingles / Azul=Espanol | Tamano=N Estudiantes | Opacidad=Updates Docente',
+                    f'Color: Rosa=Ingles / Azul=Español | Tamano=N Estudiantes | Opacidad=Updates Docente',
                     fontsize=11, weight='bold', pad=15)
 
         # Añadir grid para facilitar lectura
@@ -1199,7 +841,7 @@ class CourseAnalysis(EDAAnalysisBase):
         ax.legend(handles=legend_elements, loc='upper left', fontsize=10, framealpha=0.9)
 
         plt.tight_layout()
-        plt.savefig(f"{output_dir}/honeycomb_modulos_asignatura_{id_asignatura}{sede_file_suffix}.png", 
+        plt.savefig(f"{output_dir}/honeycomb_modulos_{asignatura_slug}{sede_file_suffix}.png", 
                    dpi=dpi_to_use, bbox_inches='tight')
         plt.close()
 
@@ -1207,7 +849,11 @@ class CourseAnalysis(EDAAnalysisBase):
 
     def create_visualizations(self, output_dir: str):
         """
-        Crear todas las visualizaciones de análisis de cursos.
+        Crear visualizaciones de análisis de cursos por sede.
+
+        Por defecto solo genera visualizaciones por sede individual.
+        Las visualizaciones generales (todas las sedes juntas) están desactivadas
+        y deben llamarse explícitamente si se necesitan.
 
         Args:
             output_dir: Directorio de salida
@@ -1233,21 +879,33 @@ class CourseAnalysis(EDAAnalysisBase):
                 # Crear visualizaciones para esta sede
                 self.create_course_composition_heatmap(sede_dir, sede)
                 self.create_subject_grade_count_bar_chart(sede_dir, sede)
-                self.create_modules_by_subject_grade_chart(sede_dir, sede)
                 self.analyze_course_composition(sede_dir, sede)
-                self.create_course_metrics_summary(sede_dir, sede)
-                self.create_course_timeline_analysis(sede_dir, sede)
                 self.create_honeycomb_module_charts(sede_dir, asignaturas=[1, 2, 3, 4], sede=sede)
 
-        # Crear visualizaciones generales (todas las sedes juntas)
-        self.logger.info("Creando visualizaciones generales...")
+        # Visualizaciones generales desactivadas por defecto
+        # Solo se generan si se llama explícitamente a cada función con sede=None
+        # self.logger.info("Creando visualizaciones generales...")
+        # self.create_course_composition_heatmap(output_dir)
+        # self.create_subject_grade_count_bar_chart(output_dir)
+        # self.analyze_course_composition(output_dir)
+        # self.create_honeycomb_module_charts(output_dir, asignaturas=[1, 2, 3, 4])
+
+    def create_general_visualizations(self, output_dir: str):
+        """
+        Crear visualizaciones generales (todas las sedes juntas).
+
+        Este método debe llamarse explícitamente si se desean
+        visualizaciones agregadas de todas las sedes.
+
+        Args:
+            output_dir: Directorio de salida
+        """
+        self.logger.info("Creando visualizaciones generales (todas las sedes)...")
         self.create_course_composition_heatmap(output_dir)
         self.create_subject_grade_count_bar_chart(output_dir)
-        self.create_modules_by_subject_grade_chart(output_dir)
         self.analyze_course_composition(output_dir)
-        self.create_course_metrics_summary(output_dir)
-        self.create_course_timeline_analysis(output_dir)
         self.create_honeycomb_module_charts(output_dir, asignaturas=[1, 2, 3, 4])
+        self.logger.info("Visualizaciones generales completadas")
 
     def run_analysis(self):
         """Ejecutar análisis completo de cursos."""
