@@ -338,28 +338,28 @@ class CourseAnalysis(EDAAnalysisBase):
 
     def create_subject_grade_count_bar_chart(self, output_dir: str, sede: str = None):
         """
-        Crear gráfico de barras con el conteo de registros por ASIGNATURA-GRADO.
+        Crear gráfico de barras apiladas con el conteo de registros por ASIGNATURA-GRADO y SEDE.
+        Genera una gráfica general mostrando la distribución por sede en barras apiladas.
 
         Args:
             output_dir: Directorio de salida
-            sede: Filtrar por sede específica (opcional)
+            sede: Parámetro ignorado, siempre genera gráfica general
         """
-        sede_suffix = f" - {sede}" if sede else ""
-        sede_file_suffix = f"_{sede.lower()}" if sede else ""
-        self.logger.info(f"Creando gráfico de conteo por asignatura-grado{sede_suffix}...")
+        self.logger.info(f"Creando gráfico de conteo por asignatura-grado (todas las sedes)...")
 
-        # Filtrar por sede en el dataset principal
-        if sede is not None and sede != '':
-            df_main_data = self.df_merged[self.df_merged['sede'] == sede].copy()
-        else:
-            df_main_data = self.df_merged.copy()
+        df_main_data = self.df_merged.copy()
 
         if df_main_data.empty:
-            self.logger.warning(f"No hay datos en el dataset principal{sede_suffix}")
+            self.logger.warning(f"No hay datos en el dataset principal")
             return
 
-        # Primero contar por id_asignatura e id_grado
-        conteo_ids = df_main_data.groupby(['id_asignatura', 'id_grado']).size().reset_index(name='count')
+        # Verificar que tengamos la columna sede
+        if 'sede' not in df_main_data.columns:
+            self.logger.warning("No hay columna 'sede' en el dataset")
+            return
+
+        # Contar por id_asignatura, id_grado y sede
+        conteo_ids = df_main_data.groupby(['id_asignatura', 'id_grado', 'sede']).size().reset_index(name='count')
 
         self.logger.info(f"Total de combinaciones asignatura-grado: {len(conteo_ids)}")
         self.logger.info(f"Total de registros: {conteo_ids['count'].sum()}")
@@ -385,65 +385,98 @@ class CourseAnalysis(EDAAnalysisBase):
             if len(asig_name) > 30:
                 asig_name = asig_name[:27] + '...'
 
-            return f"{asig_name} - {row['id_grado']}"
+            return f"{asig_name} - Grado {row['id_grado']}"
 
         conteo_ids['asignatura_grado'] = conteo_ids.apply(create_label, axis=1)
 
         # Ordenar por grado (de menor a mayor) y luego por nombre de asignatura
-        # Si no existe la columna asignatura, usar id_asignatura
         if 'asignatura' in conteo_ids.columns:
             conteo_ids = conteo_ids.sort_values(['id_grado', 'asignatura'])
         else:
             conteo_ids = conteo_ids.sort_values(['id_grado', 'id_asignatura'])
 
-        conteo = pd.Series(conteo_ids['count'].values, index=conteo_ids['asignatura_grado'].values)
+        # Crear pivot table con sedes como columnas
+        pivot_data = conteo_ids.pivot_table(
+            index='asignatura_grado',
+            columns='sede',
+            values='count',
+            aggfunc='sum',
+            fill_value=0
+        )
 
-        # Crear figura más compacta
-        fig_width = 12  # Ancho fijo más pequeño
-        fig_height = max(6, len(conteo) * 0.25)  # Altura reducida
+        # Mantener el orden de las etiquetas
+        pivot_data = pivot_data.reindex(conteo_ids['asignatura_grado'].unique())
+
+        # Obtener sedes únicas y colores (usar paleta tab20b para consistencia)
+        sedes = pivot_data.columns.tolist()
+        colores_sedes = plt.cm.tab20b(np.linspace(0, 1, len(sedes)))
+
+        # Calcular totales por fila
+        totales = pivot_data.sum(axis=1).values
+
+        # Crear figura
+        n_rows = len(pivot_data)
+        fig_width = 14
+        fig_height = max(6, n_rows * 0.3)
         fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
-        # Crear gráfico de barras horizontal para mejor legibilidad
-        y_pos = np.arange(len(conteo))
+        # Crear barras apiladas horizontales
+        y_pos = np.arange(n_rows)
+        left = np.zeros(n_rows)
 
-        # Crear gradiente de colores con transparencia basado en la cantidad
-        # Más registros = más opaco
-        max_count = conteo.max()
+        bars_by_sede = []
+        for i, sede in enumerate(sedes):
+            bars = ax.barh(y_pos, pivot_data[sede].values, left=left, 
+                          color=colores_sedes[i], edgecolor='white', linewidth=0.5,
+                          label=sede)
+            bars_by_sede.append(bars)
 
-        # Crear colores RGBA con diferentes alphas
-        from matplotlib.colors import to_rgba
-        base_color = to_rgba('steelblue')
-        colors_with_alpha = []
-        for count in conteo.values:
-            alpha = 0.3 + (count / max_count) * 0.7
-            color_rgba = (base_color[0], base_color[1], base_color[2], alpha)
-            colors_with_alpha.append(color_rgba)
+            # Añadir valores en las barras si son significativos
+            for j, (bar, value) in enumerate(zip(bars, pivot_data[sede].values)):
+                if value > 0:  # Solo mostrar si hay datos
+                    # Calcular posición del texto en el centro del segmento
+                    text_x = left[j] + value / 2
 
-        bars = ax.barh(y_pos, conteo.values, color=colors_with_alpha, edgecolor='navy', linewidth=0.5)
+                    # Calcular luminosidad del color para decidir color del texto
+                    # Usar fórmula de luminosidad relativa: 0.299*R + 0.587*G + 0.114*B
+                    r, g, b = colores_sedes[i][:3]
+                    luminosidad = 0.299 * r + 0.587 * g + 0.114 * b
+                    text_color = 'white' if luminosidad < 0.5 else 'black'
 
-        # Configurar etiquetas con tamaño reducido
+                    ax.text(text_x, bar.get_y() + bar.get_height()/2, 
+                           f'{int(value)}', va='center', ha='center', 
+                           fontsize=6, weight='bold', color=text_color)
+
+            left += pivot_data[sede].values
+
+        # Añadir totales al final de cada barra
+        max_total = totales.max()
+        for j, (y, total) in enumerate(zip(y_pos, totales)):
+            ax.text(total + max_total * 0.01, y, 
+                   f'{int(total)}', va='center', ha='left', 
+                   fontsize=7, weight='bold', color='darkblue')
+
+        # Configurar etiquetas
         ax.set_yticks(y_pos)
-        ax.set_yticklabels(conteo.index, fontsize=7)
-        ax.set_xlabel('Número de Registros', fontsize=10)
-        ax.set_ylabel('Asignatura - Grado', fontsize=10)
-        ax.set_title(f'Conteo de Registros por Asignatura-Grado{sede_suffix}', 
-                     fontsize=12, pad=15, weight='bold')
+        ax.set_yticklabels(pivot_data.index, fontsize=8)
+        ax.set_xlabel('Número de Registros', fontsize=11, weight='bold')
+        ax.set_ylabel('Asignatura - Grado', fontsize=11, weight='bold')
+        ax.set_title('Conteo de Registros por Asignatura-Grado y Sede', 
+                     fontsize=13, pad=15, weight='bold')
 
-        # Añadir valores en las barras con tamaño reducido
-        for i, (bar, value) in enumerate(zip(bars, conteo.values)):
-            ax.text(value + max_count * 0.01, bar.get_y() + bar.get_height()/2, 
-                   f'{int(value)}', va='center', ha='left', fontsize=7, weight='bold')
+        # Añadir leyenda
+        ax.legend(loc='best', fontsize=9, title='Sede', title_fontsize=10, framealpha=0.9)
 
         # Añadir grid para facilitar lectura
         ax.grid(axis='x', alpha=0.3, linestyle='--')
         ax.set_axisbelow(True)
 
         plt.tight_layout()
-        plt.savefig(f"{output_dir}/conteo_registros_asignatura_grado{sede_file_suffix}.png", 
+        plt.savefig(f"{output_dir}/conteo_registros_asignatura_grado.png", 
                    dpi=300, bbox_inches='tight')
         plt.close()
 
-        self.logger.info(f"Gráfico de conteo por asignatura-grado creado{sede_suffix}")
+        self.logger.info(f"Gráfico de conteo por asignatura-grado creado (todas las sedes)")
 
     def analyze_course_composition(self, output_dir: str, sede: str = None):
         """
@@ -848,6 +881,10 @@ class CourseAnalysis(EDAAnalysisBase):
         # Crear directorio si no existe
         os.makedirs(output_dir, exist_ok=True)
 
+        # Crear gráfica de conteo general (todas las sedes en barras apiladas)
+        self.logger.info("Creando gráfica de conteo general...")
+        self.create_subject_grade_count_bar_chart(output_dir)
+
         # Obtener sedes únicas
         if 'sede' in self.df_merged.columns:
             sedes_unicas = sorted(self.df_merged['sede'].unique())
@@ -861,9 +898,8 @@ class CourseAnalysis(EDAAnalysisBase):
                 sede_dir = os.path.join(output_dir, sede.lower())
                 os.makedirs(sede_dir, exist_ok=True)
 
-                # Crear visualizaciones para esta sede
+                # Crear visualizaciones para esta sede (sin conteo, que ya es general)
                 self.create_course_composition_heatmap(sede_dir, sede)
-                self.create_subject_grade_count_bar_chart(sede_dir, sede)
                 self.analyze_course_composition(sede_dir, sede)
                 self.create_honeycomb_module_charts(sede_dir, asignaturas=[1, 2, 3, 4], sede=sede)
 
