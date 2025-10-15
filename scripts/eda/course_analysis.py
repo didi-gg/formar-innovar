@@ -467,14 +467,14 @@ class CourseAnalysis(EDAAnalysisBase):
             self.logger.warning(f"No hay datos de cursos para analizar{sede_suffix}")
             return
 
-        # Crear figura con múltiples subplots
-        fig, axes = plt.subplots(3, 3, figsize=(20, 16))
+        # Crear figura con 2x2 subplots (solo gráficas activas)
+        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
         axes = axes.flatten()
 
         # 1. Distribución de número de módulos por curso
         if 'num_modules' in df_courses_data.columns:
             axes[0].hist(df_courses_data['num_modules'].dropna(), bins=20, color='skyblue', edgecolor='black')
-            axes[0].set_title('Distribución de Número de Módulos por Curso', fontsize=11)
+            axes[0].set_title('Distribución de Número de Módulos por Curso', fontsize=12)
             axes[0].set_xlabel('Número de Módulos')
             axes[0].set_ylabel('Frecuencia')
             axes[0].axvline(df_courses_data['num_modules'].median(), color='red', linestyle='--', 
@@ -483,59 +483,44 @@ class CourseAnalysis(EDAAnalysisBase):
         else:
             axes[0].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[0].transAxes)
 
-        # 2. (Gráfica eliminada por solicitud)
-        axes[1].axis('off')
-
-        # 3. Porcentaje de módulos actualizados
+        # 2. Porcentaje de módulos actualizados
         if 'percent_updated' in df_courses_data.columns:
-            axes[2].hist(df_courses_data['percent_updated'].dropna() * 100, bins=20, color='orange', edgecolor='black')
-            axes[2].set_title('Porcentaje de Módulos Actualizados', fontsize=11)
-            axes[2].set_xlabel('Porcentaje (%)')
-            axes[2].set_ylabel('Frecuencia')
-            axes[2].axvline(df_courses_data['percent_updated'].median() * 100, color='red', linestyle='--',
+            axes[1].hist(df_courses_data['percent_updated'].dropna() * 100, bins=20, color='orange', edgecolor='black')
+            axes[1].set_title('Porcentaje de Módulos Actualizados', fontsize=12)
+            axes[1].set_xlabel('Porcentaje (%)')
+            axes[1].set_ylabel('Frecuencia')
+            axes[1].axvline(df_courses_data['percent_updated'].median() * 100, color='red', linestyle='--',
                            label=f'Mediana: {df_courses_data["percent_updated"].median() * 100:.1f}%')
-            axes[2].legend()
+            axes[1].legend()
         else:
-            axes[2].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[2].transAxes)
+            axes[1].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[1].transAxes)
 
-        # 4. Composición de contenido (evaluation, collaboration, content, etc.)
+        # 3. Composición de contenido (evaluation, collaboration, content, etc.)
         content_cols = ['count_evaluation', 'count_collaboration', 'count_content', 'count_interactive']
         if all(col in df_courses_data.columns for col in content_cols):
             content_means = df_courses_data[content_cols].mean()
-            axes[3].bar(range(len(content_means)), content_means.values, 
+            axes[2].bar(range(len(content_means)), content_means.values, 
                        color=['red', 'blue', 'green', 'purple'], alpha=0.7)
-            axes[3].set_title('Promedio de Tipo de Contenido por Curso', fontsize=11)
-            axes[3].set_xticks(range(len(content_means)))
-            axes[3].set_xticklabels(['Evaluación', 'Colaboración', 'Contenido', 'Interactivo'], rotation=45, ha='right')
-            axes[3].set_ylabel('Promedio')
+            axes[2].set_title('Promedio de Tipo de Contenido por Curso', fontsize=12)
+            axes[2].set_xticks(range(len(content_means)))
+            axes[2].set_xticklabels(['Evaluación', 'Colaboración', 'Contenido', 'Interactivo'], rotation=45, ha='right')
+            axes[2].set_ylabel('Promedio')
+        else:
+            axes[2].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[2].transAxes)
+
+        # 4. Actividad docente (vistas antes de inicio planificado)
+        if 'num_teacher_views_before_planned_start_date' in df_courses_data.columns:
+            axes[3].hist(df_courses_data['num_teacher_views_before_planned_start_date'].dropna(), 
+                        bins=20, color='coral', edgecolor='black')
+            axes[3].set_title('Vistas de Docente Antes de Inicio Planificado', fontsize=12)
+            axes[3].set_xlabel('Número de Vistas')
+            axes[3].set_ylabel('Frecuencia')
+            median_val = df_courses_data['num_teacher_views_before_planned_start_date'].median()
+            axes[3].axvline(median_val, color='red', linestyle='--',
+                           label=f'Mediana: {median_val:.1f}')
+            axes[3].legend()
         else:
             axes[3].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[3].transAxes)
-
-        # 5. (Gráfica eliminada por solicitud)
-        axes[4].axis('off')
-
-        # 6. Actividad docente (vistas antes de inicio planificado)
-        if 'num_teacher_views_before_planned_start_date' in df_courses_data.columns:
-            axes[5].hist(df_courses_data['num_teacher_views_before_planned_start_date'].dropna(), 
-                        bins=20, color='coral', edgecolor='black')
-            axes[5].set_title('Vistas de Docente Antes de Inicio Planificado', fontsize=11)
-            axes[5].set_xlabel('Número de Vistas')
-            axes[5].set_ylabel('Frecuencia')
-            median_val = df_courses_data['num_teacher_views_before_planned_start_date'].median()
-            axes[5].axvline(median_val, color='red', linestyle='--',
-                           label=f'Mediana: {median_val:.1f}')
-            axes[5].legend()
-        else:
-            axes[5].text(0.5, 0.5, 'Datos no disponibles', ha='center', va='center', transform=axes[5].transAxes)
-
-        # 7. (Gráfica eliminada por solicitud)
-        axes[6].axis('off')
-
-        # 8. (Gráfica eliminada por solicitud)
-        axes[7].axis('off')
-
-        # 9. (Gráfica eliminada por solicitud)
-        axes[8].axis('off')
 
         plt.suptitle(f'Análisis de Composición de Cursos{sede_suffix}', fontsize=16, y=0.995)
         plt.tight_layout(rect=[0, 0, 1, 0.99])
