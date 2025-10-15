@@ -29,51 +29,119 @@ class CourseAnalysis(EDAAnalysisBase):
         self.df_merged = None
         self.df_modules_active = None
         self.df_modules_featured = None
+        self.df_asignaturas = None  # Cache para nombres de asignaturas
+        self.subject_filter = [1, 2, 3, 4]  # Asignaturas a analizar
+    
+    # ==================== MÉTODOS HELPER REUTILIZABLES ====================
+    
+    def _filter_by_subjects(self, df: pd.DataFrame, subjects: list = None) -> pd.DataFrame:
+        """Filtrar DataFrame por lista de asignaturas"""
+        if subjects is None:
+            subjects = self.subject_filter
+        
+        if 'id_asignatura' in df.columns and not df.empty:
+            return df[df['id_asignatura'].isin(subjects)].copy()
+        return df
+    
+    def _get_sede_suffixes(self, sede: str = None) -> tuple:
+        """Obtener sufijos para título y nombre de archivo según sede"""
+        if sede:
+            return f" - {sede}", f"_{sede.lower()}"
+        return "", ""
+    
+    def _load_asignaturas_names(self) -> pd.DataFrame:
+        """Cargar nombres de asignaturas desde archivo maestro (con cache)"""
+        if self.df_asignaturas is not None:
+            return self.df_asignaturas
+        
+        asignaturas_path = os.path.join(
+            os.path.dirname(self.dataset_path), 
+            "..", "raw", "tablas_maestras", "asignaturas.csv"
+        )
+        
+        if os.path.exists(asignaturas_path):
+            self.df_asignaturas = pd.read_csv(asignaturas_path)
+            self.logger.info(f"Nombres de asignaturas cargados: {len(self.df_asignaturas)} asignaturas")
+            return self.df_asignaturas
+        
+        self.logger.warning(f"No se encontró archivo de asignaturas en: {asignaturas_path}")
+        self.df_asignaturas = pd.DataFrame()
+        return self.df_asignaturas
+    
+    def _get_asignatura_name(self, id_asignatura: int) -> str:
+        """Obtener nombre de asignatura por su ID"""
+        df_asig = self._load_asignaturas_names()
+        
+        if not df_asig.empty and 'nombre' in df_asig.columns:
+            asig_row = df_asig[df_asig['id_asignatura'] == id_asignatura]
+            if not asig_row.empty:
+                return str(asig_row['nombre'].iloc[0]).strip()
+        
+        return f"Asignatura {id_asignatura}"
+    
+    def _create_asignatura_label(self, row: pd.Series, max_length: int = 30) -> str:
+        """Crear etiqueta legible de asignatura-grado"""
+        asig_name = row.get('asignatura', None)
+        if pd.isna(asig_name) or not isinstance(asig_name, str):
+            asig_name = self._get_asignatura_name(row['id_asignatura'])
+        
+        if len(asig_name) > max_length:
+            asig_name = asig_name[:max_length-3] + '...'
+        
+        return f"{asig_name} - Grado {row['id_grado']}"
+    
+    def _filter_by_sede(self, df: pd.DataFrame, sede: str = None) -> pd.DataFrame:
+        """Filtrar DataFrame por sede"""
+        if sede and 'sede' in df.columns:
+            return df[df['sede'] == sede].copy()
+        return df.copy()
+    
+    def _calculate_text_contrast_color(self, color_rgba: tuple) -> str:
+        """Calcular color de texto (blanco/negro) según luminosidad del fondo"""
+        r, g, b = color_rgba[:3]
+        luminosidad = 0.299 * r + 0.587 * g + 0.114 * b
+        return 'white' if luminosidad < 0.5 else 'black'
+    
+    def _merge_asignatura_names(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Agregar nombres de asignaturas a un DataFrame"""
+        df_asig = self._load_asignaturas_names()
+        
+        if not df_asig.empty and 'id_asignatura' in df.columns and 'nombre' in df_asig.columns:
+            df = df.merge(
+                df_asig[['id_asignatura', 'nombre']], 
+                on='id_asignatura', 
+                how='left'
+            )
+            if 'nombre' in df.columns:
+                df = df.rename(columns={'nombre': 'asignatura'})
+        
+        return df
+    
+    # ==================== FIN MÉTODOS HELPER ====================
 
     def load_and_prepare_data(self) -> pd.DataFrame:
-        """
-        Cargar y preparar los datos de cursos.
-
-        Returns:
-            pd.DataFrame: Dataset combinado con información de cursos
-        """
-        # Cargar el dataset principal que se pasa como parámetro
+        """Cargar y preparar los datos de cursos"""
+        # Cargar el dataset principal
         if not os.path.exists(self.dataset_path):
             raise FileNotFoundError(f"No se encontró el dataset en: {self.dataset_path}")
 
         df = pd.read_csv(self.dataset_path)
         self.logger.info(f"Dataset principal cargado: {df.shape[0]} filas, {df.shape[1]} columnas")
 
-        # Filtrar solo asignaturas 1, 2, 3, 4
-        if 'id_asignatura' in df.columns:
-            df = df[df['id_asignatura'].isin([1, 2, 3, 4])].copy()
-            self.logger.info(f"Dataset filtrado a asignaturas 1,2,3,4: {df.shape[0]} filas")
+        # Filtrar por asignaturas
+        df = self._filter_by_subjects(df)
+        self.logger.info(f"Dataset filtrado a asignaturas {self.subject_filter}: {df.shape[0]} filas")
 
         # Cargar información de cursos (courses.csv)
         courses_path = os.path.join(os.path.dirname(self.dataset_path), "..", "interim", "moodle", "courses.csv")
         if os.path.exists(courses_path):
             self.df_courses = pd.read_csv(courses_path)
             self.logger.info(f"Información de cursos cargada: {self.df_courses.shape[0]} cursos")
-
-            # Filtrar solo asignaturas 1, 2, 3, 4
-            if 'id_asignatura' in self.df_courses.columns:
-                self.df_courses = self.df_courses[self.df_courses['id_asignatura'].isin([1, 2, 3, 4])].copy()
-                self.logger.info(f"Cursos filtrados a asignaturas 1,2,3,4: {self.df_courses.shape[0]} cursos")
-
-            # Cargar información de asignaturas para enriquecer los datos
-            asignaturas_path = os.path.join(os.path.dirname(self.dataset_path), "..", "raw", "tablas_maestras", "asignaturas.csv")
-            if os.path.exists(asignaturas_path):
-                df_asignaturas = pd.read_csv(asignaturas_path)
-                if 'id_asignatura' in df_asignaturas.columns and 'nombre' in df_asignaturas.columns:
-                    self.df_courses = self.df_courses.merge(
-                        df_asignaturas[['id_asignatura', 'nombre']], 
-                        on='id_asignatura', 
-                        how='left',
-                        suffixes=('', '_asignatura')
-                    )
-                    # Renombrar para tener nombre legible
-                    if 'nombre' in self.df_courses.columns:
-                        self.df_courses = self.df_courses.rename(columns={'nombre': 'asignatura'})
+            
+            # Filtrar y agregar nombres de asignaturas
+            self.df_courses = self._filter_by_subjects(self.df_courses)
+            self.df_courses = self._merge_asignatura_names(self.df_courses)
+            self.logger.info(f"Cursos filtrados: {self.df_courses.shape[0]} cursos")
         else:
             self.logger.warning(f"No se encontró el archivo de cursos en: {courses_path}")
             self.df_courses = pd.DataFrame()
@@ -82,12 +150,8 @@ class CourseAnalysis(EDAAnalysisBase):
         courses_base_path = os.path.join(os.path.dirname(self.dataset_path), "..", "interim", "moodle", "courses_base.csv")
         if os.path.exists(courses_base_path):
             self.df_courses_base = pd.read_csv(courses_base_path)
-            self.logger.info(f"Información base de cursos cargada: {self.df_courses_base.shape[0]} registros")
-
-            # Filtrar solo asignaturas 1, 2, 3, 4
-            if 'id_asignatura' in self.df_courses_base.columns:
-                self.df_courses_base = self.df_courses_base[self.df_courses_base['id_asignatura'].isin([1, 2, 3, 4])].copy()
-                self.logger.info(f"Cursos base filtrados a asignaturas 1,2,3,4: {self.df_courses_base.shape[0]} registros")
+            self.df_courses_base = self._filter_by_subjects(self.df_courses_base)
+            self.logger.info(f"Cursos base filtrados: {self.df_courses_base.shape[0]} registros")
         else:
             self.logger.warning(f"No se encontró el archivo de cursos base en: {courses_base_path}")
             self.df_courses_base = pd.DataFrame()
@@ -96,12 +160,8 @@ class CourseAnalysis(EDAAnalysisBase):
         modules_active_path = os.path.join(os.path.dirname(self.dataset_path), "..", "interim", "moodle", "modules_active.csv")
         if os.path.exists(modules_active_path):
             self.df_modules_active = pd.read_csv(modules_active_path)
-            self.logger.info(f"Información de módulos activos cargada: {self.df_modules_active.shape[0]} módulos")
-
-            # Filtrar solo asignaturas 1, 2, 3, 4
-            if 'id_asignatura' in self.df_modules_active.columns:
-                self.df_modules_active = self.df_modules_active[self.df_modules_active['id_asignatura'].isin([1, 2, 3, 4])].copy()
-                self.logger.info(f"Módulos activos filtrados a asignaturas 1,2,3,4: {self.df_modules_active.shape[0]} módulos")
+            self.df_modules_active = self._filter_by_subjects(self.df_modules_active)
+            self.logger.info(f"Módulos activos filtrados: {self.df_modules_active.shape[0]} módulos")
         else:
             self.logger.warning(f"No se encontró el archivo de módulos activos en: {modules_active_path}")
             self.df_modules_active = pd.DataFrame()
@@ -110,35 +170,12 @@ class CourseAnalysis(EDAAnalysisBase):
         modules_featured_path = os.path.join(os.path.dirname(self.dataset_path), "..", "interim", "moodle", "modules_featured.csv")
         if os.path.exists(modules_featured_path):
             self.df_modules_featured = pd.read_csv(modules_featured_path)
-            self.logger.info(f"Información de módulos destacados cargada: {self.df_modules_featured.shape[0]} módulos")
-
-            # Filtrar solo asignaturas 1, 2, 3, 4
-            if 'id_asignatura' in self.df_modules_featured.columns:
-                self.df_modules_featured = self.df_modules_featured[self.df_modules_featured['id_asignatura'].isin([1, 2, 3, 4])].copy()
-                self.logger.info(f"Módulos destacados filtrados a asignaturas 1,2,3,4: {self.df_modules_featured.shape[0]} módulos")
-
-            # Agregar nombres de asignaturas
-            asignaturas_path = os.path.join(os.path.dirname(self.dataset_path), "..", "raw", "tablas_maestras", "asignaturas.csv")
-            if os.path.exists(asignaturas_path):
-                df_asignaturas = pd.read_csv(asignaturas_path)
-                self.logger.info(f"Tabla de asignaturas cargada: {df_asignaturas.shape[0]} asignaturas")
-                if 'id_asignatura' in df_asignaturas.columns and 'nombre' in df_asignaturas.columns:
-                    self.df_modules_featured = self.df_modules_featured.merge(
-                        df_asignaturas[['id_asignatura', 'nombre']], 
-                        on='id_asignatura', 
-                        how='left'
-                    )
-                    self.logger.info(f"Merge con nombres de asignaturas completado")
-                    # Renombrar columna para consistencia
-                    if 'nombre' in self.df_modules_featured.columns:
-                        self.df_modules_featured = self.df_modules_featured.rename(columns={'nombre': 'asignatura_name'})
-                        self.logger.info(f"Columna 'nombre' renombrada a 'asignatura_name'")
-                        # Verificar nombres únicos
-                        try:
-                            nombres_unicos = self.df_modules_featured['asignatura_name'].drop_duplicates().tolist()
-                            self.logger.info(f"Nombres de asignaturas encontrados: {nombres_unicos}")
-                        except Exception as e:
-                            self.logger.warning(f"Error al listar nombres únicos: {e}")
+            self.df_modules_featured = self._filter_by_subjects(self.df_modules_featured)
+            self.df_modules_featured = self._merge_asignatura_names(self.df_modules_featured)
+            # Renombrar para consistencia con honeycomb charts
+            if 'asignatura' in self.df_modules_featured.columns:
+                self.df_modules_featured = self.df_modules_featured.rename(columns={'asignatura': 'asignatura_name'})
+            self.logger.info(f"Módulos destacados filtrados: {self.df_modules_featured.shape[0]} módulos")
         else:
             self.logger.warning(f"No se encontró el archivo de módulos destacados en: {modules_featured_path}")
             self.df_modules_featured = pd.DataFrame()
@@ -149,15 +186,7 @@ class CourseAnalysis(EDAAnalysisBase):
         return self.df_merged
 
     def _merge_datasets(self, df_main: pd.DataFrame) -> pd.DataFrame:
-        """
-        Combinar el dataset principal con información de cursos.
-
-        Args:
-            df_main: Dataset principal
-
-        Returns:
-            pd.DataFrame: Dataset combinado
-        """
+        """Combinar el dataset principal con información de cursos"""
         df_result = df_main.copy()
 
         # Merge con courses si está disponible
@@ -199,23 +228,12 @@ class CourseAnalysis(EDAAnalysisBase):
         return df_result
 
     def create_course_composition_heatmap(self, output_dir: str, sede: str = None):
-        """
-        Crear mapa de calor de porcentajes de composición de cursos.
-        Muestra la mediana por combinación ASIGNATURA - GRADO del dataset principal.
-
-        Args:
-            output_dir: Directorio de salida
-            sede: Filtrar por sede específica (opcional)
-        """
-        sede_suffix = f" - {sede}" if sede else ""
-        sede_file_suffix = f"_{sede.lower()}" if sede else ""
+        """Crear mapa de calor de porcentajes de composición de cursos. Muestra la mediana por combinación ASIGNATURA - GRADO del dataset principal."""
+        sede_suffix, sede_file_suffix = self._get_sede_suffixes(sede)
         self.logger.info(f"Creando mapa de calor de composición de cursos{sede_suffix}...")
 
-        # Filtrar por sede en el dataset principal
-        if sede is not None and sede != '':
-            df_main_data = self.df_merged[self.df_merged['sede'] == sede].copy()
-        else:
-            df_main_data = self.df_merged.copy()
+        # Filtrar por sede
+        df_main_data = self._filter_by_sede(self.df_merged, sede)
 
         if df_main_data.empty:
             self.logger.warning(f"No hay datos en el dataset principal{sede_suffix}")
@@ -225,11 +243,8 @@ class CourseAnalysis(EDAAnalysisBase):
         combinaciones_principales = df_main_data[['id_asignatura', 'id_grado']].drop_duplicates()
         self.logger.info(f"Combinaciones asignatura-grado en dataset principal: {len(combinaciones_principales)}")
 
-        # Filtrar courses para que solo tenga estas combinaciones
-        if sede is not None and sede != '' and not self.df_courses.empty:
-            df_courses_data = self.df_courses[self.df_courses['sede'] == sede].copy()
-        else:
-            df_courses_data = self.df_courses.copy()
+        # Filtrar courses por sede
+        df_courses_data = self._filter_by_sede(self.df_courses, sede)
 
         if df_courses_data.empty:
             self.logger.warning(f"No hay datos de cursos para crear mapa de calor{sede_suffix}")
@@ -265,20 +280,8 @@ class CourseAnalysis(EDAAnalysisBase):
             self.logger.warning(f"No hay columnas de porcentajes disponibles{sede_suffix}")
             return
 
-        # Crear identificador legible de ASIGNATURA - GRADO (sin año/periodo)
-        def create_course_label(row):
-            # Obtener nombre de asignatura de forma segura
-            asig_name = row.get('asignatura', None)
-            if pd.isna(asig_name) or not isinstance(asig_name, str):
-                asig_name = f"Asig {row['id_asignatura']}"
-
-            # Truncar si es muy largo
-            if len(asig_name) > 30:
-                asig_name = asig_name[:27] + '...'
-
-            return f"{asig_name} - {row['id_grado']}"
-
-        df_courses_data['curso_label'] = df_courses_data.apply(create_course_label, axis=1)
+        # Crear identificador legible de ASIGNATURA - GRADO
+        df_courses_data['curso_label'] = df_courses_data.apply(self._create_asignatura_label, axis=1)
 
         # Agrupar por asignatura-grado y calcular la MEDIANA
         group_cols = ['curso_label'] + available_cols
@@ -337,14 +340,7 @@ class CourseAnalysis(EDAAnalysisBase):
         self.logger.info(f"Mapa de calor de composición de cursos creado{sede_suffix}")
 
     def create_subject_grade_count_bar_chart(self, output_dir: str, sede: str = None):
-        """
-        Crear gráfico de barras apiladas con el conteo de registros por ASIGNATURA-GRADO y SEDE.
-        Genera una gráfica general mostrando la distribución por sede en barras apiladas.
-
-        Args:
-            output_dir: Directorio de salida
-            sede: Parámetro ignorado, siempre genera gráfica general
-        """
+        """Crear gráfico de barras apiladas con el conteo de registros por ASIGNATURA-GRADO y SEDE. Genera una gráfica general mostrando la distribución por sede en barras apiladas."""
         self.logger.info(f"Creando gráfico de conteo por asignatura-grado (todas las sedes)...")
 
         df_main_data = self.df_merged.copy()
@@ -364,30 +360,9 @@ class CourseAnalysis(EDAAnalysisBase):
         self.logger.info(f"Total de combinaciones asignatura-grado: {len(conteo_ids)}")
         self.logger.info(f"Total de registros: {conteo_ids['count'].sum()}")
 
-        # Cargar información de asignaturas para las etiquetas
-        asignaturas_path = os.path.join(os.path.dirname(self.dataset_path), "..", "raw", "tablas_maestras", "asignaturas.csv")
-        if os.path.exists(asignaturas_path):
-            df_asignaturas = pd.read_csv(asignaturas_path)
-            if 'id_asignatura' in df_asignaturas.columns and 'nombre' in df_asignaturas.columns:
-                conteo_ids = conteo_ids.merge(
-                    df_asignaturas[['id_asignatura', 'nombre']], 
-                    on='id_asignatura', 
-                    how='left'
-                )
-                conteo_ids = conteo_ids.rename(columns={'nombre': 'asignatura'})
-
-        # Crear etiqueta de asignatura-grado
-        def create_label(row):
-            asig_name = row.get('asignatura', None)
-            if pd.isna(asig_name) or not isinstance(asig_name, str):
-                asig_name = f"Asig {row['id_asignatura']}"
-
-            if len(asig_name) > 30:
-                asig_name = asig_name[:27] + '...'
-
-            return f"{asig_name} - Grado {row['id_grado']}"
-
-        conteo_ids['asignatura_grado'] = conteo_ids.apply(create_label, axis=1)
+        # Agregar nombres de asignaturas y crear etiquetas
+        conteo_ids = self._merge_asignatura_names(conteo_ids)
+        conteo_ids['asignatura_grado'] = conteo_ids.apply(self._create_asignatura_label, axis=1)
 
         # Ordenar por grado (de menor a mayor) y luego por nombre de asignatura
         if 'asignatura' in conteo_ids.columns:
@@ -434,15 +409,9 @@ class CourseAnalysis(EDAAnalysisBase):
             # Añadir valores en las barras si son significativos
             for j, (bar, value) in enumerate(zip(bars, pivot_data[sede].values)):
                 if value > 0:  # Solo mostrar si hay datos
-                    # Calcular posición del texto en el centro del segmento
                     text_x = left[j] + value / 2
-
-                    # Calcular luminosidad del color para decidir color del texto
-                    # Usar fórmula de luminosidad relativa: 0.299*R + 0.587*G + 0.114*B
-                    r, g, b = colores_sedes[i][:3]
-                    luminosidad = 0.299 * r + 0.587 * g + 0.114 * b
-                    text_color = 'white' if luminosidad < 0.5 else 'black'
-
+                    text_color = self._calculate_text_contrast_color(colores_sedes[i])
+                    
                     ax.text(text_x, bar.get_y() + bar.get_height()/2, 
                            f'{int(value)}', va='center', ha='center', 
                            fontsize=6, weight='bold', color=text_color)
@@ -479,22 +448,12 @@ class CourseAnalysis(EDAAnalysisBase):
         self.logger.info(f"Gráfico de conteo por asignatura-grado creado (todas las sedes)")
 
     def analyze_course_composition(self, output_dir: str, sede: str = None):
-        """
-        Analizar la composición de cursos (módulos, actividades, estudiantes).
-
-        Args:
-            output_dir: Directorio de salida
-            sede: Filtrar por sede específica (opcional)
-        """
-        sede_suffix = f" - {sede}" if sede else ""
-        sede_file_suffix = f"_{sede.lower()}" if sede else ""
+        """Analizar la composición de cursos (módulos, actividades, estudiantes)."""
+        sede_suffix, sede_file_suffix = self._get_sede_suffixes(sede)
         self.logger.info(f"Analizando composición de cursos{sede_suffix}...")
 
-        # Filtrar por sede si se especifica
-        if sede is not None and sede != '' and not self.df_courses.empty:
-            df_courses_data = self.df_courses[self.df_courses['sede'] == sede].copy()
-        else:
-            df_courses_data = self.df_courses.copy()
+        # Filtrar por sede
+        df_courses_data = self._filter_by_sede(self.df_courses, sede)
 
         if df_courses_data.empty:
             self.logger.warning(f"No hay datos de cursos para analizar{sede_suffix}")
@@ -562,7 +521,7 @@ class CourseAnalysis(EDAAnalysisBase):
 
         self.logger.info(f"Análisis de composición de cursos completado{sede_suffix}")
 
-    def create_honeycomb_module_charts(self, output_dir: str, asignaturas: list = [1, 2, 3, 4], sede: str = None):
+    def create_honeycomb_module_charts(self, output_dir: str, asignaturas: list = None, sede: str = None):
         """
         Crear gráficas de panal de abeja para visualizar módulos por asignatura.
 
@@ -576,39 +535,48 @@ class CourseAnalysis(EDAAnalysisBase):
 
         Args:
             output_dir: Directorio de salida
-            asignaturas: Lista de IDs de asignaturas a visualizar (por defecto [1,2,3,4])
+            asignaturas: Lista de IDs de asignaturas a visualizar (por defecto self.subject_filter)
             sede: Filtrar por sede específica (opcional)
         """
-        sede_suffix = f" - {sede}" if sede else ""
-        sede_file_suffix = f"_{sede.lower()}" if sede else ""
-        self.logger.info(f"Creando gráficas de panal de abeja para asignaturas {asignaturas}{sede_suffix}...")
+        import time
+        
+        if asignaturas is None:
+            asignaturas = self.subject_filter
+            
+        sede_suffix, sede_file_suffix = self._get_sede_suffixes(sede)
+        self.logger.info(f"Creando {len(asignaturas)} gráficas de panal de abeja{sede_suffix}...")
 
         # Verificar que tengamos los datos de módulos
         if self.df_modules_featured.empty:
             self.logger.warning(f"No hay datos de módulos para crear gráficas de panal de abeja{sede_suffix}")
             return
 
-        # Filtrar por sede si se especifica
-        if sede is not None and sede != '':
-            df_modules = self.df_modules_featured[self.df_modules_featured['sede'] == sede].copy()
-        else:
-            df_modules = self.df_modules_featured.copy()
+        # Filtrar por sede
+        df_modules = self._filter_by_sede(self.df_modules_featured, sede)
 
         if df_modules.empty:
             self.logger.warning(f"No hay datos de módulos después de filtrar por sede{sede_suffix}")
             return
 
-        # Convertir columnas a valores numéricos si no lo son
+        # Convertir columnas a valores numéricos si no lo son (una sola vez)
         if 'is_interactive' in df_modules.columns:
             df_modules['is_interactive'] = pd.to_numeric(df_modules['is_interactive'], errors='coerce').fillna(0).astype(int)
         if 'is_in_english' in df_modules.columns:
             df_modules['is_in_english'] = pd.to_numeric(df_modules['is_in_english'], errors='coerce').fillna(0).astype(int)
 
-        # Crear una gráfica por cada asignatura
-        for id_asignatura in asignaturas:
+        # Crear una gráfica por cada asignatura con progreso
+        start_time = time.time()
+        for i, id_asignatura in enumerate(asignaturas, 1):
+            chart_start = time.time()
+            self.logger.info(f"[{i}/{len(asignaturas)}] Generando gráfica para asignatura {id_asignatura}...")
+            
             self._create_single_honeycomb_chart(df_modules, id_asignatura, output_dir, sede_suffix, sede_file_suffix)
+            
+            chart_time = time.time() - chart_start
+            self.logger.info(f"  ✓ Completada en {chart_time:.1f}s")
 
-        self.logger.info(f"Gráficas de panal de abeja creadas{sede_suffix}")
+        total_time = time.time() - start_time
+        self.logger.info(f"✅ {len(asignaturas)} gráficas de panal de abeja creadas en {total_time:.1f}s{sede_suffix}")
 
     def _create_single_honeycomb_chart(self, df_modules: pd.DataFrame, id_asignatura: int, 
                                        output_dir: str, sede_suffix: str, sede_file_suffix: str):
@@ -629,17 +597,8 @@ class CourseAnalysis(EDAAnalysisBase):
             self.logger.warning(f"No hay datos para asignatura {id_asignatura}{sede_suffix}")
             return
 
-        # Obtener nombre de la asignatura desde el archivo
-        asignaturas_path = os.path.join(os.path.dirname(self.dataset_path), "..", "raw", "tablas_maestras", "asignaturas.csv")
-        asignatura_name = f"asignatura_{id_asignatura}"
-
-        if os.path.exists(asignaturas_path):
-            df_asignaturas = pd.read_csv(asignaturas_path)
-            asig_row = df_asignaturas[df_asignaturas['id_asignatura'] == id_asignatura]
-            if not asig_row.empty and 'nombre' in df_asignaturas.columns:
-                asignatura_name = str(asig_row['nombre'].iloc[0]).strip()
-
-        # Crear slug para el nombre del archivo
+        # Obtener nombre de la asignatura
+        asignatura_name = self._get_asignatura_name(id_asignatura)
         asignatura_slug = re.sub(r'[^a-zA-Z0-9]+', '_', asignatura_name.lower()).strip('_')
 
         self.logger.info(f"Creando gráfica para {asignatura_name} con {len(df_asig)} módulos{sede_suffix}")
@@ -763,13 +722,13 @@ class CourseAnalysis(EDAAnalysisBase):
             else:
                 df_asig['alpha'] = 0.7
 
-        # 3. Color: basado en is_in_english
+        # 3. Color: basado en is_in_english (vectorizado para performance)
         # Rosado para inglés, azul para español
-        df_asig['color'] = df_asig['is_in_english'].apply(lambda x: '#FF69B4' if x == 1 else '#4169E1')
+        df_asig['color'] = np.where(df_asig['is_in_english'] == 1, '#FF69B4', '#4169E1')
 
-        # 4. Forma: basada en is_interactive
+        # 4. Forma: basada en is_interactive (vectorizado para performance)
         # Estrella para interactivo, círculo para solo lectura
-        df_asig['marker'] = df_asig['is_interactive'].apply(lambda x: '*' if x == 1 else 'o')
+        df_asig['marker'] = np.where(df_asig['is_interactive'] == 1, '*', 'o')
 
         # Crear figura con tamaño apropiado para visualización por grados
         # Ahora el eje Y es por grado (máximo 11), mucho más manejable
@@ -789,22 +748,22 @@ class CourseAnalysis(EDAAnalysisBase):
         else:
             edge_width = 0.5
 
-        # Agrupar por forma para poder dibujar con diferentes markers
+        # Agrupar por forma y dibujar con arrays (vectorizado para performance máxima)
         for marker_type in df_asig['marker'].unique():
             df_marker = df_asig[df_asig['marker'] == marker_type]
-
-            # Para cada punto, dibujarlo individualmente para poder variar el alpha
-            for idx, row in df_marker.iterrows():
-                ax.scatter(
-                    row['x_pos'], 
-                    row['y_pos'],
-                    s=row['point_size'],
-                    c=row['color'],
-                    marker=marker_type,
-                    alpha=row['alpha'],
-                    edgecolors='black',
-                    linewidths=edge_width
-                )
+            
+            # Dibujar todos los puntos del mismo marker de una vez (10-20x más rápido)
+            # Matplotlib puede manejar arrays de colores, tamaños y alphas
+            scatter = ax.scatter(
+                df_marker['x_pos'].values,
+                df_marker['y_pos'].values,
+                s=df_marker['point_size'].values,
+                c=df_marker['color'].values,
+                marker=marker_type,
+                alpha=df_marker['alpha'].values,
+                edgecolors='black',
+                linewidths=edge_width
+            )
 
         # Configurar ejes
         # Eje X: año-periodo con marcas principales
@@ -901,15 +860,8 @@ class CourseAnalysis(EDAAnalysisBase):
                 # Crear visualizaciones para esta sede (sin conteo, que ya es general)
                 self.create_course_composition_heatmap(sede_dir, sede)
                 self.analyze_course_composition(sede_dir, sede)
-                self.create_honeycomb_module_charts(sede_dir, asignaturas=[1, 2, 3, 4], sede=sede)
+                self.create_honeycomb_module_charts(sede_dir, sede=sede)
 
-        # Visualizaciones generales desactivadas por defecto
-        # Solo se generan si se llama explícitamente a cada función con sede=None
-        # self.logger.info("Creando visualizaciones generales...")
-        # self.create_course_composition_heatmap(output_dir)
-        # self.create_subject_grade_count_bar_chart(output_dir)
-        # self.analyze_course_composition(output_dir)
-        # self.create_honeycomb_module_charts(output_dir, asignaturas=[1, 2, 3, 4])
 
     def create_general_visualizations(self, output_dir: str):
         """
@@ -925,29 +877,45 @@ class CourseAnalysis(EDAAnalysisBase):
         self.create_course_composition_heatmap(output_dir)
         self.create_subject_grade_count_bar_chart(output_dir)
         self.analyze_course_composition(output_dir)
-        self.create_honeycomb_module_charts(output_dir, asignaturas=[1, 2, 3, 4])
+        self.create_honeycomb_module_charts(output_dir)
         self.logger.info("Visualizaciones generales completadas")
 
     def run_analysis(self):
         """Ejecutar análisis completo de cursos."""
-        self.logger.info("Iniciando análisis de cursos...")
-        self.logger.info(f"Resultados se guardarán en: {self.results_path}")
+        import time
+        
+        total_start = time.time()
+        self.logger.info("="*60)
+        self.logger.info("🚀 Iniciando análisis de cursos...")
+        self.logger.info(f"📁 Resultados: {self.results_path}")
+        self.logger.info("="*60)
 
         # Crear directorio de resultados si no existe
         self.create_results_directory()
 
         # Cargar y preparar datos
+        self.logger.info("📊 Cargando y preparando datos...")
+        load_start = time.time()
         df = self.load_and_prepare_data()
+        load_time = time.time() - load_start
+        self.logger.info(f"✓ Datos cargados en {load_time:.1f}s")
 
         # Verificar que tenemos datos
         if df.empty:
-            self.logger.error("No hay datos para analizar")
+            self.logger.error("❌ No hay datos para analizar")
             return
 
         # Crear visualizaciones
+        self.logger.info("📈 Generando visualizaciones...")
+        viz_start = time.time()
         self.create_visualizations(self.results_path)
+        viz_time = time.time() - viz_start
+        self.logger.info(f"✓ Visualizaciones completadas en {viz_time:.1f}s")
 
-        self.logger.info("✅ Análisis de cursos completado exitosamente")
+        total_time = time.time() - total_start
+        self.logger.info("="*60)
+        self.logger.info(f"✅ Análisis completado en {total_time:.1f}s ({total_time/60:.1f} min)")
+        self.logger.info("="*60)
 
 
 def main():
