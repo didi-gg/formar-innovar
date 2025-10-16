@@ -30,7 +30,7 @@ Este gráfico muestra la tasa de accesos a Moodle normalizada por cada 10 estudi
 
 ### Conclusiones
 
-- La caída abrupta en junnio y noviembre podría estar asociada al fin del periodo académico y vacaciones.
+- La caída abrupta en junio y noviembre podría estar asociada al fin del periodo académico y vacaciones.
 
 - Fusagasugá mantiene un uso sostenido, mientras que Girardot presenta actividad a más baja escala.
 
@@ -120,8 +120,7 @@ Los mapas de calor muestran dos métricas de engagement en Moodle:
 ### Conclusiones
 
 - **Fusagasugá:** 
-    - No se identifican grados con un problema particular, ya que la participación moderada es generalizada.
-    - La baja actividad esta probablemente determinada por condiciones institucionales comunes más que por el nivel del grado.
+    - No se identifican grados con un problema particular, ya que la baja participación es generalizada.
 
 - **Girardot:**
     - La participación activa es extremadamente baja en todos los grados, con medianas entre 0 % y 2,4 %.
