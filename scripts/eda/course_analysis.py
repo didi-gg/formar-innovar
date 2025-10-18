@@ -31,81 +31,81 @@ class CourseAnalysis(EDAAnalysisBase):
         self.df_modules_featured = None
         self.df_asignaturas = None  # Cache para nombres de asignaturas
         self.subject_filter = [1, 2, 3, 4]  # Asignaturas a analizar
-    
+
     # ==================== MÉTODOS HELPER REUTILIZABLES ====================
-    
+
     def _filter_by_subjects(self, df: pd.DataFrame, subjects: list = None) -> pd.DataFrame:
         """Filtrar DataFrame por lista de asignaturas"""
         if subjects is None:
             subjects = self.subject_filter
-        
+
         if 'id_asignatura' in df.columns and not df.empty:
             return df[df['id_asignatura'].isin(subjects)].copy()
         return df
-    
+
     def _get_sede_suffixes(self, sede: str = None) -> tuple:
         """Obtener sufijos para título y nombre de archivo según sede"""
         if sede:
             return f" - {sede}", f"_{sede.lower()}"
         return "", ""
-    
+
     def _load_asignaturas_names(self) -> pd.DataFrame:
         """Cargar nombres de asignaturas desde archivo maestro (con cache)"""
         if self.df_asignaturas is not None:
             return self.df_asignaturas
-        
+
         asignaturas_path = os.path.join(
             os.path.dirname(self.dataset_path), 
             "..", "raw", "tablas_maestras", "asignaturas.csv"
         )
-        
+
         if os.path.exists(asignaturas_path):
             self.df_asignaturas = pd.read_csv(asignaturas_path)
             self.logger.info(f"Nombres de asignaturas cargados: {len(self.df_asignaturas)} asignaturas")
             return self.df_asignaturas
-        
+
         self.logger.warning(f"No se encontró archivo de asignaturas en: {asignaturas_path}")
         self.df_asignaturas = pd.DataFrame()
         return self.df_asignaturas
-    
+
     def _get_asignatura_name(self, id_asignatura: int) -> str:
         """Obtener nombre de asignatura por su ID"""
         df_asig = self._load_asignaturas_names()
-        
+
         if not df_asig.empty and 'nombre' in df_asig.columns:
             asig_row = df_asig[df_asig['id_asignatura'] == id_asignatura]
             if not asig_row.empty:
                 return str(asig_row['nombre'].iloc[0]).strip()
-        
+
         return f"Asignatura {id_asignatura}"
-    
+
     def _create_asignatura_label(self, row: pd.Series, max_length: int = 30) -> str:
         """Crear etiqueta legible de asignatura-grado"""
         asig_name = row.get('asignatura', None)
         if pd.isna(asig_name) or not isinstance(asig_name, str):
             asig_name = self._get_asignatura_name(row['id_asignatura'])
-        
+
         if len(asig_name) > max_length:
             asig_name = asig_name[:max_length-3] + '...'
-        
+
         return f"{asig_name} - Grado {row['id_grado']}"
-    
+
     def _filter_by_sede(self, df: pd.DataFrame, sede: str = None) -> pd.DataFrame:
         """Filtrar DataFrame por sede"""
         if sede and 'sede' in df.columns:
             return df[df['sede'] == sede].copy()
         return df.copy()
-    
+
     def _calculate_text_contrast_color(self, color_rgba: tuple) -> str:
         """Calcular color de texto (blanco/negro) según luminosidad del fondo"""
         r, g, b = color_rgba[:3]
         luminosidad = 0.299 * r + 0.587 * g + 0.114 * b
         return 'white' if luminosidad < 0.5 else 'black'
-    
+
     def _merge_asignatura_names(self, df: pd.DataFrame) -> pd.DataFrame:
         """Agregar nombres de asignaturas a un DataFrame"""
         df_asig = self._load_asignaturas_names()
-        
+
         if not df_asig.empty and 'id_asignatura' in df.columns and 'nombre' in df_asig.columns:
             df = df.merge(
                 df_asig[['id_asignatura', 'nombre']], 
@@ -114,9 +114,23 @@ class CourseAnalysis(EDAAnalysisBase):
             )
             if 'nombre' in df.columns:
                 df = df.rename(columns={'nombre': 'asignatura'})
-        
+
         return df
-    
+
+    def _create_slug(self, text: str) -> str:
+        """
+        Crear un slug seguro para nombres de archivos manteniendo los acentos.
+        Convierte a minúsculas y reemplaza espacios/caracteres especiales con guiones bajos.
+
+        Ejemplo: "Matemáticas" -> "matemáticas"
+        """
+        # Convertir a minúsculas
+        text_lower = text.lower()
+        # Reemplazar espacios y caracteres especiales (pero mantener letras con acentos)
+        # Permitir letras (incluidas acentuadas), números y guiones bajos
+        slug = re.sub(r'[^\w]+', '_', text_lower, flags=re.UNICODE).strip('_')
+        return slug
+
     # ==================== FIN MÉTODOS HELPER ====================
 
     def load_and_prepare_data(self) -> pd.DataFrame:
@@ -137,7 +151,7 @@ class CourseAnalysis(EDAAnalysisBase):
         if os.path.exists(courses_path):
             self.df_courses = pd.read_csv(courses_path)
             self.logger.info(f"Información de cursos cargada: {self.df_courses.shape[0]} cursos")
-            
+
             # Filtrar y agregar nombres de asignaturas
             self.df_courses = self._filter_by_subjects(self.df_courses)
             self.df_courses = self._merge_asignatura_names(self.df_courses)
@@ -411,7 +425,7 @@ class CourseAnalysis(EDAAnalysisBase):
                 if value > 0:  # Solo mostrar si hay datos
                     text_x = left[j] + value / 2
                     text_color = self._calculate_text_contrast_color(colores_sedes[i])
-                    
+
                     ax.text(text_x, bar.get_y() + bar.get_height()/2, 
                            f'{int(value)}', va='center', ha='center', 
                            fontsize=6, weight='bold', color=text_color)
@@ -539,10 +553,10 @@ class CourseAnalysis(EDAAnalysisBase):
             sede: Filtrar por sede específica (opcional)
         """
         import time
-        
+
         if asignaturas is None:
             asignaturas = self.subject_filter
-            
+
         sede_suffix, sede_file_suffix = self._get_sede_suffixes(sede)
         self.logger.info(f"Creando {len(asignaturas)} gráficas de panal de abeja{sede_suffix}...")
 
@@ -569,9 +583,9 @@ class CourseAnalysis(EDAAnalysisBase):
         for i, id_asignatura in enumerate(asignaturas, 1):
             chart_start = time.time()
             self.logger.info(f"[{i}/{len(asignaturas)}] Generando gráfica para asignatura {id_asignatura}...")
-            
+
             self._create_single_honeycomb_chart(df_modules, id_asignatura, output_dir, sede_suffix, sede_file_suffix)
-            
+
             chart_time = time.time() - chart_start
             self.logger.info(f"  ✓ Completada en {chart_time:.1f}s")
 
@@ -599,7 +613,7 @@ class CourseAnalysis(EDAAnalysisBase):
 
         # Obtener nombre de la asignatura
         asignatura_name = self._get_asignatura_name(id_asignatura)
-        asignatura_slug = re.sub(r'[^a-zA-Z0-9]+', '_', asignatura_name.lower()).strip('_')
+        asignatura_slug = self._create_slug(asignatura_name)
 
         self.logger.info(f"Creando gráfica para {asignatura_name} con {len(df_asig)} módulos{sede_suffix}")
 
@@ -751,7 +765,7 @@ class CourseAnalysis(EDAAnalysisBase):
         # Agrupar por forma y dibujar con arrays (vectorizado para performance máxima)
         for marker_type in df_asig['marker'].unique():
             df_marker = df_asig[df_asig['marker'] == marker_type]
-            
+
             # Dibujar todos los puntos del mismo marker de una vez (10-20x más rápido)
             # Matplotlib puede manejar arrays de colores, tamaños y alphas
             scatter = ax.scatter(
@@ -796,7 +810,7 @@ class CourseAnalysis(EDAAnalysisBase):
 
         ax.set_title(f'{titulo_base}{densidad_info}\n'
                     f'Total: {len(df_asig)} modulos | Forma: Estrella=Interactivo / Circulo=Lectura\n'
-                    f'Color: Rosa=Ingles / Azul=Español | Tamano=N Estudiantes | Opacidad=Updates Docente',
+                    f'Color: Rosa=Ingles / Azul=Español | Tamaño=N Estudiantes | Opacidad=Updates Docente',
                     fontsize=11, weight='bold', pad=15)
 
         # Añadir grid para facilitar lectura
@@ -883,7 +897,7 @@ class CourseAnalysis(EDAAnalysisBase):
     def run_analysis(self):
         """Ejecutar análisis completo de cursos."""
         import time
-        
+
         total_start = time.time()
         self.logger.info("="*60)
         self.logger.info("🚀 Iniciando análisis de cursos...")
