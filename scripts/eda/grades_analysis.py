@@ -553,8 +553,8 @@ class GradesAnalysis(EDAAnalysisBase):
         return output_path
 
     def plot_heatmap_reprobacion_grado_sede(self):
-        """Genera heatmap de tasa de reprobación (% estudiantes con nota < 60) por grado y sede."""
-        self.logger.info("Generando heatmap de tasa de reprobación por grado y sede...")
+        """Genera heatmap de proporción de reprobación (% estudiantes con nota < 60) por grado y sede."""
+        self.logger.info("Generando heatmap de proporción de reprobación por grado y sede...")
 
         sedes_list = self.results['sedes_list']
 
@@ -589,7 +589,7 @@ class GradesAnalysis(EDAAnalysisBase):
         # Etiquetas
         ax.set_xlabel('Sede', fontsize=13, fontweight='bold')
         ax.set_ylabel('Grado', fontsize=13, fontweight='bold')
-        ax.set_title('Tasa de Reprobación por Grado y Sede\n(% Estudiantes con nota < 60)', 
+        ax.set_title('Porcentaje de Reprobación por Grado y Sede\n(% Estudiantes con nota < 60)', 
                     fontsize=16, fontweight='bold', pad=20)
 
         # Colorbar
@@ -611,12 +611,11 @@ class GradesAnalysis(EDAAnalysisBase):
 
         self.logger.info(f"✅ Heatmap de reprobación guardado: {output_path}")
 
-        #heatmap_data.to_csv(f'{self.results_path}/tasa_reprobacion_grado_sede.csv')
         return output_path
 
     def plot_heatmap_reprobacion_asignatura_grado_sede(self):
-        """Genera heatmap de tasa de reprobación (% estudiantes con nota < 60) por asignatura-grado y sede."""
-        self.logger.info("Generando heatmap de tasa de reprobación por asignatura-grado y sede...")
+        """Genera heatmap de proporción de reprobación (% estudiantes con nota < 60) por asignatura-grado y sede."""
+        self.logger.info("Generando heatmap de proporción de reprobación por asignatura-grado y sede...")
 
         sedes_list = self.results['sedes_list']
 
@@ -704,7 +703,7 @@ class GradesAnalysis(EDAAnalysisBase):
         # Título
         n_combinaciones_mostradas = len(heatmap_data)
         n_combinaciones_totales = len(combinaciones_validas)
-        title = 'Tasa de Reprobación por Asignatura-Grado y Sede'
+        title = 'Porcentaje de Reprobación por Asignatura-Grado y Sede'
         subtitle = '(% Estudiantes con nota < 60)'
         if n_combinaciones_mostradas < n_combinaciones_totales:
             subtitle += f' - Top {n_combinaciones_mostradas} de {n_combinaciones_totales} combinaciones'
@@ -730,12 +729,11 @@ class GradesAnalysis(EDAAnalysisBase):
 
         self.logger.info(f"✅ Heatmap de reprobación por asignatura-grado guardado: {output_path}")
 
-        #heatmap_data.to_csv(f'{self.results_path}/tasa_reprobacion_asignatura_grado_sede.csv')
         return output_path
 
     def plot_heatmap_excelencia_grado_sede(self):
-        """Genera heatmap de tasa de excelencia (% estudiantes con nota ≥ 90) por grado y sede."""
-        self.logger.info("Generando heatmap de tasa de excelencia por grado y sede...")
+        """Genera heatmap de proporción de excelencia (% estudiantes con nota ≥ 90) por grado y sede."""
+        self.logger.info("Generando heatmap de proporción de excelencia por grado y sede...")
 
         sedes_list = self.results['sedes_list']
 
@@ -775,7 +773,7 @@ class GradesAnalysis(EDAAnalysisBase):
         # Etiquetas
         ax.set_xlabel('Sede', fontsize=13, fontweight='bold')
         ax.set_ylabel('Grado', fontsize=13, fontweight='bold')
-        ax.set_title('Tasa de Excelencia por Grado y Sede\n(% Estudiantes con nota ≥ 90)', 
+        ax.set_title('Porcentaje de Excelencia por Grado y Sede\n(% Estudiantes con nota ≥ 90)', 
                     fontsize=16, fontweight='bold', pad=20)
 
         # Colorbar
@@ -797,7 +795,6 @@ class GradesAnalysis(EDAAnalysisBase):
 
         self.logger.info(f"✅ Heatmap de excelencia guardado: {output_path}")
 
-        #heatmap_data.to_csv(f'{self.results_path}/tasa_excelencia_grado_sede.csv')
         return output_path
 
     def plot_asignaturas_evolution_by_sede(self):
@@ -1243,13 +1240,13 @@ class GradesAnalysis(EDAAnalysisBase):
             # 4c. Densidad de competencias por sede
             self.plot_competencias_density_by_sede()
 
-            # 4d. Heatmap de tasa de reprobación por grado y sede
+            # 4d. Heatmap de proporción de reprobación por grado y sede
             self.plot_heatmap_reprobacion_grado_sede()
 
-            # 4e. Heatmap de tasa de reprobación por asignatura-grado y sede
+            # 4e. Heatmap de proporción de reprobación por asignatura-grado y sede
             self.plot_heatmap_reprobacion_asignatura_grado_sede()
 
-            # 4f. Heatmap de tasa de excelencia por grado y sede
+            # 4f. Heatmap de proporción de excelencia por grado y sede
             self.plot_heatmap_excelencia_grado_sede()
 
             # 4g. Barras apiladas de niveles por grado y sede
