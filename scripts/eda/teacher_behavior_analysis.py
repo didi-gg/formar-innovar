@@ -205,6 +205,87 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
         # Renombrar las columnas para mantener consistencia
         df = df.rename(columns={'nombre_docente': 'nombre', 'nombre_asignatura': 'nombre_asignatura'})
 
+        # Cargar información adicional de docentes desde teachers_featured.csv
+        teachers_featured_path = os.path.join(os.path.dirname(self.dataset_path), "..", "interim", "moodle", "teachers_featured.csv")
+        if os.path.exists(teachers_featured_path):
+            self.logger.info(f"Cargando información adicional desde: {teachers_featured_path}")
+            df_teachers_featured = pd.read_csv(teachers_featured_path)
+            self.logger.info(f"Archivo teachers_featured cargado con {len(df_teachers_featured)} filas")
+
+            # Obtener la información más reciente de cada docente (último año)
+            df_teachers_featured_latest = df_teachers_featured.loc[df_teachers_featured.groupby('id_docente')['year'].idxmax()]
+            self.logger.info(f"Docentes únicos después de filtrar por año más reciente: {len(df_teachers_featured_latest)}")
+
+            # Seleccionar las columnas que necesitamos
+            featured_columns = ['id_docente', 'año_inicio_ficc', 'año_inicio_laboral', 'nivel_educativo', 
+                              'unique_students_count', 'total_hours']
+
+            # Verificar que las columnas existen
+            missing_cols = [col for col in featured_columns if col not in df_teachers_featured_latest.columns]
+            if missing_cols:
+                self.logger.warning(f"Columnas faltantes en teachers_featured: {missing_cols}")
+
+            # Asegurar que los tipos de datos coincidan para el merge
+            # Primero eliminar valores nulos y luego convertir
+            original_count = len(df)
+            df_clean = df.dropna(subset=['id_docente']).copy()
+            df_teachers_featured_latest_clean = df_teachers_featured_latest.dropna(subset=['id_docente']).copy()
+
+            # Log de limpieza
+            self.logger.info(f"Registros originales: {original_count}, después de limpiar nulos: {len(df_clean)}")
+            self.logger.info(f"Registros teachers_featured originales: {len(df_teachers_featured_latest)}, después de limpiar nulos: {len(df_teachers_featured_latest_clean)}")
+
+            # Convertir a float primero para normalizar los decimales, luego a string
+            df_clean['id_docente'] = df_clean['id_docente'].astype(float).astype(int).astype(str)
+            df_teachers_featured_latest_clean['id_docente'] = df_teachers_featured_latest_clean['id_docente'].astype(str)
+
+            # Actualizar los dataframes originales
+            df = df_clean
+            df_teachers_featured_latest = df_teachers_featured_latest_clean
+
+            # Debug: verificar tipos de datos antes del merge
+            self.logger.info(f"Tipo de id_docente en df principal: {df['id_docente'].dtype}")
+            self.logger.info(f"Tipo de id_docente en teachers_featured: {df_teachers_featured_latest['id_docente'].dtype}")
+            self.logger.info(f"Valores únicos en df principal: {sorted(df['id_docente'].unique())[:10]}")
+            self.logger.info(f"Valores únicos en teachers_featured: {sorted(df_teachers_featured_latest['id_docente'].unique())[:10]}")
+
+            # Verificar coincidencias antes del merge
+            common_ids = set(df['id_docente'].unique()) & set(df_teachers_featured_latest['id_docente'].unique())
+            self.logger.info(f"IDs comunes entre ambos datasets ANTES del merge: {len(common_ids)} - {sorted(list(common_ids))[:10]}")
+
+            # Hacer join con la información adicional usando merge explícito
+            df_before_merge = df.copy()
+            df = df.merge(df_teachers_featured_latest[featured_columns], on='id_docente', how='left', suffixes=('', '_featured'))
+
+            # Verificar el resultado del merge
+            merged_count = df[df['año_inicio_ficc'].notna()].shape[0]
+            self.logger.info(f"Docentes con información adicional después del merge: {merged_count}")
+
+            # Mostrar algunos ejemplos de los datos
+            sample_data = df[['id_docente', 'año_inicio_ficc', 'nivel_educativo', 'unique_students_count']].head()
+            self.logger.info(f"Ejemplo de datos después del merge:\n{sample_data}")
+
+            # Mostrar docentes que no tuvieron match
+            no_match = df[df['año_inicio_ficc'].isna()]['id_docente'].unique()
+            self.logger.info(f"Docentes sin match: {len(no_match)} - {sorted(no_match)[:10]}")
+
+            # Verificar que el merge funcionó correctamente
+            if merged_count == 0:
+                self.logger.error("❌ ERROR: No se pudo hacer merge de la información adicional. Verificar IDs y tipos de datos.")
+                # Mostrar más detalles para debug
+                self.logger.info(f"Primeros 5 IDs en df principal: {df_before_merge['id_docente'].head().tolist()}")
+                self.logger.info(f"Primeros 5 IDs en teachers_featured: {df_teachers_featured_latest['id_docente'].head().tolist()}")
+            else:
+                self.logger.info(f"✅ Merge exitoso: {merged_count} docentes tienen información adicional")
+        else:
+            self.logger.warning(f"No se encontró el archivo teachers_featured.csv en: {teachers_featured_path}")
+            # Agregar columnas vacías si no se encuentra el archivo
+            df['año_inicio_ficc'] = None
+            df['año_inicio_laboral'] = None
+            df['nivel_educativo'] = None
+            df['unique_students_count'] = None
+            df['total_hours'] = None
+
         self.df_merged = df
         return df
 
@@ -417,6 +498,7 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
         bar_values_2 = []
         bar_colors_2 = []
         current_sede_2 = None
+        position_2 = 0
         for idx, (_, row) in enumerate(teacher_stats_sorted.iterrows()):
             if sede is None and current_sede_2 != row['sede']:
                 bar_values_2.append(0)
@@ -579,10 +661,11 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
             current_sede_9 = None
             position_9 = 0
 
+            teacher_labels_9 = []
             for idx, (teacher_id, row) in enumerate(moodle_stats_sorted.iterrows()):
                 if sede is None and current_sede_9 != row.get('sede', ''):
                     # Agregar separador de sede
-                    teacher_labels.append(f"--- {row.get('sede', '')} ---")
+                    teacher_labels_9.append(f"--- {row.get('sede', '')} ---")
                     bar_positions_9.append(position_9)
                     bar_values_9.append(0)
                     bar_colors_9.append('lightgray')
@@ -591,7 +674,7 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
 
                 # Agregar datos del docente
                 name = row['nombre'][:10] + '...' if len(row['nombre']) > 10 else row['nombre']
-                teacher_labels.append(name)
+                teacher_labels_9.append(name)
                 bar_positions_9.append(position_9)
                 bar_values_9.append(row['num_teacher_views_before_planned_start_date'])
                 bar_colors_9.append('lightcoral')
@@ -601,8 +684,8 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
             axes[0, 4].set_title('Vistas Antes de Iniciar Planificación por Docente', fontsize=12)
             axes[0, 4].set_xlabel('Docentes (agrupados por sede)', fontsize=10)
             axes[0, 4].set_ylabel('Número de Vistas', fontsize=10)
-            axes[0, 4].set_xticks(range(len(teacher_labels)))
-            axes[0, 4].set_xticklabels(teacher_labels, rotation=45, ha='right', fontsize=8)
+            axes[0, 4].set_xticks(range(len(teacher_labels_9)))
+            axes[0, 4].set_xticklabels(teacher_labels_9, rotation=45, ha='right', fontsize=8)
             axes[0, 4].tick_params(axis='x', pad=8)
         else:
             axes[0, 4].text(0.5, 0.5, 'Datos de Moodle no disponibles', ha='center', va='center', transform=axes[0, 4].transAxes)
@@ -630,6 +713,7 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
 
             # Preparar datos para gráfica de barras agrupadas con separadores de sede
             x_positions_10 = []
+            teacher_labels_10 = []
             current_sede_10 = None
             x_pos = 0
             width = 0.35
@@ -640,7 +724,7 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
             for idx, (teacher_id, row) in enumerate(moodle_stats_2_sorted.iterrows()):
                 if sede is None and current_sede_10 != row.get('sede', ''):
                     # Agregar separador de sede
-                    teacher_labels.append(f"--- {row.get('sede', '')} ---")
+                    teacher_labels_10.append(f"--- {row.get('sede', '')} ---")
                     x_positions_10.append(x_pos)
                     views_data.append(0)
                     updates_data.append(0)
@@ -649,7 +733,7 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
 
                 # Agregar datos del docente
                 name = row['nombre'][:10] + '...' if len(row['nombre']) > 10 else row['nombre']
-                teacher_labels.append(name)
+                teacher_labels_10.append(name)
                 x_positions_10.append(x_pos)
                 views_data.append(row['teacher_total_views'])
                 updates_data.append(row['teacher_total_updates'])
@@ -665,7 +749,7 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
             axes[1, 4].set_xlabel('Docentes (agrupados por sede)', fontsize=10)
             axes[1, 4].set_ylabel('Número de Eventos', fontsize=10)
             axes[1, 4].set_xticks(x_array)
-            axes[1, 4].set_xticklabels(teacher_labels, rotation=45, ha='right', fontsize=8)
+            axes[1, 4].set_xticklabels(teacher_labels_10, rotation=45, ha='right', fontsize=8)
             axes[1, 4].tick_params(axis='x', pad=8)
             axes[1, 4].legend(fontsize=9)
         else:
@@ -681,39 +765,12 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
         docentes_problematicos = teacher_stats[teacher_stats['patron_bajo']].copy()
         docentes_problematicos = docentes_problematicos.sort_values('promedio')
 
-        # Crear tabla resumen
+        # Log de docentes con patrones problemáticos
         if len(docentes_problematicos) > 0:
             self.logger.warning(f"Se identificaron {len(docentes_problematicos)} docentes con patrones de calificación bajos{sede_suffix}")
-
-            # Crear visualización específica de docentes problemáticos
-            fig, ax = plt.subplots(figsize=(12, 8))
-
-            # Crear tabla visual
-            table_data = []
             for idx, (teacher_id, row) in enumerate(docentes_problematicos.iterrows()):
                 teacher_name = row.get('nombre', f'Docente {teacher_id}')
-                table_data.append([
-                    teacher_name,
-                    f"{row['promedio']:.1f}",
-                    f"{row['porcentaje_notas_altas']:.1f}%",
-                    f"{row['nota_maxima']:.1f}",
-                    f"{row['total_calificaciones']}"
-                ])
-
-            table = ax.table(cellText=table_data,
-                           colLabels=['Docente', 'Promedio', '% Notas Altas', 'Nota Máx', 'Total Calif'],
-                           cellLoc='center',
-                           loc='center')
-            table.auto_set_font_size(False)
-            table.set_fontsize(10)
-            table.scale(1.2, 1.5)
-
-            ax.set_title(f'Docentes con Patrones de Calificación Bajos{sede_suffix}', fontsize=14, pad=20)
-            ax.axis('off')
-
-            plt.tight_layout()
-            plt.savefig(f"{output_dir}/tabla_docentes_patrones_bajos{sede_file_suffix}.png", dpi=300, bbox_inches='tight')
-            plt.close()
+                self.logger.info(f"Docente problemático: {teacher_name} - Promedio: {row['promedio']:.1f}, % Notas Altas: {row['porcentaje_notas_altas']:.1f}%")
         else:
             self.logger.info(f"No se identificaron docentes con patrones de calificación problemáticos{sede_suffix}")
 
@@ -969,13 +1026,46 @@ class TeacherBehaviorAnalysis(EDAAnalysisBase):
         # Fila 3: Información textual y resumen
         ax5 = fig.add_subplot(gs[2, :2])
         ax5.axis('off')
+        # Obtener información adicional del docente
+        teacher_id = df_teacher['id_docente'].iloc[0]
+
+        # Debug: verificar qué columnas están disponibles
+        available_cols = df_teacher.columns.tolist()
+        #self.logger.info(f"Columnas disponibles para docente {teacher_id}: {available_cols}")
+
+        # Debug: verificar qué columnas están disponibles
+        self.logger.info(f"Columnas disponibles para docente {teacher_id}: {[col for col in df_teacher.columns if 'año' in col or 'nivel' in col or 'unique' in col or 'total_hours' in col]}")
+
+        # Extraer valores directamente
+        año_inicio_ficc = df_teacher['año_inicio_ficc'].iloc[0] if 'año_inicio_ficc' in df_teacher.columns else 'N/A'
+        año_inicio_laboral = df_teacher['año_inicio_laboral'].iloc[0] if 'año_inicio_laboral' in df_teacher.columns else 'N/A'
+        nivel_educativo = df_teacher['nivel_educativo'].iloc[0] if 'nivel_educativo' in df_teacher.columns else 'N/A'
+        estudiantes_unicos = df_teacher['unique_students_count'].iloc[0] if 'unique_students_count' in df_teacher.columns else 'N/A'
+        total_horas = df_teacher['total_hours'].iloc[0] if 'total_hours' in df_teacher.columns else 'N/A'
+
+        # Debug: mostrar valores extraídos
+        self.logger.info(f"Valores extraídos para docente {teacher_id}:")
+        self.logger.info(f"  año_inicio_ficc: {año_inicio_ficc} (tipo: {type(año_inicio_ficc)})")
+        self.logger.info(f"  año_inicio_laboral: {año_inicio_laboral} (tipo: {type(año_inicio_laboral)})")
+        self.logger.info(f"  nivel_educativo: {nivel_educativo} (tipo: {type(nivel_educativo)})")
+        self.logger.info(f"  estudiantes_unicos: {estudiantes_unicos} (tipo: {type(estudiantes_unicos)})")
+        self.logger.info(f"  total_horas: {total_horas} (tipo: {type(total_horas)})")
+
         # Crear texto con métricas detalladas
         info_text = f"""INFORMACIÓN DEL DOCENTE
 Nombre: {teacher_name}
 Sede: {teacher_sede}
+ID Docente: {teacher_id}
+Año inicio FICC: {año_inicio_ficc}
+Año inicio laboral: {año_inicio_laboral}
+Nivel educativo: {nivel_educativo}
+
+INFORMACIÓN ACADÉMICA
 Total calificaciones: {metrics['total_calificaciones']}
 Asignaturas diferentes: {metrics['asignaturas_diferentes']}
 Grados diferentes: {metrics['grados_diferentes']}
+Estudiantes únicos atendidos: {estudiantes_unicos}
+Total horas de carga: {total_horas}
 
 ESTADÍSTICAS DESCRIPTIVAS
 Promedio: {metrics['promedio']:.2f}    Mediana: {metrics['mediana']:.2f}
@@ -1032,15 +1122,15 @@ Total de vistas: {metrics['teacher_total_views']:.1f}"""
                 verticalalignment='top', fontfamily='monospace',
                 bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.8))
         # Título general
-        plt.suptitle(f'REPORTE COMPLETO DEL DOCENTE{sede_suffix}\n{teacher_name} - {teacher_sede}', 
+        plt.suptitle(f'REPORTE COMPLETO DEL DOCENTE\n{teacher_name} - {teacher_sede}', 
                     fontsize=16, y=0.98)
         plt.savefig(f"{teacher_dir}/reporte_completo_docente.png", dpi=300, bbox_inches='tight')
         plt.close()
 
 
     def create_visualizations(self, output_dir: str):
-        """Crear todas las visualizaciones."""
-        self.logger.info("Creando visualizaciones...")
+        """Crear todas las visualizaciones por sede únicamente."""
+        self.logger.info("Creando visualizaciones por sede...")
 
         # Crear directorio si no existe
         os.makedirs(output_dir, exist_ok=True)
@@ -1060,6 +1150,18 @@ Total de vistas: {metrics['teacher_total_views']:.1f}"""
                 self.logger.warning(f"No hay datos para la sede {sede}")
                 continue
 
+            # Debug: verificar que la información adicional se mantiene después del filtro
+            additional_cols = ['año_inicio_ficc', 'nivel_educativo', 'unique_students_count', 'total_hours']
+            available_additional_cols = [col for col in additional_cols if col in df_sede.columns]
+            self.logger.info(f"Sede {sede}: Columnas adicionales disponibles: {available_additional_cols}")
+
+            if available_additional_cols:
+                sample_with_data = df_sede[df_sede['año_inicio_ficc'].notna()].head(3)
+                if len(sample_with_data) > 0:
+                    self.logger.info(f"Sede {sede}: Ejemplo de datos con información adicional:\n{sample_with_data[['id_docente', 'nombre', 'año_inicio_ficc', 'nivel_educativo']].to_string()}")
+                else:
+                    self.logger.warning(f"Sede {sede}: No hay docentes con información adicional después del filtro")
+
             # Crear subdirectorio para esta sede
             sede_dir = os.path.join(output_dir, sede.lower())
             os.makedirs(sede_dir, exist_ok=True)
@@ -1073,13 +1175,7 @@ Total de vistas: {metrics['teacher_total_views']:.1f}"""
             # Crear análisis individual por docente para esta sede
             self.create_individual_teacher_analysis(df_sede, sede_dir, sede)
 
-        # Crear visualizaciones generales (todas las sedes juntas)
-        self.logger.info("Creando visualizaciones generales...")
-        self.create_teacher_subject_boxplots(self.df_merged, output_dir)
-        self.create_general_boxplot_by_subject(self.df_merged, output_dir)
-        self.create_teacher_grade_boxplots(self.df_merged, output_dir)
-        self.create_teacher_subject_grade_boxplots(self.df_merged, output_dir)
-        self.analyze_teacher_grading_patterns(self.df_merged, output_dir)
+        self.logger.info("Visualizaciones por sede completadas.")
 
     def run_analysis(self):
         """Ejecutar análisis completo."""
