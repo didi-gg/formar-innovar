@@ -38,16 +38,12 @@ class DropoutAnalysis(EDAAnalysisBase):
         self.active_students = None
 
     def load_grades_data(self):
-        """Carga los datos de calificaciones."""
-        self.logger.info(f"Cargando datos desde: {self.dataset_path}")
-
         if not os.path.exists(self.dataset_path):
             raise FileNotFoundError(f"No se encontró el dataset en: {self.dataset_path}")
 
         df = pd.read_csv(self.dataset_path, 
                         dtype={'año': 'int16', 'periodo': 'int8'},
                         low_memory=False)
-        self.logger.info(f"Dataset cargado: {df.shape[0]:,} registros, {df.shape[1]} columnas")
 
         # Validar columnas necesarias
         required_columns = ['sede', 'año', 'periodo', 'identificación', 'resultado']
@@ -66,12 +62,7 @@ class DropoutAnalysis(EDAAnalysisBase):
         return df
 
     def identify_dropout_students(self):
-        """Identifica estudiantes que se retiraron."""
         self.logger.info("Identificando estudiantes retirados...")
-
-        # Crear columna año_periodo si no existe
-        if 'año_periodo' not in self.df.columns:
-            self.df['año_periodo'] = self.df['año'].astype(str) + '-' + self.df['periodo'].astype(str)
 
         # Obtener todos los períodos únicos ordenados
         periodos_ordenados = sorted(self.df[['año', 'periodo']].drop_duplicates().values.tolist())
@@ -92,7 +83,6 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         # El último período del dataset
         last_periodo_year = max(periodos_ordenados, key=lambda x: (x[0], x[1]))[0]
-        last_periodo_num = max(periodos_ordenados, key=lambda x: (x[0], x[1]))[1]
 
         # Estudiantes que NO estuvieron en el último período son considerados retirados
         # (o que su último período fue hace más de 1 año)
@@ -105,10 +95,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         # Separar retirados y activos
         dropout_ids = student_last_periodo[student_last_periodo['es_retirado']]['identificación'].tolist()
         active_ids = student_last_periodo[~student_last_periodo['es_retirado']]['identificación'].tolist()
-
-        self.logger.info(f"Total de estudiantes únicos: {len(student_last_periodo):,}")
-        self.logger.info(f"Estudiantes retirados: {len(dropout_ids):,} ({len(dropout_ids)/len(student_last_periodo)*100:.1f}%)")
-        self.logger.info(f"Estudiantes activos: {len(active_ids):,} ({len(active_ids)/len(student_last_periodo)*100:.1f}%)")
 
         # Guardar información
         self.results['student_last_periodo'] = student_last_periodo
@@ -126,7 +112,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         return dropout_ids, active_ids
 
     def analyze_dropout_grades(self):
-        """Analiza las calificaciones de estudiantes retirados vs activos."""
         self.logger.info("Analizando calificaciones de retirados vs activos...")
 
         dropout_ids = self.results['dropout_ids']
@@ -157,10 +142,6 @@ class DropoutAnalysis(EDAAnalysisBase):
             'q75': df_active['resultado'].quantile(0.75)
         }
 
-        self.logger.info(f"Promedio calificaciones RETIRADOS: {dropout_grades_stats['promedio']:.2f}")
-        self.logger.info(f"Promedio calificaciones ACTIVOS: {active_grades_stats['promedio']:.2f}")
-        self.logger.info(f"Diferencia: {abs(dropout_grades_stats['promedio'] - active_grades_stats['promedio']):.2f} puntos")
-
         self.results['dropout_grades_stats'] = dropout_grades_stats
         self.results['active_grades_stats'] = active_grades_stats
         self.results['df_dropout'] = df_dropout
@@ -169,7 +150,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         return dropout_grades_stats, active_grades_stats
 
     def analyze_dropout_by_demographics(self):
-        """Analiza retiro por demografía (sede, grado)."""
         self.logger.info("Analizando retiro por demografía...")
 
         student_info = self.results['student_last_periodo']
@@ -194,59 +174,49 @@ class DropoutAnalysis(EDAAnalysisBase):
         dropout_by_grade['proporcion_retiro'] = (dropout_by_grade['retirados'] / dropout_by_grade['total'] * 100)
         dropout_by_grade = dropout_by_grade.sort_values('grado')
 
-        self.logger.info("\nProporción de retiro por sede:")
-        for _, row in dropout_by_sede.iterrows():
-            self.logger.info(f"  {row['sede']}: {row['proporcion_retiro']:.1f}% ({int(row['retirados'])}/{int(row['total'])})")
-
-        self.logger.info("\nProporción de retiro por grado:")
-        for _, row in dropout_by_grade.iterrows():
-            self.logger.info(f"  Grado {row['grado']}: {row['proporcion_retiro']:.1f}% ({int(row['retirados'])}/{int(row['total'])})")
-
         self.results['dropout_by_sede'] = dropout_by_sede
         self.results['dropout_by_grade'] = dropout_by_grade
 
         return dropout_by_sede, dropout_by_grade
 
     def analyze_dropout_antiquity(self):
-        """Analiza la antigüedad (períodos) de los estudiantes al momento del retiro."""
         self.logger.info("Analizando antigüedad al momento del retiro...")
 
         student_info = self.results['student_last_periodo']
-        
+
         # Obtener todos los períodos únicos ordenados
         periodos_ordenados = sorted(self.df[['año', 'periodo']].drop_duplicates().values.tolist())
-        all_periodos = [f"{año}-{periodo}" for año, periodo in periodos_ordenados]
-        
+
         # Calcular antigüedad para cada estudiante
         def calculate_antiquity(row):
             """Calcula cuántos períodos llevaba un estudiante antes de retirarse."""
             student_id = row['identificación']
             last_year = row['año']
             last_period = row['periodo']
-            
+
             # Encontrar el índice del último período del estudiante
             last_periodo_index = None
             for i, (year, period) in enumerate(periodos_ordenados):
                 if year == last_year and period == last_period:
                     last_periodo_index = i
                     break
-            
+
             if last_periodo_index is None:
                 return 0
-            
+
             # La antigüedad es el número de períodos que estuvo activo
             return last_periodo_index + 1
-        
+
         # Aplicar cálculo de antigüedad
         student_info['antiguedad_periodos'] = student_info.apply(calculate_antiquity, axis=1)
-        
+
         # Filtrar solo estudiantes retirados
         dropout_students = student_info[student_info['es_retirado']].copy()
-        
+
         if len(dropout_students) == 0:
             self.logger.warning("No hay estudiantes retirados para analizar antigüedad")
             return None, None
-        
+
         # Estadísticas de antigüedad
         antiquity_stats = {
             'total_retirados': len(dropout_students),
@@ -255,7 +225,7 @@ class DropoutAnalysis(EDAAnalysisBase):
             'antiguedad_min': dropout_students['antiguedad_periodos'].min(),
             'antiguedad_max': dropout_students['antiguedad_periodos'].max()
         }
-        
+
         # Crear rangos de antigüedad para análisis
         antiquity_ranges = [
             (1, 2, "1-2 períodos"),
@@ -265,8 +235,8 @@ class DropoutAnalysis(EDAAnalysisBase):
             (9, 10, "9-10 períodos"),
             (11, 20, "11+ períodos")
         ]
-        
-        # Calcular proporción de retiro por rango de antigüedad
+
+        # Calcular proporción de estudiantes retirados por rango de antigüedad
         range_analysis = []
         for min_periods, max_periods, label in antiquity_ranges:
             # Estudiantes en este rango de antigüedad que se retiraron
@@ -274,16 +244,16 @@ class DropoutAnalysis(EDAAnalysisBase):
                 (dropout_students['antiguedad_periodos'] >= min_periods) & 
                 (dropout_students['antiguedad_periodos'] <= max_periods)
             ]
-            
+
             # Total de estudiantes que alguna vez estuvieron en este rango
             # (esto es una aproximación - estudiantes que llegaron al período mínimo)
             total_in_range = len(student_info[student_info['antiguedad_periodos'] >= min_periods])
-            
+
             if total_in_range > 0:
                 dropout_rate = len(dropout_in_range) / total_in_range * 100
             else:
                 dropout_rate = 0
-                
+
             range_analysis.append({
                 'rango': label,
                 'min_periods': min_periods,
@@ -292,29 +262,17 @@ class DropoutAnalysis(EDAAnalysisBase):
                 'total_en_rango': total_in_range,
                 'proporcion_retiro': dropout_rate
             })
-        
+
         range_df = pd.DataFrame(range_analysis)
-        
-        # Log de resultados
-        self.logger.info(f"\nEstadísticas de antigüedad al retiro:")
-        self.logger.info(f"  Total retirados: {antiquity_stats['total_retirados']}")
-        self.logger.info(f"  Antigüedad promedio: {antiquity_stats['antiguedad_promedio']:.1f} períodos")
-        self.logger.info(f"  Antigüedad mediana: {antiquity_stats['antiguedad_mediana']:.1f} períodos")
-        self.logger.info(f"  Rango: {antiquity_stats['antiguedad_min']}-{antiquity_stats['antiguedad_max']} períodos")
-        
-        self.logger.info(f"\nProporción de retiro por antigüedad:")
-        for _, row in range_df.iterrows():
-            self.logger.info(f"  {row['rango']}: {row['proporcion_retiro']:.1f}% ({row['retirados']}/{row['total_en_rango']})")
-        
+
         # Guardar resultados
         self.results['dropout_antiquity'] = dropout_students
         self.results['antiquity_stats'] = antiquity_stats
         self.results['antiquity_ranges'] = range_df
-        
+
         return dropout_students, range_df
 
     def analyze_dropout_by_period(self):
-        """Analiza en qué períodos académicos se retiran más estudiantes."""
         self.logger.info("Analizando retiro por período académico...")
 
         if self.dropout_students is None or len(self.dropout_students) == 0:
@@ -370,16 +328,6 @@ class DropoutAnalysis(EDAAnalysisBase):
             'identificación': 'count'
         }).rename(columns={'identificación': 'retirados'}).reset_index()
 
-        # Log de resultados
-        self.logger.info(f"Períodos con más retiro:")
-        for _, row in dropout_by_period.head(5).iterrows():
-            self.logger.info(f"  {row['año_periodo']}: {row['retirados']} estudiantes")
-
-        self.logger.info(f"Retiro por semestre:")
-        for _, row in dropout_by_semester.iterrows():
-            pct = row['retirados'] / len(dropout_periods_df) * 100
-            self.logger.info(f"  {row['periodo_nombre']}: {row['retirados']} ({pct:.1f}%)")
-
         # Guardar resultados
         self.results['dropout_by_period'] = dropout_by_period
         self.results['dropout_by_semester'] = dropout_by_semester
@@ -387,11 +335,9 @@ class DropoutAnalysis(EDAAnalysisBase):
         self.results['dropout_periods_df'] = dropout_periods_df
 
         self.logger.info("✅ Análisis por período completado")
-
         return dropout_by_period
 
     def analyze_students_by_sede_periodo(self):
-        """Analiza el número de estudiantes únicos por sede y período."""
         self.logger.info("Analizando estudiantes por sede y período...")
 
         # Usar groupby con as_index=False para evitar reset_index
@@ -406,10 +352,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         total_sedes = self.df['sede'].nunique()
         sedes_list = sorted(self.df['sede'].unique().tolist())
 
-        self.logger.info(f"Total de estudiantes únicos: {total_students:,}")
-        self.logger.info(f"Total de sedes: {total_sedes}")
-        self.logger.info(f"Sedes: {', '.join(sedes_list)}")
-
         self.results['students_by_sede_periodo'] = students_by_sede_periodo
         self.results['total_students'] = total_students
         self.results['total_sedes'] = total_sedes
@@ -418,7 +360,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         return students_by_sede_periodo
 
     def analyze_students_by_grade_sede_periodo(self):
-        """Analiza el número de estudiantes únicos por grado, sede y período."""
         self.logger.info("Analizando estudiantes por grado, sede y período...")
 
         # Usar groupby con as_index=False y rename
@@ -432,9 +373,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         grados_list = sorted(self.df['grado'].unique().tolist())
         total_grados = len(grados_list)
 
-        self.logger.info(f"Total de grados analizados: {total_grados}")
-        self.logger.info(f"Grados: {', '.join(map(str, grados_list))}")
-
         self.results['students_by_grade'] = students_by_grade
         self.results['grados_list'] = grados_list
         self.results['total_grados'] = total_grados
@@ -442,7 +380,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         return students_by_grade
 
     def plot_students_evolution(self):
-        """Genera gráfico de líneas mostrando la evolución de estudiantes por sede."""
         self.logger.info("Generando gráfico de evolución de estudiantes por sede...")
 
         students_data = self.results['students_by_sede_periodo']
@@ -501,7 +438,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         return output_path
 
     def plot_students_evolution_by_grade(self):
-        """Genera gráficos de líneas mostrando la evolución de estudiantes por grado y sede."""
         self.logger.info("Generando gráficos de evolución de estudiantes por grado y sede...")
 
         students_by_grade = self.results['students_by_grade']
@@ -590,11 +526,9 @@ class DropoutAnalysis(EDAAnalysisBase):
         plt.close()
 
         self.logger.info(f"✅ Gráfico por grados guardado: {output_path}")
-
         return output_path
 
     def analyze_grade_trajectory_before_dropout(self):
-        """Analiza la trayectoria de calificaciones de estudiantes antes de retirarse."""
         self.logger.info("Analizando trayectoria de calificaciones antes de retirarse...")
 
         dropout_ids = self.results['dropout_ids']
@@ -628,20 +562,11 @@ class DropoutAnalysis(EDAAnalysisBase):
                 })
 
         trajectory_df = pd.DataFrame(trajectory)
-
-        # Calcular cuántos tenían tendencia negativa
-        negative_trend = (trajectory_df['tendencia'] < 0).sum()
-        total_with_trend = len(trajectory_df)
-
-        self.logger.info(f"Estudiantes con tendencia negativa antes de retirarse: {negative_trend}/{total_with_trend} ({negative_trend/total_with_trend*100:.1f}%)")
-        self.logger.info(f"Promedio de calificación en último período: {trajectory_df['promedio_ultimo'].mean():.2f}")
-
         self.results['trajectory_df'] = trajectory_df
 
         return trajectory_df
 
     def calculate_risk_indicators(self):
-        """Calcula indicadores de riesgo de retiro para todos los estudiantes."""
         self.logger.info("Calculando indicadores de riesgo de retiro...")
 
         # Para cada estudiante activo, calcular indicadores de riesgo
@@ -716,13 +641,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         # Resumen por nivel de riesgo
         risk_summary = risk_df['nivel_riesgo'].value_counts()
 
-        self.logger.info("\nEstudiantes activos por nivel de riesgo de retiro:")
-        for level in ['Alto', 'Medio', 'Bajo']:
-            if level in risk_summary.index:
-                count = risk_summary[level]
-                pct = count / len(risk_df) * 100
-                self.logger.info(f"  {level}: {count:,} estudiantes ({pct:.1f}%)")
-
         self.results['risk_df'] = risk_df
         self.results['risk_summary'] = risk_summary
 
@@ -730,7 +648,6 @@ class DropoutAnalysis(EDAAnalysisBase):
 
 
     def analyze_grade_consistency(self):
-        """Analiza la consistencia/variabilidad de calificaciones por estudiante."""
         self.logger.info("Analizando consistencia de calificaciones...")
 
         dropout_ids = self.results['dropout_ids']
@@ -741,10 +658,10 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         for student_id in dropout_ids + active_ids:
             student_data = self.df[self.df['identificación'] == student_id].copy()
-            
+
             if len(student_data) >= 3:  # Al menos 3 registros para calcular variabilidad
                 grades = student_data['resultado'].dropna()
-                
+
                 if len(grades) >= 3:
                     std_dev = grades.std()
                     mean_grade = grades.mean()
@@ -752,7 +669,7 @@ class DropoutAnalysis(EDAAnalysisBase):
                     min_grade = grades.min()
                     max_grade = grades.max()
                     grade_range = max_grade - min_grade
-                    
+
                     consistency_data.append({
                         'identificación': student_id,
                         'grupo': 'Retirado' if student_id in dropout_ids else 'Activo',
@@ -771,15 +688,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         dropout_consistency = consistency_df[consistency_df['grupo'] == 'Retirado']
         active_consistency = consistency_df[consistency_df['grupo'] == 'Activo']
 
-        # Log estadísticas
-        self.logger.info(f"\nEstadísticas de CONSISTENCIA:")
-        self.logger.info(f"Retirados - Desv. Std promedio: {dropout_consistency['desv_std'].mean():.2f}")
-        self.logger.info(f"Activos - Desv. Std promedio: {active_consistency['desv_std'].mean():.2f}")
-        self.logger.info(f"Retirados - Coef. Variación promedio: {dropout_consistency['coef_variacion'].mean():.2f}%")
-        self.logger.info(f"Activos - Coef. Variación promedio: {active_consistency['coef_variacion'].mean():.2f}%")
-        self.logger.info(f"Retirados - Rango promedio: {dropout_consistency['rango'].mean():.2f}")
-        self.logger.info(f"Activos - Rango promedio: {active_consistency['rango'].mean():.2f}")
-
         self.results['consistency_df'] = consistency_df
         self.results['dropout_consistency'] = dropout_consistency
         self.results['active_consistency'] = active_consistency
@@ -787,7 +695,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         return consistency_df
 
     def plot_grade_consistency(self):
-        """Gráfico de análisis de consistencia/variabilidad de calificaciones."""
         self.logger.info("Generando gráfico de consistencia de calificaciones...")
 
         dropout_consistency = self.results['dropout_consistency']
@@ -803,18 +710,18 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         # Subplot 1: Distribución de Desviación Estándar
         ax1 = fig.add_subplot(gs[0, 0])
-        
+
         ax1.hist(dropout_consistency['desv_std'], bins=30, alpha=0.6, color='#ff6b6b',
                 label=f'Retirados (n={len(dropout_consistency):,})', edgecolor='black')
         ax1.hist(active_consistency['desv_std'], bins=30, alpha=0.6, color='#51cf66',
                 label=f'Activos (n={len(active_consistency):,})', edgecolor='black')
-        
+
         # Líneas de promedio
         ax1.axvline(dropout_consistency['desv_std'].mean(), color='#ff6b6b', 
                    linestyle='--', linewidth=2, label=f'Prom. Retirados: {dropout_consistency["desv_std"].mean():.1f}')
         ax1.axvline(active_consistency['desv_std'].mean(), color='#51cf66', 
                    linestyle='--', linewidth=2, label=f'Prom. Activos: {active_consistency["desv_std"].mean():.1f}')
-        
+
         ax1.set_xlabel('Desviación Estándar de Calificaciones', fontsize=11, fontweight='bold')
         ax1.set_ylabel('Frecuencia', fontsize=11, fontweight='bold')
         ax1.set_title('Distribución de Variabilidad (Desviación Estándar)', fontsize=13, fontweight='bold')
@@ -823,21 +730,21 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         # Subplot 2: Coeficiente de Variación
         ax2 = fig.add_subplot(gs[0, 1])
-        
+
         # Filtrar valores extremos de CV para mejor visualización
         dropout_cv = dropout_consistency[dropout_consistency['coef_variacion'] < 50]['coef_variacion']
         active_cv = active_consistency[active_consistency['coef_variacion'] < 50]['coef_variacion']
-        
+
         ax2.hist(dropout_cv, bins=30, alpha=0.6, color='#ff6b6b',
                 label=f'Retirados', edgecolor='black')
         ax2.hist(active_cv, bins=30, alpha=0.6, color='#51cf66',
                 label=f'Activos', edgecolor='black')
-        
+
         ax2.axvline(dropout_cv.mean(), color='#ff6b6b', linestyle='--', linewidth=2,
                    label=f'Prom. Retirados: {dropout_cv.mean():.1f}%')
         ax2.axvline(active_cv.mean(), color='#51cf66', linestyle='--', linewidth=2,
                    label=f'Prom. Activos: {active_cv.mean():.1f}%')
-        
+
         ax2.set_xlabel('Coeficiente de Variación (%)', fontsize=11, fontweight='bold')
         ax2.set_ylabel('Frecuencia', fontsize=11, fontweight='bold')
         ax2.set_title('Distribución de Coeficiente de Variación', fontsize=13, fontweight='bold')
@@ -846,7 +753,7 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         # Subplot 3: Boxplots comparativos
         ax3 = fig.add_subplot(gs[1, 0])
-        
+
         data_box = [dropout_consistency['desv_std'], active_consistency['desv_std']]
         bp = ax3.boxplot(data_box, labels=['Retirados', 'Activos'],
                         patch_artist=True, widths=0.6,
@@ -854,13 +761,13 @@ class DropoutAnalysis(EDAAnalysisBase):
                         medianprops=dict(color='black', linewidth=2),
                         whiskerprops=dict(linewidth=1.5),
                         capprops=dict(linewidth=1.5))
-        
+
         # Colorear las cajas
         colors = ['#ff6b6b', '#51cf66']
         for patch, color in zip(bp['boxes'], colors):
             patch.set_facecolor(color)
             patch.set_alpha(0.7)
-        
+
         ax3.set_ylabel('Desviación Estándar', fontsize=11, fontweight='bold')
         ax3.set_title('Comparación de Variabilidad (Boxplot)', fontsize=13, fontweight='bold')
         ax3.grid(True, alpha=0.3, axis='y')
@@ -876,17 +783,17 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         # Subplot 4: Rango de calificaciones (Max - Min)
         ax4 = fig.add_subplot(gs[1, 1])
-        
+
         ax4.hist(dropout_consistency['rango'], bins=30, alpha=0.6, color='#ff6b6b',
                 label=f'Retirados', edgecolor='black')
         ax4.hist(active_consistency['rango'], bins=30, alpha=0.6, color='#51cf66',
                 label=f'Activos', edgecolor='black')
-        
+
         ax4.axvline(dropout_consistency['rango'].mean(), color='#ff6b6b', linestyle='--', linewidth=2,
                    label=f'Prom. Retirados: {dropout_consistency["rango"].mean():.1f}')
         ax4.axvline(active_consistency['rango'].mean(), color='#51cf66', linestyle='--', linewidth=2,
                    label=f'Prom. Activos: {active_consistency["rango"].mean():.1f}')
-        
+
         ax4.set_xlabel('Rango de Calificaciones (Máx - Mín)', fontsize=11, fontweight='bold')
         ax4.set_ylabel('Frecuencia', fontsize=11, fontweight='bold')
         ax4.set_title('Distribución del Rango de Variación', fontsize=13, fontweight='bold')
@@ -915,7 +822,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         return output_path
 
     def plot_components_comparison(self):
-        """Gráfico comparativo de componentes de evaluación: retirados vs activos."""
         self.logger.info("Generando gráfico de comparación de componentes de evaluación...")
 
         df_dropout = self.results['df_dropout']
@@ -932,12 +838,10 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         # Verificar qué componentes existen en el dataset
         available_components = [comp for comp in components if comp in df_dropout.columns]
-        
+
         if len(available_components) == 0:
             self.logger.warning("No hay componentes de evaluación disponibles en el dataset")
             return None
-
-        self.logger.info(f"Componentes disponibles: {available_components}")
 
         # Filtrar solo componentes con datos suficientes
         valid_components = []
@@ -946,7 +850,6 @@ class DropoutAnalysis(EDAAnalysisBase):
             active_comp = df_active[comp].dropna()
             if len(dropout_comp) > 0 and len(active_comp) > 0:
                 valid_components.append(comp)
-                self.logger.info(f"{component_names[comp]}: Retirados={dropout_comp.mean():.2f}, Activos={active_comp.mean():.2f}")
 
         if len(valid_components) == 0:
             self.logger.warning("No hay suficientes datos de componentes para generar gráfico")
@@ -959,7 +862,7 @@ class DropoutAnalysis(EDAAnalysisBase):
         # Graficar distribución de cada componente
         for idx, comp in enumerate(valid_components):
             ax = axes[idx]
-            
+
             dropout_comp = df_dropout[comp].dropna()
             active_comp = df_active[comp].dropna()
 
@@ -979,7 +882,7 @@ class DropoutAnalysis(EDAAnalysisBase):
             # Agregar líneas de promedio
             dropout_mean = dropout_comp.mean()
             active_mean = active_comp.mean()
-            
+
             ax.axvline(dropout_mean, color='#ff6b6b', linestyle='--', linewidth=2, 
                       label=f'Prom. Retirados: {dropout_mean:.1f}')
             ax.axvline(active_mean, color='#51cf66', linestyle='--', linewidth=2, 
@@ -1015,118 +918,7 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         return output_path
 
-    def create_text_visualization(self):
-        """Crear visualización en texto como alternativa a los gráficos."""
-        self.logger.info("Creando visualización en texto...")
-
-        output_path = f'{self.results_path}/visualizacion_texto.txt'
-
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write("=" * 80 + "\n")
-            f.write("VISUALIZACIÓN DE ANÁLISIS DE RETIRO ESCOLAR\n")
-            f.write("=" * 80 + "\n\n")
-
-            # 1. Comparación de calificaciones
-            df_dropout = self.results['df_dropout']
-            df_active = self.results['df_active']
-
-            dropout_mean = df_dropout['resultado'].mean()
-            active_mean = df_active['resultado'].mean()
-
-            f.write("1. COMPARACIÓN DE CALIFICACIONES\n")
-            f.write("-" * 50 + "\n")
-            f.write(f"Retirados:  {dropout_mean:.1f} puntos (n={len(df_dropout['identificación'].unique())})\n")
-            f.write(f"Activos:     {active_mean:.1f} puntos (n={len(df_active['identificación'].unique())})\n")
-            f.write(f"Diferencia:  {abs(dropout_mean - active_mean):.1f} puntos\n\n")
-
-            # Gráfico de barras ASCII
-            max_val = max(dropout_mean, active_mean)
-            dropout_bar = "█" * int((dropout_mean / max_val) * 40)
-            active_bar = "█" * int((active_mean / max_val) * 40)
-
-            f.write("Gráfico de barras:\n")
-            f.write(f"Retirados:  {dropout_bar} {dropout_mean:.1f}\n")
-            f.write(f"Activos:    {active_bar} {active_mean:.1f}\n\n")
-
-            # 2. Retiro por sede
-            dropout_by_sede = self.results['dropout_by_sede']
-
-            f.write("2. RETIRO POR SEDE\n")
-            f.write("-" * 50 + "\n")
-            for _, row in dropout_by_sede.iterrows():
-                sede = row['sede']
-                proporcion = row['proporcion_retiro']
-                retirados = row['retirados']
-                total = row['total']
-
-                bar = "█" * int((proporcion / 100) * 30)
-                f.write(f"{sede:12} {bar:30} {proporcion:5.1f}% ({retirados}/{total})\n")
-            f.write("\n")
-
-            # 3. Retiro por grado
-            dropout_by_grade = self.results['dropout_by_grade']
-            grade_data = dropout_by_grade[dropout_by_grade['proporcion_retiro'] > 0]
-
-            f.write("3. RETIRO POR GRADO\n")
-            f.write("-" * 50 + "\n")
-            for _, row in grade_data.iterrows():
-                grado = row['grado']
-                proporcion = row['proporcion_retiro']
-                retirados = row['retirados']
-                total = row['total']
-
-                bar = "█" * int((proporcion / 100) * 30)
-                f.write(f"Grado {grado:2d}    {bar:30} {proporcion:5.1f}% ({retirados}/{total})\n")
-            f.write("\n")
-
-            # 4. Distribución de riesgo
-            risk_df = self.results['risk_df']
-            if len(risk_df) > 0:
-                risk_counts = risk_df['nivel_riesgo'].value_counts()
-
-                f.write("4. DISTRIBUCIÓN DE RIESGO (ESTUDIANTES ACTIVOS)\n")
-                f.write("-" * 50 + "\n")
-
-                total_risk = len(risk_df)
-                for level in ['Alto', 'Medio', 'Bajo']:
-                    if level in risk_counts.index:
-                        count = risk_counts[level]
-                        pct = count / total_risk * 100
-                        bar = "█" * int((pct / 100) * 30)
-                        f.write(f"Riesgo {level:5} {bar:30} {pct:5.1f}% ({count} estudiantes)\n")
-                f.write("\n")
-
-            # 5. Trayectoria
-            trajectory_df = self.results['trajectory_df']
-            if len(trajectory_df) > 0:
-                f.write("5. TRAYECTORIA ANTES DE RETIRARSE\n")
-                f.write("-" * 50 + "\n")
-
-                avg_ultimo = trajectory_df['promedio_ultimo'].mean()
-                f.write(f"Promedio último período: {avg_ultimo:.1f}\n")
-
-                if 'promedio_penultimo' in trajectory_df.columns:
-                    avg_penultimo = trajectory_df['promedio_penultimo'].dropna().mean()
-                    if not pd.isna(avg_penultimo):
-                        f.write(f"Promedio penúltimo período: {avg_penultimo:.1f}\n")
-                        cambio = avg_ultimo - avg_penultimo
-                        f.write(f"Cambio: {cambio:+.1f} puntos\n")
-
-                tendencias = trajectory_df['tendencia'].dropna()
-                if len(tendencias) > 0:
-                    negative_pct = (tendencias < 0).sum() / len(tendencias) * 100
-                    f.write(f"Estudiantes con tendencia negativa: {negative_pct:.1f}%\n")
-
-            f.write("\n" + "=" * 80 + "\n")
-            f.write("NOTA: Esta visualización en texto se creó porque los gráficos PNG\n")
-            f.write("no se pudieron generar correctamente en tu sistema.\n")
-            f.write("=" * 80 + "\n")
-
-        self.logger.info(f"✅ Visualización en texto creada: {output_path}")
-        return output_path
-
     def plot_dropout_by_demographics(self):
-        """Gráfico de retiro por sede y grado."""
         self.logger.info("Generando gráficos de retiro por demografía...")
 
         dropout_by_sede = self.results['dropout_by_sede']
@@ -1151,12 +943,12 @@ class DropoutAnalysis(EDAAnalysisBase):
                        edgecolor='black', linewidth=1.5)
 
         ax1.set_xlabel('Sede', fontsize=12, fontweight='bold')
-        ax1.set_ylabel('Proporción de Retiro (%)', fontsize=12, fontweight='bold')
-        ax1.set_title('Proporción de Retiro por Sede', fontsize=14, fontweight='bold')
+        ax1.set_ylabel('Proporción de Estudiantes Retirados (%)', fontsize=12, fontweight='bold')
+        ax1.set_title('Proporción de Estudiantes Retirados por Sede', fontsize=14, fontweight='bold')
         ax1.tick_params(axis='x', rotation=45)
         plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right')
         ax1.grid(True, alpha=0.3, axis='y')
-        
+
         # Agregar valores en las barras
         for i, bar in enumerate(bars1):
             height = bar.get_height()
@@ -1165,7 +957,7 @@ class DropoutAnalysis(EDAAnalysisBase):
             ax1.text(bar.get_x() + bar.get_width()/2., height + 2,
                     f'{height:.1f}%\n({int(retirados)}/{int(total)})',
                     ha='center', va='bottom', fontsize=10, fontweight='bold')
-        
+
         # Ajustar límite superior del eje Y para dar espacio a los valores
         current_ylim = ax1.get_ylim()
         ax1.set_ylim(0, current_ylim[1] * 1.15)
@@ -1177,9 +969,9 @@ class DropoutAnalysis(EDAAnalysisBase):
         student_info = self.results['student_last_periodo']
         sedes = student_info['sede'].unique()
         grados = sorted(student_info['grado'].unique())
-        
+
         grade_sede_analysis = []
-        
+
         for grado in grados:
             for sede in sedes:
                 # Estudiantes de este grado y sede que se retiraron
@@ -1188,18 +980,18 @@ class DropoutAnalysis(EDAAnalysisBase):
                     (student_info['sede'] == sede) & 
                     (student_info['es_retirado'] == True)
                 ]
-                
+
                 # Total de estudiantes de este grado y sede
                 total_grado_sede = student_info[
                     (student_info['grado'] == grado) & 
                     (student_info['sede'] == sede)
                 ]
-                
+
                 if len(total_grado_sede) > 0:
                     dropout_rate = len(dropout_grado_sede) / len(total_grado_sede) * 100
                 else:
                     dropout_rate = 0
-                    
+
                 grade_sede_analysis.append({
                     'grado': grado,
                     'sede': sede,
@@ -1207,33 +999,33 @@ class DropoutAnalysis(EDAAnalysisBase):
                     'total': len(total_grado_sede),
                     'proporcion_retiro': dropout_rate
                 })
-        
+
         grade_sede_df = pd.DataFrame(grade_sede_analysis)
-        
+
         # Filtrar grados con retiro > 0
         grade_sede_filtered = grade_sede_df[grade_sede_df['retirados'] > 0].copy()
-        
+
         if len(grade_sede_filtered) > 0:
             # Obtener grados únicos y sedes únicas
             grados_unicos = sorted(grade_sede_filtered['grado'].unique())
             sedes_unicas = sorted(grade_sede_filtered['sede'].unique())
-            
+
             # Configurar posiciones de las barras
             x_pos = range(len(grados_unicos))
             bar_width = 0.8 / len(sedes_unicas)
-            
+
             # Colores para cada sede
             colors_sede = self.get_beautiful_palette(len(sedes_unicas), palette_name='tab20b')
-            
+
             # Crear barras para cada sede
             for i, sede in enumerate(sedes_unicas):
                 sede_data = grade_sede_filtered[grade_sede_filtered['sede'] == sede]
-                
+
                 # Preparar datos para cada grado
                 proporciones_por_grado = []
                 retirados_por_grado = []
                 total_por_grado = []
-                
+
                 for grado in grados_unicos:
                     grado_data = sede_data[sede_data['grado'] == grado]
                     if len(grado_data) > 0:
@@ -1244,10 +1036,10 @@ class DropoutAnalysis(EDAAnalysisBase):
                         proporciones_por_grado.append(0)
                         retirados_por_grado.append(0)
                         total_por_grado.append(0)
-                
+
                 # Calcular posiciones de las barras para esta sede
                 x_positions = [x + i * bar_width - (len(sedes_unicas) - 1) * bar_width / 2 for x in x_pos]
-                
+
                 # Crear barras
                 bars = ax2.bar(x_positions, proporciones_por_grado, bar_width, 
                              label=sede, color=colors_sede[i], alpha=0.8, 
@@ -1260,14 +1052,14 @@ class DropoutAnalysis(EDAAnalysisBase):
                         ax2.text(bar.get_x() + bar.get_width()/2., height + 1,
                                 f'{height:.1f}%\n({retirados_por_grado[j]}/{total_por_grado[j]})',
                                 ha='center', va='bottom', fontsize=8, fontweight='bold')
-            
+
         ax2.set_xlabel('Grado', fontsize=12, fontweight='bold')
-        ax2.set_ylabel('Proporción de Retiro (%)', fontsize=12, fontweight='bold')
-        ax2.set_title('Proporción de Retiro por Grado y Sede', fontsize=14, fontweight='bold')
+        ax2.set_ylabel('Proporción de Estudiantes Retirados (%)', fontsize=12, fontweight='bold')
+        ax2.set_title('Proporción de Estudiantes Retirados por Grado y Sede', fontsize=14, fontweight='bold')
         ax2.set_xticks(x_pos)
         ax2.set_xticklabels([str(g) for g in grados_unicos])
         ax2.legend()
-        
+
         if len(proporciones_por_grado) > 0:
             ax2.grid(True, alpha=0.3, axis='y')
             # Ajustar límite superior del eje Y para dar espacio a los valores
@@ -1276,7 +1068,7 @@ class DropoutAnalysis(EDAAnalysisBase):
         else:
             ax2.text(0.5, 0.5, 'No hay datos suficientes\npara mostrar proporciones por grado', 
                     ha='center', va='center', transform=ax2.transAxes, fontsize=12)
-            ax2.set_title('Proporción de Retiro por Grado y Sede', fontsize=14, fontweight='bold')
+            ax2.set_title('Proporción de Estudiantes Retirados por Grado y Sede', fontsize=14, fontweight='bold')
 
         plt.tight_layout()
 
@@ -1307,12 +1099,12 @@ class DropoutAnalysis(EDAAnalysisBase):
         # Subplot 1: Histograma de antigüedad al retiro
         ax1.hist(dropout_students['antiguedad_periodos'], bins=20, 
                 color='#e74c3c', alpha=0.7, edgecolor='black', linewidth=1)
-        
+
         ax1.set_xlabel('Períodos de Antigüedad al Retiro', fontsize=12, fontweight='bold')
         ax1.set_ylabel('Número de Estudiantes Retirados', fontsize=12, fontweight='bold')
         ax1.set_title('Distribución de Antigüedad al Momento del Retiro', fontsize=14, fontweight='bold')
         ax1.grid(True, alpha=0.3, axis='y')
-        
+
         # Agregar líneas de referencia
         ax1.axvline(antiquity_stats['antiguedad_promedio'], color='red', linestyle='--', 
                    linewidth=2, label=f'Promedio: {antiquity_stats["antiguedad_promedio"]:.1f} períodos')
@@ -1320,11 +1112,11 @@ class DropoutAnalysis(EDAAnalysisBase):
                    linewidth=2, label=f'Mediana: {antiquity_stats["antiguedad_mediana"]:.1f} períodos')
         ax1.legend()
 
-        # Subplot 2: Proporción de retiro por rango de antigüedad y sede
+        # Subplot 2: Proporción de estudiantes retirados por rango de antigüedad y sede
         if range_df is not None and len(range_df) > 0:
             # Obtener datos necesarios
             student_info = self.results['student_last_periodo']
-            
+
             # Definir rangos de antigüedad (mismo que en analyze_dropout_antiquity)
             antiquity_ranges = [
                 (1, 2, "1-2 períodos"),
@@ -1334,11 +1126,11 @@ class DropoutAnalysis(EDAAnalysisBase):
                 (9, 10, "9-10 períodos"),
                 (11, 20, "11+ períodos")
             ]
-            
+
             # Calcular proporciones por sede para cada rango
             sedes = dropout_students['sede'].unique()
             range_sede_analysis = []
-            
+
             for min_periods, max_periods, label in antiquity_ranges:
                 for sede in sedes:
                     # Estudiantes de esta sede en este rango que se retiraron
@@ -1347,18 +1139,18 @@ class DropoutAnalysis(EDAAnalysisBase):
                         (dropout_students['antiguedad_periodos'] <= max_periods) &
                         (dropout_students['sede'] == sede)
                     ]
-                    
+
                     # Total de estudiantes de esta sede que llegaron al período mínimo
                     total_in_range_sede = len(student_info[
                         (student_info['antiguedad_periodos'] >= min_periods) & 
                         (student_info['sede'] == sede)
                     ])
-                    
+
                     if total_in_range_sede > 0:
                         dropout_rate = len(dropout_in_range_sede) / total_in_range_sede * 100
                     else:
                         dropout_rate = 0
-                        
+
                     range_sede_analysis.append({
                         'rango': label,
                         'sede': sede,
@@ -1368,35 +1160,35 @@ class DropoutAnalysis(EDAAnalysisBase):
                         'total_en_rango': total_in_range_sede,
                         'proporcion_retiro': dropout_rate
                     })
-            
+
             range_sede_df = pd.DataFrame(range_sede_analysis)
-            
+
             # Filtrar rangos con datos
             range_sede_filtered = range_sede_df[range_sede_df['retirados'] > 0].copy()
-            
+
             if len(range_sede_filtered) > 0:
                 # Obtener rangos únicos y sedes únicas
                 # Ordenar rangos por el valor mínimo de períodos para orden lógico
                 rangos_unicos = sorted(range_sede_filtered['rango'].unique(), 
                                      key=lambda x: int(x.split('-')[0]) if '-' in x else int(x.split('+')[0]))
                 sedes_unicas = sorted(range_sede_filtered['sede'].unique())
-                
+
                 # Configurar posiciones de las barras
                 x_pos = range(len(rangos_unicos))
                 bar_width = 0.8 / len(sedes_unicas)
-                
+
                 # Colores para cada sede
                 colors_sede = self.get_beautiful_palette(len(sedes_unicas), palette_name='tab20b')
-                
+
                 # Crear barras para cada sede
                 for i, sede in enumerate(sedes_unicas):
                     sede_data = range_sede_filtered[range_sede_filtered['sede'] == sede]
-                    
+
                     # Preparar datos para cada rango
                     proporciones_por_rango = []
                     retirados_por_rango = []
                     total_por_rango = []
-                    
+
                     for rango in rangos_unicos:
                         rango_data = sede_data[sede_data['rango'] == rango]
                         if len(rango_data) > 0:
@@ -1407,7 +1199,7 @@ class DropoutAnalysis(EDAAnalysisBase):
                             proporciones_por_rango.append(0)
                             retirados_por_rango.append(0)
                             total_por_rango.append(0)
-                    
+
                     # Calcular posiciones de las barras para esta sede
                     x_positions = [x + i * bar_width - (len(sedes_unicas) - 1) * bar_width / 2 for x in x_pos]
 
@@ -1415,7 +1207,7 @@ class DropoutAnalysis(EDAAnalysisBase):
                     bars = ax2.bar(x_positions, proporciones_por_rango, bar_width, 
                                  label=sede, color=colors_sede[i], alpha=0.8, 
                                  edgecolor='black', linewidth=0.5)
-                    
+
                     # Agregar valores en las barras
                     for j, bar in enumerate(bars):
                         height = bar.get_height()
@@ -1423,32 +1215,32 @@ class DropoutAnalysis(EDAAnalysisBase):
                             ax2.text(bar.get_x() + bar.get_width()/2., height + 1,
                                     f'{height:.1f}%\n({retirados_por_rango[j]}/{total_por_rango[j]})',
                                     ha='center', va='bottom', fontsize=8, fontweight='bold')
-                
+
                 ax2.set_xlabel('Rango de Antigüedad', fontsize=12, fontweight='bold')
-                ax2.set_ylabel('Proporción de Retiro (%)', fontsize=12, fontweight='bold')
-                ax2.set_title('Proporción de Retiro por Rango de Antigüedad y Sede', fontsize=14, fontweight='bold')
+                ax2.set_ylabel('Proporción de Estudiantes Retirados (%)', fontsize=12, fontweight='bold')
+                ax2.set_title('Proporción de Estudiantes Retirados por Rango de Antigüedad y Sede', fontsize=14, fontweight='bold')
                 ax2.set_xticks(x_pos)
                 ax2.set_xticklabels(rangos_unicos, rotation=45, ha='right')
                 ax2.legend()
-                
+
                 if len(proporciones_por_rango) > 0:
                     # Ajustar límite superior del eje Y para dar espacio a los valores
                     current_ylim = ax2.get_ylim()
                     ax2.set_ylim(0, current_ylim[1] * 1.15)
-                
+
                 ax2.grid(True, alpha=0.3, axis='y')
             else:
                 ax2.text(0.5, 0.5, 'No hay datos suficientes\npara mostrar proporciones por rango', 
                         ha='center', va='center', transform=ax2.transAxes, fontsize=12)
-                ax2.set_title('Proporción de Retiro por Rango de Antigüedad y Sede', fontsize=14, fontweight='bold')
+                ax2.set_title('Proporción de Estudiantes Retirados por Rango de Antigüedad y Sede', fontsize=14, fontweight='bold')
 
         # Agregar información estadística en la parte superior
         stats_text = (
-            f"Total Retirados: {antiquity_stats['total_retirados']} | "
+            f"Total Estudiantes Retirados: {antiquity_stats['total_retirados']} | "
             f"Antigüedad Promedio: {antiquity_stats['antiguedad_promedio']:.1f} períodos | "
             f"Rango: {antiquity_stats['antiguedad_min']}-{antiquity_stats['antiguedad_max']} períodos"
         )
-        
+
         fig.text(0.5, 0.95, stats_text, ha='center', va='top', fontsize=11, 
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgray", alpha=0.8))
 
@@ -1563,29 +1355,30 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         # Obtener trayectorias individuales de los últimos 4 períodos
         trajectories = []
-        
+
         for student_id in dropout_ids:
             student_data = df_dropout[df_dropout['identificación'] == student_id].copy()
             student_data = student_data.sort_values(['año_num', 'periodo_num'])
-            
+
             # Obtener promedio por período
             periodos_avg = (
                 student_data.groupby(['año_periodo', 'año_num', 'periodo_num'])['resultado']
                 .mean()
                 .reset_index()
             )
-            
+
             # Tomar últimos 4 períodos si existen
             last_periodos = periodos_avg.tail(4)
-            
+
             if len(last_periodos) >= 2:  # Al menos 2 períodos para ver tendencia
                 # Calcular tendencia
                 tendencia = last_periodos['resultado'].diff().mean()
-                
-                # Crear datos para la línea
-                x_positions = range(len(last_periodos))
+
+                # Crear datos para la línea con etiquetas claras
+                # Los períodos se numeran como 1, 2, 3, 4 (últimos 4 antes del retiro)
+                x_positions = list(range(1, len(last_periodos) + 1))  # 1, 2, 3, 4
                 y_values = last_periodos['resultado'].tolist()
-                
+
                 trajectories.append({
                     'student_id': student_id,
                     'x_positions': x_positions,
@@ -1608,22 +1401,22 @@ class DropoutAnalysis(EDAAnalysisBase):
         # Crear figura con 2 subplots - solo enfocarse en deterioro
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
 
-        # Subplot 1: Solo trayectorias con deterioro (los 122 estudiantes)
-        ax1.set_title(f'122 Estudiantes con Deterioro en Calificaciones', 
+        # Subplot 1: Solo trayectorias con deterioro
+        ax1.set_title(f'{len(negative_trajectories)} Estudiantes con Deterioro en Calificaciones', 
                      fontsize=16, fontweight='bold')
-        ax1.set_xlabel('Períodos (últimos 4 antes del retiro)', fontsize=12, fontweight='bold')
+        ax1.set_xlabel('Períodos Antes del Retiro (1=4to último, 4=último)', fontsize=12, fontweight='bold')
         ax1.set_ylabel('Calificación Promedio', fontsize=12, fontweight='bold')
-        
+
         # Graficar líneas individuales con colores según severidad del deterioro
         for i, traj in enumerate(negative_trajectories):
             # Color más intenso para deterioro más severo
             alpha = min(0.7, 0.4 + abs(traj['cambio']) / 25)
             color_intensity = min(1.0, abs(traj['cambio']) / 30)
             color = (0.9, color_intensity * 0.3, color_intensity * 0.3)  # Rojo más intenso para mayor deterioro
-            
+
             ax1.plot(traj['x_positions'], traj['y_values'], 
                     alpha=alpha, linewidth=1.2, color=color)
-        
+
         # Línea de tendencia promedio
         if negative_trajectories:
             all_x = []
@@ -1631,21 +1424,26 @@ class DropoutAnalysis(EDAAnalysisBase):
             for traj in negative_trajectories:
                 all_x.extend(traj['x_positions'])
                 all_y.extend(traj['y_values'])
-            
+
             # Calcular promedio por posición
             unique_x = sorted(set(all_x))
             avg_y = []
             for x in unique_x:
                 y_at_x = [y for i, y in enumerate(all_y) if all_x[i] == x]
                 avg_y.append(np.mean(y_at_x))
-            
+
             ax1.plot(unique_x, avg_y, color='darkred', linewidth=5, 
                     label=f'Tendencia promedio: {np.mean([t["tendencia"] for t in negative_trajectories]):.2f} pts/período')
             ax1.legend(fontsize=12)
 
+        # Configurar eje X con etiquetas claras
+        ax1.set_xticks([1, 2, 3, 4])
+        ax1.set_xticklabels(['Período 1\n(4to último)', 'Período 2\n(3er último)', 
+                            'Período 3\n(2do último)', 'Período 4\n(último)'], fontsize=10)
+        
         ax1.grid(True, alpha=0.3)
         ax1.set_ylim(0, 100)
-        
+
         # Líneas de referencia
         ax1.axhline(y=70, color='orange', linestyle='--', alpha=0.8, linewidth=2, label='Básico (70)')
         ax1.axhline(y=60, color='red', linestyle='--', alpha=0.8, linewidth=2, label='Bajo (60)')
@@ -1656,14 +1454,14 @@ class DropoutAnalysis(EDAAnalysisBase):
                      fontsize=16, fontweight='bold')
         ax2.set_xlabel('Cambio en Calificaciones (puntos)', fontsize=12, fontweight='bold')
         ax2.set_ylabel('Número de Estudiantes', fontsize=12, fontweight='bold')
-        
+
         # Crear histograma solo de cambios negativos
         cambios_negativos = [t['cambio'] for t in negative_trajectories]
         ax2.hist(cambios_negativos, bins=15, alpha=0.7, color='red', edgecolor='darkred')
-        
+
         # Línea vertical en 0
         ax2.axvline(x=0, color='black', linestyle='-', linewidth=2, alpha=0.8, label='Sin cambio')
-        
+
         # Estadísticas específicas del deterioro
         ax2.text(0.02, 0.98, f'Total con deterioro: {len(cambios_negativos)} estudiantes\n'
                              f'Deterioro promedio: {np.mean(cambios_negativos):.1f} puntos\n'
@@ -1671,7 +1469,7 @@ class DropoutAnalysis(EDAAnalysisBase):
                              f'Deterioro mínimo: {max(cambios_negativos):.1f} puntos',
                 transform=ax2.transAxes, fontsize=11, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor='lightcoral', alpha=0.8))
-        
+
         ax2.legend()
         ax2.grid(True, alpha=0.3)
 
@@ -1684,10 +1482,10 @@ class DropoutAnalysis(EDAAnalysisBase):
         negative_pct = len(negative_trajectories) / total_students * 100
         avg_negative_trend = np.mean([t['tendencia'] for t in negative_trajectories]) if negative_trajectories else 0
         avg_negative_change = np.mean([t['cambio'] for t in negative_trajectories]) if negative_trajectories else 0
-        
+
         stats_text = (f'Total: {total_students} | Deterioro: {len(negative_trajectories)} ({negative_pct:.1f}%)\n'
                      f'Tendencia: {avg_negative_trend:.2f} pts/período | Cambio: {avg_negative_change:.1f} pts')
-        
+
         fig.text(0.98, 0.98, stats_text, ha='right', va='top', fontsize=10,
                 bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8, edgecolor='gray'))
 
@@ -1703,7 +1501,7 @@ class DropoutAnalysis(EDAAnalysisBase):
         return output_path
 
     def plot_dropout_by_period(self):
-        self.logger.info("Generando gráfico de proporción de retiro por período y sede...")
+        self.logger.info("Generando gráfico de proporción de estudiantes retirados por período y sede...")
 
         # LÓGICA CORREGIDA: Mostrar retiro en el período donde se detecta
         # Si estaban en período N-1 pero NO en N → se detecta retiro en período N
@@ -1838,8 +1636,8 @@ class DropoutAnalysis(EDAAnalysisBase):
 
         # Configurar el gráfico
         ax.set_xlabel('Período Académico', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Proporción de Retiro (%)', fontsize=12, fontweight='bold')
-        ax.set_title('Proporción de Retiro por Período Académico y Sede', fontsize=14, fontweight='bold')
+        ax.set_ylabel('Proporción de Estudiantes Retirados (%)', fontsize=12, fontweight='bold')
+        ax.set_title('Proporción de Estudiantes Retirados por Período Académico y Sede', fontsize=14, fontweight='bold')
 
         # Configurar etiquetas del eje X
         ax.set_xticks(x_pos)
@@ -1863,107 +1661,6 @@ class DropoutAnalysis(EDAAnalysisBase):
         plt.close()
 
         self.logger.info(f"✅ Gráfico guardado: {output_path}")
-
-        return output_path
-
-    def generate_summary_report(self):
-        """Genera reporte resumen del análisis de retiro."""
-        self.logger.info("Generando reporte resumen...")
-
-        output_path = f'{self.results_path}/dropout_analysis_summary.txt'
-
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write("=" * 80 + "\n")
-            f.write("ANÁLISIS DE RETIRO ESCOLAR\n")
-            f.write("=" * 80 + "\n\n")
-
-            # Estadísticas generales
-            f.write("1. ESTADÍSTICAS GENERALES\n")
-            f.write("-" * 80 + "\n")
-            f.write(f"Total de estudiantes únicos: {self.results['total_students']:,}\n")
-            f.write(f"Estudiantes retirados: {self.results['total_dropout']:,}\n")
-            f.write(f"Estudiantes activos: {self.results['total_active']:,}\n")
-            f.write(f"Proporción de retiro: {self.results['dropout_rate']:.1f}%\n\n")
-
-            # Comparación de calificaciones
-            f.write("2. COMPARACIÓN DE CALIFICACIONES\n")
-            f.write("-" * 80 + "\n")
-            dropout_stats = self.results['dropout_grades_stats']
-            active_stats = self.results['active_grades_stats']
-
-            f.write("Estudiantes RETIRADOS:\n")
-            f.write(f"  Promedio: {dropout_stats['promedio']:.2f}\n")
-            f.write(f"  Mediana: {dropout_stats['mediana']:.2f}\n")
-            f.write(f"  Desv. Estándar: {dropout_stats['desv_std']:.2f}\n")
-            f.write(f"  Rango: {dropout_stats['min']:.2f} - {dropout_stats['max']:.2f}\n\n")
-
-            f.write("Estudiantes ACTIVOS:\n")
-            f.write(f"  Promedio: {active_stats['promedio']:.2f}\n")
-            f.write(f"  Mediana: {active_stats['mediana']:.2f}\n")
-            f.write(f"  Desv. Estándar: {active_stats['desv_std']:.2f}\n")
-            f.write(f"  Rango: {active_stats['min']:.2f} - {active_stats['max']:.2f}\n\n")
-
-            diff = abs(dropout_stats['promedio'] - active_stats['promedio'])
-            f.write(f"DIFERENCIA de promedios: {diff:.2f} puntos\n")
-            f.write(f"Los estudiantes retirados tienen un promedio {'MENOR' if dropout_stats['promedio'] < active_stats['promedio'] else 'MAYOR'}\n\n")
-
-            # Retiro por sede
-            f.write("3. RETIRO POR SEDE\n")
-            f.write("-" * 80 + "\n")
-            dropout_by_sede = self.results['dropout_by_sede']
-            f.write(dropout_by_sede.to_string(index=False))
-            f.write("\n\n")
-
-            # Retiro por grado
-            f.write("4. RETIRO POR GRADO\n")
-            f.write("-" * 80 + "\n")
-            dropout_by_grade = self.results['dropout_by_grade']
-            f.write(dropout_by_grade.to_string(index=False))
-            f.write("\n\n")
-
-            # Trayectoria antes de retirarse
-            f.write("5. TRAYECTORIA ANTES DE RETIRARSE\n")
-            f.write("-" * 80 + "\n")
-            trajectory_df = self.results['trajectory_df']
-            negative_trend = (trajectory_df['tendencia'] < 0).sum()
-            total = len(trajectory_df)
-            f.write(f"Estudiantes con tendencia negativa: {negative_trend}/{total} ({negative_trend/total*100:.1f}%)\n")
-            f.write(f"Promedio último período: {trajectory_df['promedio_ultimo'].mean():.2f}\n")
-            f.write(f"Tendencia promedio: {trajectory_df['tendencia'].mean():.2f} puntos/período\n\n")
-
-            # Riesgo de retiro
-            f.write("6. INDICADORES DE RIESGO DE RETIRO (ESTUDIANTES ACTIVOS)\n")
-            f.write("-" * 80 + "\n")
-            risk_summary = self.results['risk_summary']
-            total_active = self.results['total_active']
-
-            for level in ['Alto', 'Medio', 'Bajo']:
-                if level in risk_summary.index:
-                    count = risk_summary[level]
-                    pct = count / total_active * 100
-                    f.write(f"Riesgo {level}: {count:,} estudiantes ({pct:.1f}%)\n")
-
-            f.write("\n")
-            f.write("=" * 80 + "\n")
-            f.write("CONCLUSIONES Y RECOMENDACIONES\n")
-            f.write("=" * 80 + "\n\n")
-
-            f.write("PATRONES IDENTIFICADOS:\n")
-            f.write("1. Los estudiantes retirados tienen calificaciones significativamente más bajas\n")
-            f.write("2. Existe una tendencia negativa en las calificaciones antes de retirarse\n")
-            f.write("3. El retiro varía según sede y grado\n\n")
-
-            f.write("RECOMENDACIONES:\n")
-            f.write("1. Implementar sistema de alerta temprana para estudiantes en riesgo\n")
-            f.write("2. Intervenciones focalizadas en estudiantes con tendencia negativa\n")
-            f.write("3. Apoyo adicional en sedes y grados con mayor proporción de retiro\n")
-            f.write("4. Seguimiento especial a estudiantes con riesgo alto\n\n")
-
-        # Guardar CSVs adicionales
-        self.results['risk_df'].to_csv(f'{self.results_path}/estudiantes_en_riesgo.csv', index=False)
-        self.results['trajectory_df'].to_csv(f'{self.results_path}/trayectoria_retirados.csv', index=False)
-
-        self.logger.info(f"✅ Reporte guardado: {output_path}")
 
         return output_path
 
@@ -2075,9 +1772,6 @@ class DropoutAnalysis(EDAAnalysisBase):
                 self.logger.info("✅ Gráfico de retiro por período generado")
             except Exception as e:
                 self.logger.error(f"❌ Error gráfico de retiro por período: {e}")
-
-            # 11. Generar reporte resumen
-            self.generate_summary_report()
 
             self.logger.info("=" * 60)
             self.logger.info("✅ ANÁLISIS DE RETIRO COMPLETADO")
