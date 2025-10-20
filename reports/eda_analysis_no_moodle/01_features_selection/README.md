@@ -1,6 +1,6 @@
 # Análisis de Selección de Características
 
-Análisis de importancia y selección de características del dataset de sin las asignaturas Ciencias Sociales, Ciencias Naturales, Matemáticas y Lengua Castellana y sin las características de Moodle
+Análisis de importancia y selección de características del dataset sin las asignaturas Ciencias Sociales, Ciencias Naturales, Matemáticas y Lengua Castellana y sin las características de Moodle
 
 ## Importancia de Características
 **Gráfica de barras horizontales** que muestra las características más importantes según el modelo de XGBoost.

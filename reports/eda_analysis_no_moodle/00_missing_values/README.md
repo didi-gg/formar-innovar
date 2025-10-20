@@ -1,6 +1,6 @@
 # Análisis de Valores Faltantes
 
-Análisis de valores faltantes del dataset de sin las asignaturas Ciencias Sociales, Ciencias Naturales, Matemáticas y Lengua Castellana y sin las características de Moodle
+Análisis de valores faltantes del dataset sin las asignaturas Ciencias Sociales, Ciencias Naturales, Matemáticas y Lengua Castellana y sin las características de Moodle
 
 ## Porcentaje de Valores Faltantes
 **Gráfica de barras horizontales** que muestra el porcentaje de valores faltantes por cada feature del dataset.
