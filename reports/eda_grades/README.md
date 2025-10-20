@@ -96,7 +96,7 @@ Gráficos de densidad que muestran la distribución de calificaciones en las cua
 
 - Las competencias Axiológica y Actitudinal tienden a tener mayores concentraciones en valores altos y múltiples picos, mientras que la Cognitiva y Procedimental son más amplias, con mayor variabilidad en ambas sedes.
 
-## 4. Tasa de Reprobación por Grado y Sede
+## 4. Proporción de Reprobación por Grado y Sede
 
 ![Reprobación por Grado](heatmap_reprobacion_grado_sede.png)
 
@@ -107,7 +107,7 @@ Mapa de calor que muestra el porcentaje de estudiantes con calificación final m
 - **Porcentaje mostrado:** Indica qué proporción del grado está en riesgo académico
 
 - **Patrones a identificar:**
-  - **Puntos calientes:** Celdas específicas con tasas muy altas
+  - **Puntos calientes:** Celdas específicas con porcentajes muy altos
 
 ### Conclusiones
 
@@ -117,11 +117,11 @@ Mapa de calor que muestra el porcentaje de estudiantes con calificación final m
 
 - La diferencia entre sedes es marcada: Fusagasugá muestra mayor variabilidad y un incremento progresivo en los grados altos, mientras Girardot conserva una distribución homogénea y controlada en todo el rango escolar.
 
-## 5. Tasa de Reprobación por Asignatura-Grado y Sede
+## 5. Proporción de Reprobación por Asignatura-Grado y Sede
 
 ![Reprobación por Asignatura-Grado](heatmap_reprobacion_asignatura_grado_sede.png)
 
-Mapa de calor que muestra las **Top 40 combinaciones de asignatura-grado** con mayor tasa de reprobación.
+Mapa de calor que muestra las **Top 40 combinaciones de asignatura-grado** con mayor proporción de reprobación.
 
 ### Interpretación
 
@@ -131,12 +131,12 @@ Mapa de calor que muestra las **Top 40 combinaciones de asignatura-grado** con m
 
 ### Conclusiones
 
-- En Fusagasugá las mayores tasas se concentran en los grados superiores, especialmente en Ciencias Sociales 11°, Ciencias Naturales 11° y Matemáticas 11°. También aparecen niveles intermedios en asignaturas técnicas y de idiomas.
+- En Fusagasugá las mayores proporciones se concentran en los grados superiores, especialmente en Ciencias Sociales 11°, Ciencias Naturales 11° y Matemáticas 11°. También aparecen niveles intermedios en asignaturas técnicas y de idiomas.
 
 - Girardot muestra picos aislados de reprobación en Innovación 4 e Informática 8°, mientras el resto de las asignaturas mantienen porcentajes bajos o nulos.
 
 - En Fusagasugá la reprobación es más amplia y constante en distintas áreas del currículo, mientras que en Girardot se concentra en unos pocos casos específicos, reflejando un patrón más localizado.
-## 6. Tasa de Excelencia por Grado y Sede
+## 6. Proporciones de Excelencia por Grado y Sede
 
 ![Excelencia por Grado](heatmap_excelencia_grado_sede.png)
 
