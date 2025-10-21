@@ -9,6 +9,7 @@ import pandas as pd
 import warnings
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, Any, Optional, Tuple
 
 # Configuración de warnings
 warnings.filterwarnings('ignore')
@@ -22,19 +23,30 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from utils.base_script import BaseScript
 
 # Importar los scripts de análisis
+from scripts.eda.missing_values_analysis import MissingValuesAnalyzer
 from scripts.eda.features_selection import XGBoostFeatureSelector
 from scripts.eda.statistical_filtering import StatisticalFilter
-from scripts.eda.homogeneity_analysis import HomogeneityAnalysis
+from scripts.eda.data_visualization import DataVisualizationAnalyzer
+from scripts.eda.teacher_behavior_analysis import TeacherBehaviorAnalysis
+from scripts.eda.course_analysis import CourseAnalysis
+from scripts.eda.grades_analysis import GradesAnalysis
+from scripts.eda.dropout_analysis import DropoutAnalysis
+from scripts.eda.moodle_behavior_analysis import MoodleBehaviorAnalysis
+from scripts.eda.students_analysis import StudentsAnalysis
 
 
 class EDAMasterPipeline(BaseScript):
     """
     Pipeline maestro para ejecutar análisis completo de EDA.
 
-    Ejecuta en secuencia:
+    Ejecuta análisis dependientes del dataset en secuencia:
+    0. Análisis de valores faltantes (mapas de calor, porcentajes, patrones)
     1. Selección de características (XGBoost + SHAP)
     2. Filtrado estadístico (Chi-cuadrado, correlación, ANOVA)
-    3. Análisis de homogeneidad (normalidad, varianzas, comparaciones)
+    3. Visualización de datos (distribución, correlación, scatter plots, box plots)
+
+    Ejecuta análisis globales (una sola vez, independiente del dataset):
+    - Análisis de cursos, calificaciones, retiro de estudiantes, Moodle, estudiantes y comportamiento docente
     """
 
     # Configuración de datasets predefinidos
@@ -51,12 +63,30 @@ class EDAMasterPipeline(BaseScript):
         },
         'full': {
             'path': "data/processed/full_short_dataset.csv",
-            'folder': "eda_analysis_full", 
-            'description': "Dataset completo con todas las materias"
+            'folder': None,
+            'description': "Dataset completo con todas las materias (solo para análisis globales)"
         }
     }
 
-    def __init__(self, dataset_type):
+    # Configuración de análisis dependientes del dataset
+    DATASET_DEPENDENT_ANALYSES = [
+        ('missing_values', MissingValuesAnalyzer, '00_missing_values'),
+        ('features_selection', XGBoostFeatureSelector, '01_features_selection'),
+        ('statistical_filtering', StatisticalFilter, '02_statistical_filtering'),
+        ('data_visualization', DataVisualizationAnalyzer, '03_data_visualization'),
+    ]
+
+    # Configuración de análisis globales
+    GLOBAL_ANALYSES = [
+        ('course_analysis', CourseAnalysis, 'eda_courses', 'data/processed/full_short_dataset.csv'),
+        ('grades_analysis', GradesAnalysis, 'eda_grades', 'data/interim/calificaciones/calificaciones_2021-2025.csv'),
+        ('dropout_analysis', DropoutAnalysis, 'eda_analysis_dropout', 'data/interim/calificaciones/calificaciones_2021-2025.csv'),
+        ('moodle_behavior', MoodleBehaviorAnalysis, 'eda_analysis_moodle_behavior', 'data/interim/moodle/student_course_interactions.csv'),
+        ('students_analysis', StudentsAnalysis, 'eda_analysis_students', 'data/interim/estudiantes/estudiantes_clean.csv'),
+        ('teacher_behavior', TeacherBehaviorAnalysis, 'eda_analysis_teacher_behavior', 'data/processed/full_short_dataset.csv'),
+    ]
+
+    def __init__(self, dataset_type: str):
         """
         Inicializa el pipeline de EDA.
 
@@ -65,34 +95,20 @@ class EDAMasterPipeline(BaseScript):
         """
         super().__init__()
 
-        # Validar que el tipo de dataset es válido
+        # Validar y configurar dataset
         if dataset_type not in self.DATASETS:
             raise ValueError(f"Tipo de dataset '{dataset_type}' no válido. Opciones: {list(self.DATASETS.keys())}")
 
-        # Configurar usando el dataset predefinido
         dataset_config = self.DATASETS[dataset_type]
         self.dataset_path = dataset_config['path']
         self.results_base_folder = dataset_config['folder']
         self.dataset_type = dataset_type
         self.dataset_description = dataset_config['description']
-
-        self.results_base_path = f'reports/{self.results_base_folder}'
-
-        # Validar parámetros
-        self._validate_parameters()
-
-        # Configurar subfolder para cada análisis
-        self.analysis_folders = {
-            'features_selection': f'{self.results_base_folder}/01_features_selection',
-            'statistical_filtering': f'{self.results_base_folder}/02_statistical_filtering',
-            'homogeneity_analysis': f'{self.results_base_folder}/03_homogeneity_analysis'
-        }
-
-        # Resultados de cada análisis
+        self.results_base_path = f'reports/{self.results_base_folder}' if self.results_base_folder else None
         self.results = {}
 
     @classmethod
-    def validate_dataset_exists(cls, dataset_type):
+    def validate_dataset_exists(cls, dataset_type: str) -> Tuple[bool, str]:
         """Valida que un dataset predefinido exista en el sistema."""
         if dataset_type not in cls.DATASETS:
             return False, f"Tipo de dataset '{dataset_type}' no válido"
@@ -103,35 +119,20 @@ class EDAMasterPipeline(BaseScript):
 
         return True, "Dataset disponible"
 
-    def _validate_parameters(self):
-        """Valida los parámetros de inicialización."""
-        # Validar dataset_path
-        if not isinstance(self.dataset_path, str):
-            raise ValueError("dataset_path debe ser una cadena de texto")
-
-        if not self.dataset_path.endswith('.csv'):
-            raise ValueError("dataset_path debe ser un archivo CSV (.csv)")
-
-        # Validar results_base_folder
-        if not isinstance(self.results_base_folder, str):
-            raise ValueError("results_base_folder debe ser una cadena de texto")
-
-        # Validar caracteres permitidos en el nombre del folder
-        import re
-        if not re.match(r'^[a-zA-Z0-9_-]+$', self.results_base_folder):
-            raise ValueError("results_base_folder solo puede contener letras, números, guiones y guiones bajos")
-
     def _create_directories(self):
         """Crea los directorios necesarios para los resultados."""
+        if self.results_base_path is None:
+            self.logger.info("No se crearán directorios (dataset usado solo para análisis globales)")
+            return
+
         try:
             # Crear directorio base
             os.makedirs(self.results_base_path, exist_ok=True)
             self.logger.info(f"Directorio base creado: {self.results_base_path}")
 
-            # Crear subdirectorios para cada análisis
-            subdirs = ['01_features_selection', '02_statistical_filtering', '03_homogeneity_analysis']
-            for subdir in subdirs:
-                full_path = f'{self.results_base_path}/{subdir}'
+            # Crear subdirectorios para análisis dependientes del dataset
+            for _, _, subfolder in self.DATASET_DEPENDENT_ANALYSES:
+                full_path = f'{self.results_base_path}/{subfolder}'
                 os.makedirs(full_path, exist_ok=True)
                 self.logger.info(f"Directorio creado: {full_path}")
 
@@ -139,7 +140,90 @@ class EDAMasterPipeline(BaseScript):
             self.logger.error(f"Error creando directorios: {e}")
             raise
 
-    def _load_and_validate_dataset(self):
+    @staticmethod
+    def _create_global_directories():
+        """Crea los directorios para análisis globales (se ejecuta una sola vez)."""
+        try:
+            for _, _, folder, _ in EDAMasterPipeline.GLOBAL_ANALYSES:
+                full_path = f'reports/{folder}'
+                os.makedirs(full_path, exist_ok=True)
+        except Exception as e:
+            print(f"Error creando directorios globales: {e}")
+            raise
+
+    def _run_analysis(self, analysis_name: str, analyzer_class, dataset_path: str, results_folder: str) -> Dict[str, Any]:
+        """
+        Método genérico para ejecutar cualquier análisis.
+
+        Args:
+            analysis_name: Nombre del análisis
+            analyzer_class: Clase del analizador
+            dataset_path: Ruta del dataset
+            results_folder: Carpeta de resultados
+
+        Returns:
+            dict: Resultados del análisis
+        """
+        try:
+            self.logger.info("=" * 60)
+            self.logger.info(f"INICIANDO ANÁLISIS: {analysis_name.upper()}")
+            self.logger.info("=" * 60)
+
+            # Verificar que el dataset existe
+            if not os.path.exists(dataset_path):
+                self.logger.warning(f"⚠️ Dataset no encontrado: {dataset_path}")
+                return {'status': 'skipped', 'reason': 'Dataset no encontrado'}
+
+            # Crear instancia del analizador
+            analyzer = analyzer_class(
+                dataset_path=dataset_path,
+                results_folder=results_folder
+            )
+
+            # Ejecutar análisis
+            results = analyzer.run_analysis()
+
+            # Cerrar conexión del analizador
+            analyzer.close()
+
+            self.logger.info(f"✅ Análisis {analysis_name} completado")
+            return results
+
+        except Exception as e:
+            self.logger.error(f"❌ Error en análisis {analysis_name}: {e}")
+            raise
+
+    @staticmethod
+    def run_global_analysis():
+        """
+        Ejecuta todos los análisis globales (una sola vez, independiente del dataset).
+
+        Returns:
+            dict: Resultados de los análisis globales
+        """
+        print(f"\n{'='*60}")
+        print("EJECUTANDO ANÁLISIS GLOBALES")
+        print(f"{'='*60}")
+
+        try:
+            # Crear directorios globales
+            EDAMasterPipeline._create_global_directories()
+
+            # Crear pipeline temporal para ejecutar análisis globales
+            global_pipeline = EDAMasterPipeline('full')
+
+            # Ejecutar cada análisis global
+            for analysis_name, analyzer_class, folder, dataset_path in EDAMasterPipeline.GLOBAL_ANALYSES:
+                print(f"📊 Ejecutando {analysis_name}...")
+                global_pipeline._run_analysis(analysis_name, analyzer_class, dataset_path, folder)
+
+            print("✅ Análisis globales completados exitosamente")
+
+        except Exception as e:
+            print(f"❌ Error en análisis globales: {e}")
+            raise
+
+    def _load_and_validate_dataset(self) -> pd.DataFrame:
         """Carga y valida el dataset."""
         try:
             if not os.path.exists(self.dataset_path):
@@ -163,190 +247,26 @@ class EDAMasterPipeline(BaseScript):
             self.logger.error(f"Error cargando o validando dataset: {e}")
             raise
 
-    def run_features_selection(self):
-        """Ejecuta el análisis de selección de características."""
-        try:
-            self.logger.info("=" * 60)
-            self.logger.info("INICIANDO ANÁLISIS 1: SELECCIÓN DE CARACTERÍSTICAS")
-            self.logger.info("=" * 60)
+    def run_dataset_dependent_analyses(self):
+        """Ejecuta todos los análisis dependientes del dataset."""
+        for analysis_name, analyzer_class, subfolder in self.DATASET_DEPENDENT_ANALYSES:
+            try:
+                results_folder = f'{self.results_base_folder}/{subfolder}'
+                results = self._run_analysis(analysis_name, analyzer_class, self.dataset_path, results_folder)
+                self.results[analysis_name] = results
+            except Exception as e:
+                self.logger.error(f"❌ Error en análisis {analysis_name}: {e}")
+                self.results[analysis_name] = {'status': 'error', 'error': str(e)}
 
-            # Crear instancia del selector de características
-            selector = XGBoostFeatureSelector(
-                dataset_path=self.dataset_path,
-                results_folder=f'{self.results_base_folder}/01_features_selection'
-            )
 
-            # Ejecutar análisis
-            results = selector.run_analysis()
 
-            # Guardar resultados
-            self.results['features_selection'] = {
-                'accuracy': results['accuracy'],
-                'total_features': len(results['feature_importance']),
-                'top_10_features': results['feature_importance'].head(10)['feature'].tolist(),
-                'feature_importance_df': results['feature_importance'],
-                'datos_totales': results['datos_totales']
-            }
+    def main(self, include_global_analysis: bool = False) -> Dict[str, Any]:
+        """
+        Ejecuta el pipeline completo de EDA.
 
-            self.logger.info("✅ Análisis de selección de características completado")
-            self.logger.info(f"Precisión del modelo: {results['accuracy']:.4f}")
-            self.logger.info(f"Total de características analizadas: {len(results['feature_importance'])}")
-
-            # Cerrar conexión del selector
-            selector.close()
-
-            return results
-
-        except Exception as e:
-            self.logger.error(f"❌ Error en análisis de selección de características: {e}")
-            raise
-
-    def run_statistical_filtering(self):
-        """Ejecuta el análisis de filtrado estadístico."""
-        try:
-            self.logger.info("=" * 60)
-            self.logger.info("INICIANDO ANÁLISIS 2: FILTRADO ESTADÍSTICO")
-            self.logger.info("=" * 60)
-
-            # Crear instancia del filtro estadístico
-            filter_analyzer = StatisticalFilter(
-                dataset_path=self.dataset_path,
-                results_folder=f'{self.results_base_folder}/02_statistical_filtering'
-            )
-
-            # Ejecutar análisis
-            filter_analyzer.run_analysis()
-
-            # Guardar resultados
-            self.results['statistical_filtering'] = {
-                'chi2_significant': len(filter_analyzer.results['selected_features']['chi2_significant']),
-                'correlation_significant': len(filter_analyzer.results['selected_features']['correlation_significant']),
-                'anova_significant': len(filter_analyzer.results['selected_features']['anova_significant']),
-                'total_significant': len(set().union(
-                    filter_analyzer.results['selected_features']['chi2_significant'],
-                    filter_analyzer.results['selected_features']['correlation_significant'],
-                    filter_analyzer.results['selected_features']['anova_significant']
-                )),
-                'status': 'completed'
-            }
-
-            self.logger.info("✅ Análisis de filtrado estadístico completado")
-            self.logger.info(f"Variables significativas (Chi-cuadrado): {self.results['statistical_filtering']['chi2_significant']}")
-            self.logger.info(f"Variables significativas (Correlación): {self.results['statistical_filtering']['correlation_significant']}")
-            self.logger.info(f"Variables significativas (ANOVA): {self.results['statistical_filtering']['anova_significant']}")
-            self.logger.info(f"Total variables significativas únicas: {self.results['statistical_filtering']['total_significant']}")
-
-            # Cerrar conexión del analizador
-            filter_analyzer.close()
-
-        except Exception as e:
-            self.logger.error(f"❌ Error en análisis de filtrado estadístico: {e}")
-            raise
-
-    def run_homogeneity_analysis(self):
-        """Ejecuta el análisis de homogeneidad."""
-        try:
-            self.logger.info("=" * 60)
-            self.logger.info("INICIANDO ANÁLISIS 3: ANÁLISIS DE HOMOGENEIDAD")
-            self.logger.info("=" * 60)
-
-            # Crear instancia del analizador de homogeneidad
-            homogeneity_analyzer = HomogeneityAnalysis(
-                dataset_path=self.dataset_path,
-                results_folder=f'{self.results_base_folder}/03_homogeneity_analysis'
-            )
-
-            # Ejecutar análisis
-            homogeneity_analyzer.run_analysis()
-
-            # Guardar resultados
-            normal_vars = sum(1 for r in homogeneity_analyzer.results['normality_tests'].values() 
-                             if r.get('overall_normal', False))
-            total_comparisons = sum(len(group_results) for group_results in homogeneity_analyzer.results['group_comparisons'].values())
-            significant_comparisons = sum(
-                sum(1 for r in group_results.values() if r.get('significant', False))
-                for group_results in homogeneity_analyzer.results['group_comparisons'].values()
-            )
-
-            self.results['homogeneity_analysis'] = {
-                'total_variables': len(homogeneity_analyzer.results['normality_tests']),
-                'normal_variables': normal_vars,
-                'total_comparisons': total_comparisons,
-                'significant_comparisons': significant_comparisons,
-                'status': 'completed'
-            }
-
-            self.logger.info("✅ Análisis de homogeneidad completado")
-            self.logger.info(f"Variables analizadas: {self.results['homogeneity_analysis']['total_variables']}")
-            self.logger.info(f"Variables con distribución normal: {self.results['homogeneity_analysis']['normal_variables']}")
-            self.logger.info(f"Comparaciones realizadas: {self.results['homogeneity_analysis']['total_comparisons']}")
-            self.logger.info(f"Comparaciones significativas: {self.results['homogeneity_analysis']['significant_comparisons']}")
-
-            # Cerrar conexión del analizador
-            homogeneity_analyzer.close()
-
-        except Exception as e:
-            self.logger.error(f"❌ Error en análisis de homogeneidad: {e}")
-            raise
-
-    def generate_summary_report(self):
-        """Genera un reporte resumen de todos los análisis."""
-        try:
-            self.logger.info("=" * 60)
-            self.logger.info("GENERANDO REPORTE RESUMEN")
-            self.logger.info("=" * 60)
-
-            summary_path = f'{self.results_base_path}/eda_summary_report.txt'
-
-            with open(summary_path, 'w', encoding='utf-8') as f:
-                f.write("REPORTE RESUMEN - ANÁLISIS EXPLORATORIO DE DATOS (EDA)\n")
-                f.write("=" * 60 + "\n\n")
-                f.write(f"Fecha de ejecución: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"Dataset analizado: {self.dataset_path}\n")
-                f.write(f"Directorio de resultados: {self.results_base_path}\n\n")
-
-                # Resumen de cada análisis
-                for analysis_name, results in self.results.items():
-                    f.write(f"\n{analysis_name.upper().replace('_', ' ')}\n")
-                    f.write("-" * 40 + "\n")
-
-                    if analysis_name == 'features_selection':
-                        f.write(f"Precisión del modelo: {results['accuracy']:.4f}\n")
-                        f.write(f"Total de características: {results['total_features']}\n")
-                        f.write(f"Datos analizados: {results['datos_totales']}\n")
-                        f.write("Top 10 características más importantes:\n")
-                        for i, feature in enumerate(results['top_10_features'], 1):
-                            f.write(f"  {i}. {feature}\n")
-
-                    elif analysis_name == 'statistical_filtering':
-                        f.write(f"Estado: {results.get('status', 'completado')}\n")
-                        f.write(f"Variables significativas (Chi-cuadrado): {results.get('chi2_significant', 0)}\n")
-                        f.write(f"Variables significativas (Correlación): {results.get('correlation_significant', 0)}\n")
-                        f.write(f"Variables significativas (ANOVA): {results.get('anova_significant', 0)}\n")
-                        f.write(f"Total variables significativas únicas: {results.get('total_significant', 0)}\n")
-
-                    elif analysis_name == 'homogeneity_analysis':
-                        f.write(f"Estado: {results.get('status', 'completado')}\n")
-                        f.write(f"Variables analizadas: {results.get('total_variables', 0)}\n")
-                        f.write(f"Variables con distribución normal: {results.get('normal_variables', 0)}\n")
-                        f.write(f"Comparaciones realizadas: {results.get('total_comparisons', 0)}\n")
-                        f.write(f"Comparaciones significativas: {results.get('significant_comparisons', 0)}\n")
-
-                    else:
-                        f.write(f"Estado: {results.get('status', 'completado')}\n")
-                        if 'message' in results:
-                            f.write(f"Mensaje: {results['message']}\n")
-
-                f.write(f"\n\nArchivos generados en: {self.results_base_path}/\n")
-
-            self.logger.info(f"📄 Reporte resumen generado: {summary_path}")
-
-        except Exception as e:
-            self.logger.error(f"❌ Error generando reporte resumen: {e}")
-            raise
-
-    def main(self):
-        """Ejecuta el pipeline completo de EDA."""
+        Args:
+            include_global_analysis (bool): Si es True, ejecuta también los análisis globales
+        """
         try:
             start_time = datetime.now()
 
@@ -358,15 +278,14 @@ class EDAMasterPipeline(BaseScript):
 
             # 1. Preparar entorno
             self._create_directories()
-            df = self._load_and_validate_dataset()
+            self._load_and_validate_dataset()
 
-            # 2. Ejecutar análisis en secuencia
-            self.run_features_selection()
-            self.run_statistical_filtering()
-            self.run_homogeneity_analysis()
+            # 2. Ejecutar análisis dependientes del dataset
+            self.run_dataset_dependent_analyses()
 
-            # 3. Generar reporte resumen
-            self.generate_summary_report()
+            # 3. Ejecutar análisis globales si se solicita
+            if include_global_analysis:
+                EDAMasterPipeline.run_global_analysis()
 
             # 4. Resumen final
             end_time = datetime.now()
@@ -376,7 +295,10 @@ class EDAMasterPipeline(BaseScript):
             self.logger.info("🎉 PIPELINE DE EDA COMPLETADO EXITOSAMENTE")
             self.logger.info("=" * 60)
             self.logger.info(f"Tiempo total de ejecución: {duration}")
-            self.logger.info(f"Resultados disponibles en: {self.results_base_path}")
+            if self.results_base_path is not None:
+                self.logger.info(f"Resultados disponibles en: {self.results_base_path}")
+            else:
+                self.logger.info("Dataset usado solo para análisis globales (sin folder de resultados)")
 
             return {
                 'success': True,
@@ -390,30 +312,34 @@ class EDAMasterPipeline(BaseScript):
             raise
 
 
-def run_eda_pipeline(dataset_type):
+def run_eda_pipeline(dataset_type: str, include_global_analysis: bool = True) -> Dict[str, Any]:
     """
     Función auxiliar para ejecutar el pipeline completo de EDA.
 
     Args:
         dataset_type (str): Tipo de dataset predefinido ('moodle', 'no_moodle', 'full')
+        include_global_analysis (bool): Si es True, ejecuta también los análisis globales (por defecto True)
 
     Returns:
         dict: Resultados del pipeline completo
     """
     pipeline = EDAMasterPipeline(dataset_type)
-    return pipeline.main()
+    return pipeline.main(include_global_analysis=include_global_analysis)
 
 
-def run_all_datasets():
+def run_all_datasets() -> Dict[str, Any]:
     """
     Ejecuta el pipeline de EDA para todos los datasets disponibles.
+    Los análisis globales se ejecutan solo una vez al final.
 
     Returns:
         dict: Resultados de todos los análisis
     """
     results = {}
 
-    for dataset_type in EDAMasterPipeline.DATASETS.keys():
+    # 1. Ejecutar análisis para cada dataset (sin análisis globales)
+    dataset_types = [dt for dt in EDAMasterPipeline.DATASETS.keys() if dt != 'full']
+    for dataset_type in dataset_types:
         print(f"\n{'='*60}")
         print(f"EJECUTANDO ANÁLISIS PARA: {dataset_type.upper()}")
         print(f"{'='*60}")
@@ -426,13 +352,22 @@ def run_all_datasets():
                 results[dataset_type] = {'error': message}
                 continue
 
-            # Ejecutar análisis
-            pipeline_result = run_eda_pipeline(dataset_type)
+            # Ejecutar análisis sin los análisis globales
+            pipeline = EDAMasterPipeline(dataset_type)
+            pipeline_result = pipeline.main(include_global_analysis=False)
             results[dataset_type] = pipeline_result
 
         except Exception as e:
             print(f"❌ Error en análisis de {dataset_type}: {e}")
-            results[dataset_type] = {'error': str(e)}
+            print(f"🛑 DETENIENDO PIPELINE COMPLETO")
+            raise
+
+    # 2. Ejecutar análisis globales una sola vez
+    try:
+        EDAMasterPipeline.run_global_analysis()
+    except Exception as e:
+        print(f"⚠️ Continuando sin análisis globales")
+        results['global_analysis'] = {'error': str(e)}
 
     return results
 
@@ -469,28 +404,33 @@ Ejemplos de uso:
 
     args = parser.parse_args()
 
-    if args.type == 'all':
-        print("🚀 EJECUTANDO ANÁLISIS PARA TODOS LOS DATASETS")
-        results = run_all_datasets()
+    try:
+        if args.type == 'all':
+            print("🚀 EJECUTANDO ANÁLISIS PARA TODOS LOS DATASETS")
+            results = run_all_datasets()
 
-        # Resumen final
+            # Resumen final
+            print(f"\n{'='*60}")
+            print("RESUMEN FINAL")
+            print(f"{'='*60}")
+            for dataset_type, result in results.items():
+                if 'error' in result:
+                    print(f"❌ {dataset_type}: {result['error']}")
+                else:
+                    print(f"✅ {dataset_type}: Completado exitosamente")
+        else:
+            # Ejecutar análisis para un dataset específico (con análisis globales)
+            is_valid, message = EDAMasterPipeline.validate_dataset_exists(args.type)
+            if not is_valid:
+                print(f"❌ Error: {message}")
+                exit(1)
+
+            pipeline = EDAMasterPipeline(args.type)
+            pipeline.main(include_global_analysis=True)
+
+    except Exception as e:
         print(f"\n{'='*60}")
-        print("RESUMEN FINAL")
+        print("PIPELINE DETENIDO POR ERROR")
         print(f"{'='*60}")
-        for dataset_type, result in results.items():
-            if 'error' in result:
-                print(f"❌ {dataset_type}: {result['error']}")
-            else:
-                print(f"✅ {dataset_type}: Completado exitosamente")
-        exit(0)
-
-    else:
-        # Ejecutar análisis para un dataset específico
-        # Validar que el dataset existe
-        is_valid, message = EDAMasterPipeline.validate_dataset_exists(args.type)
-        if not is_valid:
-            print(f"❌ Error: {message}")
-            exit(1)
-
-        pipeline = EDAMasterPipeline(args.type)
-        pipeline.main()
+        print(f"❌ Error: {e}")
+        exit(1)
