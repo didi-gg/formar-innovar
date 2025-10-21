@@ -1393,52 +1393,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
 
         return output_paths
 
-    def generate_summary_statistics(self):
-        """Genera estadísticas resumen del análisis."""
-        # Estadísticas generales
-        total_students = self.student_logs_df['documento_identificación'].nunique()
-        total_courses = self.student_logs_df['courseid'].nunique()
-        total_accesses = len(self.student_logs_df)
-
-        daily_stats = self.results['daily_stats']
-
-        # Escribir resumen
-        summary_path = f'{self.results_path}/moodle_behavior_summary.txt'
-        with open(summary_path, 'w', encoding='utf-8') as f:
-            f.write("=" * 80 + "\n")
-            f.write("ANÁLISIS DE COMPORTAMIENTO EN MOODLE\n")
-            f.write("=" * 80 + "\n\n")
-
-            f.write("ESTADÍSTICAS GENERALES:\n")
-            f.write("-" * 40 + "\n")
-            f.write(f"Total de estudiantes únicos: {total_students:,}\n")
-            f.write(f"Total de cursos: {total_courses:,}\n")
-            f.write(f"Total de accesos registrados: {total_accesses:,}\n")
-            f.write(f"Días con actividad: {daily_stats['total_dias_actividad']}\n")
-            f.write(f"Promedio de accesos por día: {daily_stats['promedio_accesos_dia']:.1f}\n")
-            f.write(f"Promedio de estudiantes activos por día: {daily_stats['promedio_estudiantes_dia']:.1f}\n\n")
-
-            # Estadísticas por grado
-            if 'grade_behavior' in self.results:
-                grade_behavior = self.results['grade_behavior']
-                f.write("COMPORTAMIENTO POR GRADO:\n")
-                f.write("-" * 40 + "\n")
-                f.write(grade_behavior.to_string(index=False))
-                f.write("\n\n")
-
-            # Top cursos
-            if 'top_courses' in self.results:
-                top_courses = self.results['top_courses'].head(5)
-                f.write("TOP 5 CURSOS MÁS POPULARES:\n")
-                f.write("-" * 40 + "\n")
-                for _, row in top_courses.iterrows():
-                    # Usar id_asignatura si courseid no está disponible
-                    course_id = row.get('courseid', row.get('id_asignatura', 'N/A'))
-                    f.write(f"Curso {course_id}: {int(row['total_accesos']):,} accesos, "
-                           f"{int(row['estudiantes_unicos'])} estudiantes únicos\n")
-
-        return summary_path
-
     def run_analysis(self):
         """Ejecuta el pipeline completo de análisis."""
         self.logger.info("=" * 60)
@@ -1497,9 +1451,6 @@ class MoodleBehaviorAnalysis(EDAAnalysisBase):
                     self.logger.info(f"✅ [{idx}/{len(plotting_tasks)}] Completado: {task_name}")
                 except Exception as e:
                     raise Exception(f"Error en {task_name}: {e}")
-
-            # 11. Generar resumen
-            self.generate_summary_statistics()
 
             self.logger.info("=" * 60)
             self.logger.info("✅ ANÁLISIS COMPLETADO EXITOSAMENTE")
