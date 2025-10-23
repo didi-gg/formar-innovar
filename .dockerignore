@@ -1,0 +1,41 @@
+# Docker ignore file para optimizar el build
+
+# Directorios de cache y temporales
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.temp
+
+# Git
+.git/
+.gitignore
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Notebooks temporales
+.ipynb_checkpoints/
+
+# Archivos de configuración local
+env.sample
