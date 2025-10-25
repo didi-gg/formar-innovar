@@ -1,0 +1,410 @@
+"""
+Pipeline independiente para Regresión Lineal con análisis completo.
+"""
+
+import numpy as np
+import pandas as pd
+import os
+import joblib
+import matplotlib.pyplot as plt
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, Optional
+
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import RepeatedKFold, cross_validate, learning_curve
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+
+import sys
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+
+from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
+
+
+class LinearRegressionPipeline:
+    """
+    Pipeline independiente para Regresión Lineal con análisis completo.
+    
+    Características:
+    - Encoding categórico automático
+    - Imputación con mediana
+    - Escalado estándar
+    - Validación cruzada 5×8
+    - Análisis de multicolinealidad (VIF)
+    - Curvas de aprendizaje
+    - Guardado automático del modelo
+    """
+    
+    def __init__(self, random_state: int = 42):
+        """
+        Inicializa el pipeline de Regresión Lineal.
+        
+        Args:
+            random_state: Semilla para reproducibilidad
+        """
+        self.random_state = random_state
+        self.pipeline = None
+        self.cv_results = None
+        self.vif_analysis = None
+        self.learning_curve_results = None
+        self.model_name = "linear_regression"
+        
+        # Crear directorios necesarios
+        self._create_directories()
+    
+    def _create_directories(self):
+        """Crea los directorios necesarios para guardar modelos y resultados."""
+        self.models_dir = Path("models")
+        self.results_dir = Path("models/results")
+        
+        os.makedirs(self.models_dir, exist_ok=True)
+        os.makedirs(self.results_dir, exist_ok=True)
+    
+    def _create_pipeline(self) -> Pipeline:
+        """
+        Crea el pipeline completo de regresión lineal.
+        
+        Returns:
+            Pipeline con todos los pasos de preprocesamiento y modelo
+        """
+        steps = []
+        
+        # 1. Encoding categórico
+        steps.append(('categorical_encoder', CategoricalEncoder()))
+        
+        # 2. Imputación con mediana
+        steps.append(('imputer', SimpleImputer(strategy='median')))
+        
+        # 3. Escalado estándar
+        steps.append(('scaler', StandardScaler()))
+        
+        # 4. Modelo de regresión lineal
+        steps.append(('regressor', LinearRegression()))
+        
+        return Pipeline(steps)
+    
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> 'LinearRegressionPipeline':
+        """
+        Entrena el modelo de regresión lineal con análisis completo.
+        
+        Args:
+            X: Características de entrenamiento
+            y: Variable objetivo
+            
+        Returns:
+            self
+        """
+        print(f"=== Entrenando Regresión Lineal ===")
+        print(f"Datos: {X.shape[0]} muestras, {X.shape[1]} características")
+        
+        # Crear pipeline
+        self.pipeline = self._create_pipeline()
+        
+        # Entrenar modelo completo
+        print("Entrenando modelo...")
+        self.pipeline.fit(X, y)  # ← Pipeline internamente hace fit + transform en cada paso
+        
+        # Validación cruzada
+        print("Realizando validación cruzada 5×8...")
+        self._cross_validate(X, y)
+        
+        # Guardar modelo
+        self._save_model()
+        
+        print("✓ Entrenamiento completado exitosamente")
+        return self
+    
+    def analyze(self, X: pd.DataFrame, y: pd.Series):
+        """
+        Realiza análisis completo del modelo entrenado.
+        
+        Args:
+            X: Características de entrenamiento
+            y: Variable objetivo
+        """
+        if self.pipeline is None:
+            raise ValueError("El modelo no ha sido entrenado. Llama a fit() primero.")
+        
+        print("=== Realizando Análisis Completo ===")
+        
+        # Análisis de multicolinealidad
+        print("Analizando multicolinealidad...")
+        self._analyze_multicollinearity(X, y)
+        
+        # Curvas de aprendizaje
+        print("Generando curvas de aprendizaje...")
+        self._analyze_learning_curves(X, y)
+        
+        print("✓ Análisis completado exitosamente")
+    
+    def _cross_validate(self, X: pd.DataFrame, y: pd.Series):
+        """
+        Realiza validación cruzada 5×8 y calcula métricas.
+        
+        Args:
+            X: Características de entrenamiento
+            y: Variable objetivo
+        """
+        # Configurar validación cruzada 5×8
+        cv = RepeatedKFold(n_splits=5, n_repeats=8, random_state=self.random_state)
+        
+        # Métricas a evaluar
+        scoring = {
+            'rmse': 'neg_mean_squared_error',
+            'mae': 'neg_mean_absolute_error',
+            'r2': 'r2'
+        }
+        
+        # Realizar validación cruzada
+        cv_results = cross_validate(
+            self.pipeline, X, y,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=-1,
+            return_train_score=True
+        )
+        
+        # Procesar resultados
+        self.cv_results = {
+            'rmse_test': np.sqrt(-cv_results['test_rmse']),
+            'mae_test': -cv_results['test_mae'],
+            'r2_test': cv_results['test_r2'],
+            'rmse_train': np.sqrt(-cv_results['train_rmse']),
+            'mae_train': -cv_results['train_mae'],
+            'r2_train': cv_results['train_r2']
+        }
+        
+        # Mostrar resultados
+        print("--- Resultados Validación Cruzada (5×8) ---")
+        for metric in ['rmse', 'mae', 'r2']:
+            test_scores = self.cv_results[f'{metric}_test']
+            train_scores = self.cv_results[f'{metric}_train']
+            print(f"{metric.upper()}:")
+            print(f"  Test:  {test_scores.mean():.4f} ± {test_scores.std():.4f}")
+            print(f"  Train: {train_scores.mean():.4f} ± {train_scores.std():.4f}")
+    
+    def _analyze_multicollinearity(self, X: pd.DataFrame, y: pd.Series):
+        """
+        Analiza multicolinealidad usando VIF con el modelo ya entrenado.
+        
+        Args:
+            X: Características de entrenamiento
+            y: Variable objetivo
+        """
+        try:
+            # Usar el pipeline entrenado para transformar (sin el paso final del regressor)
+            X_processed = self.pipeline[:-1].transform(X)
+            
+            # Convertir a array denso si es necesario
+            if hasattr(X_processed, 'toarray'):
+                X_processed = X_processed.toarray()
+            
+            # Calcular VIF para cada característica
+            vif_data = []
+            for i in range(X_processed.shape[1]):
+                try:
+                    vif_value = variance_inflation_factor(X_processed, i)
+                    vif_data.append({
+                        'Feature': f'feature_{i}',
+                        'VIF': vif_value
+                    })
+                except:
+                    vif_data.append({
+                        'Feature': f'feature_{i}',
+                        'VIF': np.inf
+                    })
+            
+            self.vif_analysis = pd.DataFrame(vif_data).sort_values('VIF', ascending=False)
+            
+            # Mostrar resultados
+            print("--- Análisis de Multicolinealidad (VIF) ---")
+            high_vif = self.vif_analysis[self.vif_analysis['VIF'] > 10.0]
+            if len(high_vif) > 0:
+                print(f"Variables con VIF > 10.0:")
+                for _, row in high_vif.head(10).iterrows():
+                    vif_val = row['VIF']
+                    if np.isinf(vif_val):
+                        print(f"  {row['Feature']}: ∞ (colinealidad perfecta)")
+                    else:
+                        print(f"  {row['Feature']}: {vif_val:.2f}")
+            else:
+                print("✓ No se detectó multicolinealidad significativa")
+                
+        except Exception as e:
+            print(f"Error calculando VIF: {e}")
+            self.vif_analysis = None
+    
+    def _analyze_learning_curves(self, X: pd.DataFrame, y: pd.Series):
+        """
+        Analiza y guarda las curvas de aprendizaje.
+        
+        Args:
+            X: Características de entrenamiento
+            y: Variable objetivo
+        """
+        try:
+            # Calcular curvas de aprendizaje
+            train_sizes = np.linspace(0.1, 1.0, 10)
+            train_sizes_abs, train_scores, val_scores = learning_curve(
+                self.pipeline, X, y,
+                train_sizes=train_sizes,
+                cv=5,
+                scoring='neg_root_mean_squared_error',
+                n_jobs=-1,
+                random_state=self.random_state
+            )
+            
+            # Convertir a RMSE positivo
+            train_rmse = -train_scores
+            val_rmse = -val_scores
+            
+            # Calcular estadísticas
+            train_rmse_mean = np.mean(train_rmse, axis=1)
+            train_rmse_std = np.std(train_rmse, axis=1)
+            val_rmse_mean = np.mean(val_rmse, axis=1)
+            val_rmse_std = np.std(val_rmse, axis=1)
+            
+            # Guardar resultados
+            self.learning_curve_results = {
+                'train_sizes': train_sizes_abs,
+                'train_rmse_mean': train_rmse_mean,
+                'train_rmse_std': train_rmse_std,
+                'val_rmse_mean': val_rmse_mean,
+                'val_rmse_std': val_rmse_std
+            }
+            
+            # Crear y guardar gráfico
+            self._plot_learning_curves()
+            
+        except Exception as e:
+            print(f"Error analizando curvas de aprendizaje: {e}")
+            self.learning_curve_results = None
+    
+    def _plot_learning_curves(self):
+        """Crea y guarda el gráfico de curvas de aprendizaje."""
+        if self.learning_curve_results is None:
+            return
+        
+        lc = self.learning_curve_results
+        
+        plt.figure(figsize=(10, 6))
+        
+        # Curvas de entrenamiento y validación
+        plt.plot(lc['train_sizes'], lc['train_rmse_mean'], 'o-', color='blue', 
+                label='Entrenamiento', linewidth=2, markersize=6)
+        plt.fill_between(lc['train_sizes'], 
+                       lc['train_rmse_mean'] - lc['train_rmse_std'],
+                       lc['train_rmse_mean'] + lc['train_rmse_std'],
+                       alpha=0.2, color='blue')
+        
+        plt.plot(lc['train_sizes'], lc['val_rmse_mean'], 'o-', color='red', 
+                label='Validación', linewidth=2, markersize=6)
+        plt.fill_between(lc['train_sizes'],
+                       lc['val_rmse_mean'] - lc['val_rmse_std'],
+                       lc['val_rmse_mean'] + lc['val_rmse_std'],
+                       alpha=0.2, color='red')
+        
+        # Configurar gráfico
+        plt.xlabel('Tamaño del Conjunto de Entrenamiento')
+        plt.ylabel('RMSE')
+        plt.title('Curvas de Aprendizaje - Regresión Lineal')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        # Guardar gráfico
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_model_dir = self.results_dir / self.model_name
+        os.makedirs(results_model_dir, exist_ok=True)
+        
+        save_path = results_model_dir / f"learning_curves_{timestamp}.png"
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        print(f"Curvas de aprendizaje guardadas en: {save_path}")
+    
+    def _save_model(self):
+        """Guarda el modelo entrenado con timestamp."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{self.model_name}.pkl"
+        filepath = self.models_dir / filename
+        
+        # Guardar modelo completo
+        model_data = {
+            'pipeline': self.pipeline,
+            'cv_results': self.cv_results,
+            'vif_analysis': self.vif_analysis,
+            'learning_curve_results': self.learning_curve_results,
+            'model_name': self.model_name,
+            'timestamp': timestamp
+        }
+        
+        joblib.dump(model_data, filepath)
+        print(f"Modelo guardado en: {filepath}")
+        
+        # También guardar solo el pipeline para uso directo
+        pipeline_path = self.models_dir / f"{timestamp}_{self.model_name}_pipeline.pkl"
+        joblib.dump(self.pipeline, pipeline_path)
+        print(f"Pipeline guardado en: {pipeline_path}")
+    
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """
+        Realiza predicciones sobre nuevos datos.
+        
+        Args:
+            X: Características para predecir
+            
+        Returns:
+            Predicciones
+        """
+        if self.pipeline is None:
+            raise ValueError("El modelo no ha sido entrenado. Llama a fit() primero.")
+        
+        return self.pipeline.predict(X)
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        """
+        Obtiene las métricas de validación cruzada.
+        
+        Returns:
+            Diccionario con métricas
+        """
+        return self.cv_results
+    
+    def get_vif_analysis(self) -> Optional[pd.DataFrame]:
+        """
+        Obtiene el análisis de multicolinealidad.
+        
+        Returns:
+            DataFrame con análisis VIF
+        """
+        return self.vif_analysis
+    
+
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    # Crear datos de ejemplo
+    from sklearn.datasets import make_regression
+    
+    X, y = make_regression(n_samples=1000, n_features=10, noise=0.1, random_state=42)
+    X_df = pd.DataFrame(X, columns=[f'feature_{i}' for i in range(X.shape[1])])
+    y_series = pd.Series(y, name='target')
+    
+    # Entrenar modelo
+    model = LinearRegressionPipeline()
+    model.fit(X_df, y_series)
+    
+    # Realizar análisis (opcional)
+    model.analyze(X_df, y_series)
+    
+    # Hacer predicciones
+    predictions = model.predict(X_df[:10])
+    print(f"Predicciones: {predictions[:5]}")
+    
+    # Obtener métricas
+    metrics = model.get_metrics()
+    print(f"RMSE Test: {metrics['rmse_test'].mean():.4f}")
