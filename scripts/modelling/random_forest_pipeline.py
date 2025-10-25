@@ -1,20 +1,11 @@
-"""
-Pipeline independiente para Random Forest con tuning de hiperparámetros y análisis completo.
-"""
-
 import numpy as np
 import pandas as pd
-import os
-import joblib
-import matplotlib.pyplot as plt
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import RepeatedKFold, learning_curve, GridSearchCV
+from sklearn.model_selection import RepeatedKFold, GridSearchCV
 from sklearn.compose import ColumnTransformer
 
 import sys
@@ -23,7 +14,6 @@ sys.path.append(str(project_root))
 
 from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
 from scripts.modelling.base_pipeline import BasePipeline
-
 
 class RandomForestPipeline(BasePipeline):
 
@@ -76,23 +66,16 @@ class RandomForestPipeline(BasePipeline):
 
         # Configurar GridSearchCV
         param_grid = self._get_param_grid()
-        cv_inner = RepeatedKFold(n_splits=3, n_repeats=2, random_state=self.random_state)
+        cv_inner = RepeatedKFold(n_splits=self.n_splits, n_repeats=self.n_repeats, random_state=self.random_state)
 
         self.logger.info("Realizando tuning de hiperparámetros...")
         self.logger.info(f"Parámetros a optimizar: {list(param_grid.keys())}")
-
-        # Métricas
-        scoring = {
-            'rmse': 'neg_mean_squared_error',
-            'mae': 'neg_mean_absolute_error',
-            'r2': 'r2'
-        }
 
         grid_search = GridSearchCV(
             base_pipeline,
             param_grid,
             cv=cv_inner,
-            scoring=scoring,
+            scoring=self.SCORING,
             refit='rmse',
             n_jobs=-1,
             verbose=1,
@@ -125,11 +108,9 @@ class RandomForestPipeline(BasePipeline):
 
         self.logger.info("=== Realizando Análisis Completo ===")
 
-        self.logger.info("Analizando importancia de características...")
         # Extraer importancia de características
+        self.logger.info("Analizando importancia de características...")
         self._extract_feature_importance()
-
-        # Mostrar importancia de características
 
         # Curvas de aprendizaje
         self.logger.info("Generando curvas de aprendizaje...")
