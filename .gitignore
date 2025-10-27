@@ -176,3 +176,5 @@ jupyter_books/_build/html/_sources/notebooks/**/**.ipynb
 ficc-metabase/mariadb-data/**
 mlruns/**/**/**/**
 mlruns/**/**/**/**.*
+models/**/**/**.pkl
+models/**/**/**/StackedEnsemble_AllModels_5_AutoML_1_*
