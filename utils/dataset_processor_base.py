@@ -142,7 +142,7 @@ class DatasetProcessorBase(BaseScript):
         "percent_modules_out_of_date",
         "percent_students_viewed",
         "percent_students_interacted",
-        "percent_modules_viewed"
+        "percent_modules_viewed"  # Se renombrará a percent_modules_viewed_course en _load_and_prepare_courses
     ]
 
     # data/interim/moodle/student_course_interactions.csv
@@ -156,7 +156,7 @@ class DatasetProcessorBase(BaseScript):
         "total_modules",
         "modules_viewed",
         "modules_participated",
-        "percent_modules_viewed",
+        "percent_modules_viewed",  # Se renombrará a percent_modules_viewed_student en _load_and_prepare_student_interactions
         "percent_modules_participated",
         "has_viewed_all_modules",
         "has_participated_all_modules",
@@ -310,6 +310,13 @@ class DatasetProcessorBase(BaseScript):
         """Carga y prepara el dataset de cursos"""
         courses_df = pd.read_csv("data/interim/moodle/courses.csv")
         courses_df = courses_df[self.COLUMNS_COURSES]
+
+        # Renombrar columnas que pueden causar conflictos con student_interactions
+        # percent_modules_viewed en courses = % de módulos vistos por al menos un estudiante (nivel curso)
+        courses_df = courses_df.rename(columns={
+            'percent_modules_viewed': 'percent_modules_viewed_course'
+        })
+
         self.logger.info(f"Dataset de cursos cargado: {courses_df.shape}")
         return courses_df
 
@@ -317,6 +324,13 @@ class DatasetProcessorBase(BaseScript):
         """Carga y prepara el dataset de interacciones de estudiantes con cursos"""
         student_interactions_df = pd.read_csv("data/interim/moodle/student_course_interactions.csv")
         student_interactions_df = student_interactions_df[self.COLUMNS_STUDENT_COURSE_INTERACTIONS]
+
+        # Renombrar columnas que pueden causar conflictos con courses
+        # percent_modules_viewed en student_interactions = % de módulos vistos por cada estudiante individual
+        student_interactions_df = student_interactions_df.rename(columns={
+            'percent_modules_viewed': 'percent_modules_viewed_student'
+        })
+
         self.logger.info(f"Dataset de interacciones de estudiantes cargado: {student_interactions_df.shape}")
         return student_interactions_df
 
