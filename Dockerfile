@@ -25,4 +25,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
-CMD ["sh", "-c", "while true; do sleep 10000; done"]
+# Exponer puertos para MLflow UI y Jupyter
+EXPOSE 5000 8888
+
+CMD ["tail", "-f", "/dev/null"]
