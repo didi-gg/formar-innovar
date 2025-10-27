@@ -29,18 +29,26 @@ class LinearRegressionPipeline(BasePipeline):
             ('imputer', SimpleImputer(strategy='median')),
             ('scaler', StandardScaler())
         ])
+        # Preservar nombres de columnas dentro del pipeline
+        numeric_transformer.set_output(transform="pandas")
 
         # Pipeline para variables categóricas
         categorical_transformer = Pipeline(steps=[
             ('imputer', SimpleImputer(strategy='most_frequent')),
-            ('encoder', CategoricalEncoder())
+            ('encoder', CategoricalEncoder())  # ← CategoricalEncoder NECESITA nombres de columnas
         ])
+        # Preservar nombres de columnas para que el encoder los reciba
+        categorical_transformer.set_output(transform="pandas")
 
         # Combinar ambos transformadores
-        preprocessor = ColumnTransformer(transformers=[
-            ('num', numeric_transformer, self.num_cols),
-            ('cat', categorical_transformer, self.cat_cols)
-        ])
+        # verbose_feature_names_out=False hace que ColumnTransformer preserve los nombres originales
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', numeric_transformer, self.num_cols),
+                ('cat', categorical_transformer, self.cat_cols)
+            ],
+            verbose_feature_names_out=False
+        )
 
         # Pipeline completo con modelo
         pipeline = Pipeline(steps=[
@@ -54,12 +62,45 @@ class LinearRegressionPipeline(BasePipeline):
         self.logger.info("=== Entrenando Regresión Lineal ===")
         self.logger.info(f"Datos: {X.shape[0]} muestras, {X.shape[1]} características")
 
+        # Verificar datos de entrada (antes de preprocessing)
+        self.logger.info(f"📊 Verificando datos de ENTRADA:")
+        self.logger.info(f"  - X tiene NaNs: {X.isnull().sum().sum()}")
+        self.logger.info(f"  - y tiene NaNs: {y.isnull().sum()}")
+        self.logger.info(f"  - Tipos de X: {X.dtypes.value_counts().to_dict()}")
+
         # Crear pipeline
         self.pipeline = self._create_pipeline()
 
         # Entrenar modelo completo
         self.logger.info("Entrenando modelo...")
         self.pipeline.fit(X, y)  # ← Pipeline internamente hace fit + transform en cada paso
+
+        # Verificar datos DESPUÉS del preprocessing (lo que realmente ve el modelo)
+        self.logger.info(f"📊 Verificando datos DESPUÉS del preprocessing:")
+        X_processed = self.pipeline.named_steps['preprocessor'].transform(X)
+
+        # Obtener nombres de columnas del preprocessor
+        try:
+            feature_names = self.pipeline.named_steps['preprocessor'].get_feature_names_out()
+            self.logger.info(f"  - Feature names disponibles: {len(feature_names)}")
+            self.logger.info(f"  - Primeras 10: {list(feature_names[:10])}")
+            self.logger.info(f"  - Últimas 10: {list(feature_names[-10:])}")
+        except:
+            self.logger.warning("  - No se pudieron obtener feature names")
+
+        # Verificar el array procesado
+        self.logger.info(f"  - X_processed tipo: {type(X_processed)}")
+        self.logger.info(f"  - X_processed shape: {X_processed.shape}")
+        self.logger.info(f"  - X_processed dtype: {X_processed.dtype}")
+        self.logger.info(f"  - X_processed tiene NaNs: {np.isnan(X_processed).sum()}")
+        self.logger.info(f"  - X_processed finitos: {np.isfinite(X_processed).all()}")
+
+        if X_processed.dtype == np.float64 or X_processed.dtype == np.float32:
+            self.logger.info(f"  ✅ Datos son numéricos (float)")
+        elif X_processed.dtype == np.int64 or X_processed.dtype == np.int32:
+            self.logger.info(f"  ✅ Datos son numéricos (int)")
+        else:
+            self.logger.warning(f"  ⚠️  Datos NO son numéricos: dtype={X_processed.dtype}")
 
         # Validación cruzada
         self.logger.info("Realizando validación cruzada 5×8...")
@@ -85,42 +126,3 @@ class LinearRegressionPipeline(BasePipeline):
         self.logger.info("Generando curvas de aprendizaje...")
         self._analyze_learning_curves(X, y)
         self.logger.info("✓ Análisis completado exitosamente")
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    # Crear datos de ejemplo con características numéricas y categóricas
-    from sklearn.datasets import make_regression
-
-    # Generar datos base
-    X, y = make_regression(n_samples=1000, n_features=10, noise=0.1, random_state=42)
-    X_df = pd.DataFrame(X, columns=[f'num_feature_{i}' for i in range(X.shape[1])])
-
-    # Agregar algunas características categóricas
-    np.random.seed(42)
-
-    y_series = pd.Series(y, name='target')
-
-    # Definir columnas numéricas y categóricas
-    num_cols = [f'num_feature_{i}' for i in range(10)]
-    cat_cols = []
-
-    # Crear instancia del modelo
-    model = LinearRegressionPipeline()
-
-    # Establecer las columnas numéricas y categóricas ANTES de fit
-    model.num_cols = num_cols
-    model.cat_cols = cat_cols
-
-    # Entrenar modelo
-    model.fit(X_df, y_series)
-
-    # Realizar análisis (opcional)
-    model.analyze(X_df, y_series)
-
-    # Hacer predicciones
-    predictions = model.predict(X_df[:10])
-    model.logger.info(f"Predicciones: {predictions[:5]}")
-
-    # Obtener métricas
-    metrics = model.get_metrics()
-    model.logger.info(f"RMSE Test: {metrics['rmse_test'].mean():.4f}")
