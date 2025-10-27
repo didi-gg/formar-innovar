@@ -30,18 +30,22 @@ class ElasticNetPipeline(BasePipeline):
             ('imputer', SimpleImputer(strategy='median')),
             ('scaler', StandardScaler())
         ])
+        numeric_transformer.set_output(transform="pandas")
 
         # Pipeline para variables categóricas
         categorical_transformer = Pipeline(steps=[
             ('imputer', SimpleImputer(strategy='most_frequent')),
-            ('encoder', CategoricalEncoder())
+            ('encoder', CategoricalEncoder())  # ← CategoricalEncoder NECESITA nombres de columnas
         ])
+        categorical_transformer.set_output(transform="pandas")
 
-        # Combinar ambos transformadores
-        preprocessor = ColumnTransformer(transformers=[
-            ('num', numeric_transformer, self.num_cols),
-            ('cat', categorical_transformer, self.cat_cols)
-        ])
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', numeric_transformer, self.num_cols),
+                ('cat', categorical_transformer, self.cat_cols)
+            ],
+            verbose_feature_names_out=False
+        )
 
         # Pipeline completo con modelo
         pipeline = Pipeline(steps=[
@@ -54,8 +58,8 @@ class ElasticNetPipeline(BasePipeline):
     def _get_param_grid(self) -> Dict[str, list]:
         # Define la grilla de hiperparámetros para tuning.
         return {
-            'regressor__alpha': [0.001, 0.01, 0.1, 1.0, 10.0, 100.0],
-            'regressor__l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9]
+            'regressor__alpha': [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 0.1, 0.5, 1.0, 5.0, 10.0, 50.0],
+            'regressor__l1_ratio': [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
         }
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> 'ElasticNetPipeline':
@@ -132,9 +136,18 @@ class ElasticNetPipeline(BasePipeline):
         regressor = self.pipeline.named_steps['regressor']
         coefficients = regressor.coef_
 
+        # Obtener nombres reales de las características del preprocessor
+        try:
+            preprocessor = self.pipeline.named_steps['preprocessor']
+            feature_names = preprocessor.get_feature_names_out()
+            self.logger.info(f"✅ Obtenidos {len(feature_names)} nombres reales de características")
+        except Exception as e:
+            self.logger.warning(f"⚠️  No se pudieron obtener nombres reales: {e}")
+            feature_names = [f'feature_{i}' for i in range(len(coefficients))]
+
         # Crear DataFrame con importancia
         self.feature_importance = pd.DataFrame({
-            'Feature': [f'feature_{i}' for i in range(len(coefficients))],
+            'Feature': feature_names,
             'Coefficient': coefficients,
             'Abs_Coefficient': np.abs(coefficients)
         }).sort_values('Abs_Coefficient', ascending=False)
@@ -143,47 +156,3 @@ class ElasticNetPipeline(BasePipeline):
         self.logger.info(self.feature_importance.head())
 
         return self.feature_importance
-
-
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    # Crear datos de ejemplo
-    from sklearn.datasets import make_regression
-
-   # Generar datos base
-    X, y = make_regression(n_samples=1000, n_features=10, noise=0.1, random_state=42)
-    X_df = pd.DataFrame(X, columns=[f'num_feature_{i}' for i in range(X.shape[1])])
-
-    # Agregar algunas características categóricas
-    np.random.seed(42)
-
-    y_series = pd.Series(y, name='target')
-
-    # Definir columnas numéricas y categóricas
-    num_cols = [f'num_feature_{i}' for i in range(10)]
-    cat_cols = []
-
-    # Entrenar modelo
-    model = ElasticNetPipeline()
-    model.num_cols = num_cols
-    model.cat_cols = cat_cols
-    model.fit(X_df, y_series)
-
-    # Realizar análisis (opcional)
-    model.analyze(X_df, y_series)
-
-    # Hacer predicciones
-    predictions = model.predict(X_df[:10])
-    print(f"Predicciones: {predictions[:5]}")
-
-    # Obtener métricas y parámetros
-    metrics = model.get_metrics()
-    best_params = model.get_best_params()
-    print(f"RMSE Test: {metrics['rmse_test'].mean():.4f}")
-    print(f"Mejores parámetros: {best_params}")
-
-    # Obtener importancia de características
-    feature_importance = model.get_feature_importance()
-    print("Top 5 características más importantes:")
-    print(feature_importance.head())
