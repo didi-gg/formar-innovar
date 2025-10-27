@@ -182,7 +182,7 @@ def evaluate_h2o_model(test_df, ts, logger):
 
         # Evaluar modelo
         logger.info(f"📊 Evaluando {model_name} en conjunto de test...")
-        metrics = model.evaluate_model(test_df, ts=ts)
+        metrics = model.evaluate_model(test_df, timestamp=ts)
 
         logger.info(f"✅ {model_name} evaluado exitosamente")
         logger.info(f"   RMSE: {metrics['rmse']:.4f}")
@@ -269,10 +269,10 @@ def main():
 
     # Definir modelos con sus timestamps
     models_config = [
-        (LinearRegressionPipeline, "LinearRegression", "20251026_125706"),
-        (ElasticNetPipeline, "ElasticNet", "20251026_125712"),
+        (LinearRegressionPipeline, "LinearRegression", "20251027_160652"),
+        (ElasticNetPipeline, "ElasticNet", "20251027_160659"),
         (RandomForestPipeline, "RandomForest", "20251026_125812"),
-        (CatBoostPipeline, "CatBoost", "20251026_131704")
+        (CatBoostPipeline, "CatBoost", "20251027_121254")
     ]
 
     # Diccionario para almacenar resultados

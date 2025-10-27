@@ -8,6 +8,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import RepeatedKFold, GridSearchCV
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import FunctionTransformer
 
 import sys
 project_root = Path(__file__).parent.parent.parent
@@ -24,19 +25,23 @@ class CatBoostPipeline(BasePipeline):
         super().__init__(random_state)
 
     def _create_pipeline(self) -> Pipeline:
+        # CatBoost maneja nativamente valores faltantes y variables categóricas
+        # Mantener transformador numérico mínimo por compatibilidad
         numeric_transformer = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='median'))
+            ('passthrough', 'passthrough')  # No hacer transformaciones
         ])
         numeric_transformer.set_output(transform="pandas")
 
-        # Pipeline para variables categóricas
-        categorical_transformer = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='most_frequent')),
-            ('encoder', CategoricalEncoder())
-        ])
-        categorical_transformer.set_output(transform="pandas")
+        # Transformador para convertir categóricas a string (requerido por CatBoost)
+        def convert_to_string(X):
+            return X.astype(str)
+        
+        categorical_transformer = FunctionTransformer(
+            convert_to_string, 
+            validate=False
+        )
 
-        # Combinar ambos transformadores
+        # Preprocessor que mantiene numéricas y convierte categóricas a string
         preprocessor = ColumnTransformer(
             transformers=[
                 ('num', numeric_transformer, self.num_cols),
@@ -46,9 +51,13 @@ class CatBoostPipeline(BasePipeline):
         )
 
         # Pipeline completo con modelo
+        # CatBoost necesita saber qué columnas son categóricas
+        cat_features_indices = list(range(len(self.num_cols), len(self.num_cols) + len(self.cat_cols)))
+        
         pipeline = Pipeline(steps=[
             ('preprocessor', preprocessor),
             ('regressor', CatBoostRegressor(
+                cat_features=cat_features_indices,
                 random_state=self.random_state,
                 verbose=False, # Silenciar output durante entrenamiento
                 allow_writing_files=False # No crear archivos temporales

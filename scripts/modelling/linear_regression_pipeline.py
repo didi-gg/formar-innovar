@@ -14,6 +14,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
 from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
+from scripts.preprocessing.outlier_handler import OutlierHandler
 from scripts.modelling.base_pipeline import BasePipeline
 
 class LinearRegressionPipeline(BasePipeline):
@@ -27,6 +28,7 @@ class LinearRegressionPipeline(BasePipeline):
         # Pipeline para variables numéricas
         numeric_transformer = Pipeline(steps=[
             ('imputer', SimpleImputer(strategy='median')),
+            ('outlier_handler', OutlierHandler(iqr_factor=1.5)),
             ('scaler', StandardScaler())
         ])
         # Preservar nombres de columnas dentro del pipeline
