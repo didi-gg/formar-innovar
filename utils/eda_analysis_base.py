@@ -58,9 +58,7 @@ class EDAAnalysisBase(BaseScript, ABC):
         'id_least_viewed_module',  # No es relevante
         'years_experience_ficc',  # Ya está representada en teacher_experiencia_nivel_ficc
         'years_experience_total',  # Ya está representada en teacher_experiencia_nivel
-        'nivel',  # Variable objetivo categoría
         'resultado',  # Variable objetivo numérica
-        'nota_final',  # Variable objetivo numérica
         'cog',  # Colinealidad con nota_final
         'proc',  # Colinealidad con nota_final
         'act',  # Colinealidad con nota_final
@@ -104,7 +102,6 @@ class EDAAnalysisBase(BaseScript, ABC):
         'std_interactions_per_module',
         'max_interactions_in_a_module',
         'avg_interactions_per_module',
-
     ]
 
     # Variables numéricas conocidas
@@ -122,7 +119,7 @@ class EDAAnalysisBase(BaseScript, ABC):
         'percent_in_english', 'log_total_interactions', 'modules_participated',
         'median_days_from_planned_start', 'median_days_after_end', 'percent_modules_participated',
         'modules_viewed', 'avg_days_after_end', 'avg_days_from_planned_start',
-        'percent_modules_viewed_interacciones_de_estudiantes', 'nota_final'
+        'percent_modules_viewed_student', 'percent_modules_viewed_course', 'nota_final', 'common_bigrams'
     ]
 
     # Variables categóricas conocidas
