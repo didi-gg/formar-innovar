@@ -1,0 +1,76 @@
+================================================================================
+ANÁLISIS COMPLETO DEL STACKED ENSEMBLE H2O AutoML
+================================================================================
+
+🏆 INFORMACIÓN BÁSICA DEL ENSEMBLE
+--------------------------------------------------
+Tipo de Modelo: H2OStackedEnsembleEstimator
+ID del Modelo: StackedEnsemble_AllModels_5_AutoML_1_20251026_231035
+Timestamp: 20251026_231034
+Número de Modelos Base: 34
+Algoritmo Metalearner: glm
+Tipo Metalearner: Regresión Lineal Generalizada (GLM)
+
+📊 MÉTRICAS DE RENDIMIENTO
+--------------------------------------------------
+Entrenamiento:
+  • RMSE: 2.0381
+  • MAE: 1.4998
+  • R²: 0.9425
+
+Validación Cruzada (5-fold):
+  • RMSE: 6.0111
+  • MAE: 4.5163
+  • R²: 0.4996
+
+📈 ANÁLISIS DE GENERALIZACIÓN
+--------------------------------------------------
+Diferencia R² (Train vs CV): 0.4429
+⚠️ Posible overfitting
+
+🏗️ COMPOSICIÓN DEL ENSEMBLE
+--------------------------------------------------
+Total de modelos base: 34
+Distribución por algoritmo:
+  • Gradient Boosting Machine: 31 modelos (91.2%)
+  • Distributed Random Forest: 1 modelos (2.9%)
+  • Otro: 1 modelos (2.9%)
+  • Generalized Linear Model: 1 modelos (2.9%)
+
+🥇 TOP 5 MODELOS DEL AUTOML
+--------------------------------------------------
+1. Stacked Ensemble
+   RMSE: 6.0111 | MAE: 4.5163
+2. Stacked Ensemble
+   RMSE: 6.1172 | MAE: 4.6041
+3. Stacked Ensemble
+   RMSE: 6.1321 | MAE: 4.6174
+4. Stacked Ensemble
+   RMSE: 6.1345 | MAE: 4.6179
+5. Stacked Ensemble
+   RMSE: 6.1438 | MAE: 4.5858
+
+🏆 COMPARACIÓN CON OTROS MODELOS
+--------------------------------------------------
+🥇 StackedEnsemble (h2o) - 
+   RMSE: 5.8538 | MAE: 4.3073 | R²: 0.513
+2° RandomForest
+   RMSE: 6.2327 | MAE: 4.6335 | R²: 0.4479
+3° ElasticNet
+   RMSE: 7.2091 | MAE: 5.4685 | R²: 0.2614
+4° LinearRegression
+   RMSE: 7.2094 | MAE: 5.4687 | R²: 0.2613
+5° CatBoost
+   RMSE: 7.4084 | MAE: 5.589 | R²: 0.22
+
+✅ CONCLUSIONES CLAVE
+--------------------------------------------------
+• H2O AutoML seleccionó un Stacked Ensemble como mejor modelo
+• Combina múltiples algoritmos para mayor robustez
+• Usa un GLM como metalearner para optimizar combinaciones
+• Supera a todos los modelos individuales en el test
+• Ideal para problemas complejos de regresión
+
+================================================================================
+Reporte generado automáticamente
+================================================================================
