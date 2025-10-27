@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from typing import Dict
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
@@ -28,18 +29,22 @@ class RandomForestPipeline(BasePipeline):
         numeric_transformer = Pipeline(steps=[
             ('imputer', SimpleImputer(strategy='median')),
         ])
+        numeric_transformer.set_output(transform="pandas")
 
         # Pipeline para variables categóricas
         categorical_transformer = Pipeline(steps=[
             ('imputer', SimpleImputer(strategy='most_frequent')),
-            ('encoder', CategoricalEncoder())
+            ('encoder', CategoricalEncoder())  # ← CategoricalEncoder NECESITA nombres de columnas
         ])
+        categorical_transformer.set_output(transform="pandas")
 
-        # Combinar ambos transformadores
-        preprocessor = ColumnTransformer(transformers=[
-            ('num', numeric_transformer, self.num_cols),
-            ('cat', categorical_transformer, self.cat_cols)
-        ])
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', numeric_transformer, self.num_cols),
+                ('cat', categorical_transformer, self.cat_cols)
+            ],
+            verbose_feature_names_out=False
+        )
 
         # Pipeline completo con modelo
         pipeline = Pipeline(steps=[
@@ -117,45 +122,3 @@ class RandomForestPipeline(BasePipeline):
         self._analyze_learning_curves(X, y)
 
         self.logger.info("✓ Análisis completado exitosamente")
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    # Crear datos de ejemplo
-    from sklearn.datasets import make_regression
-
-   # Generar datos base
-    X, y = make_regression(n_samples=1000, n_features=10, noise=0.1, random_state=42)
-    X_df = pd.DataFrame(X, columns=[f'num_feature_{i}' for i in range(X.shape[1])])
-
-    # Agregar algunas características categóricas
-    np.random.seed(42)
-
-    y_series = pd.Series(y, name='target')
-
-    # Definir columnas numéricas y categóricas
-    num_cols = [f'num_feature_{i}' for i in range(10)]
-    cat_cols = []
-
-    # Entrenar modelo
-    model = RandomForestPipeline()
-    model.num_cols = num_cols
-    model.cat_cols = cat_cols
-    model.fit(X_df, y_series)
-
-    # Realizar análisis (opcional)
-    model.analyze(X_df, y_series)
-
-    # Hacer predicciones
-    predictions = model.predict(X_df[:10])
-    model.logger.info(f"Predicciones: {predictions[:5]}")
-
-    # Obtener métricas y parámetros
-    metrics = model.get_metrics()
-    best_params = model.get_best_params()
-    model.logger.info(f"\nRMSE Test: {metrics['rmse_test'].mean():.4f} ± {metrics['rmse_test'].std():.4f}")
-    model.logger.info(f"Mejores parámetros: {best_params}")
-
-    # Obtener importancia de características
-    feature_importance = model.get_feature_importance()
-    model.logger.info("Top 5 características más importantes:")
-    model.logger.info(feature_importance.head())
