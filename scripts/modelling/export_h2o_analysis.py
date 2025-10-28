@@ -11,15 +11,17 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
-# Directorio de análisis (ajustado para ejecutar desde scripts/modelling/)
-ANALYSIS_DIR = "../../models/h2o/20251026_231034/analysis"
+# Directorio de análisis (usando rutas absolutas)
+# Obtener la ruta base del proyecto
+BASE_DIR = Path(__file__).parent.parent.parent
+ANALYSIS_DIR = BASE_DIR / "models" / "h2o" / "20251026_231034" / "analysis"
 
 def load_h2o_model():
     """Cargar el modelo H2O"""
     print("🔧 Inicializando H2O...")
     h2o.init(verbose=False)
     
-    metadata_path = "../../models/h2o/20251026_231034/model_metadata.pkl"
+    metadata_path = BASE_DIR / "models" / "h2o" / "20251026_231034" / "model_metadata.pkl"
     with open(metadata_path, "rb") as f:
         metadata = joblib.load(f)
     
@@ -30,7 +32,7 @@ def load_h2o_model():
 
 def create_analysis_directory():
     """Crear directorio de análisis"""
-    os.makedirs(ANALYSIS_DIR, exist_ok=True)
+    ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
     print(f"📁 Directorio creado: {ANALYSIS_DIR}")
 
 def export_ensemble_summary(model, metadata):
@@ -58,7 +60,7 @@ def export_ensemble_summary(model, metadata):
     }
     
     df_ensemble = pd.DataFrame(ensemble_info)
-    output_path = os.path.join(ANALYSIS_DIR, 'h2o_ensemble_info.csv')
+    output_path = ANALYSIS_DIR / 'h2o_ensemble_info.csv'
     df_ensemble.to_csv(output_path, index=False, encoding='utf-8')
     print(f"✅ Guardado: {output_path}")
     
@@ -102,7 +104,7 @@ def export_performance_metrics(model):
     
     # Métricas de test (desde el archivo de resultados)
     try:
-        results_df = pd.read_csv('../../models/test_evaluation_results.csv')
+        results_df = pd.read_csv(BASE_DIR / 'models' / 'test_evaluation_results.csv')
         h2o_results = results_df[results_df['Modelo'] == 'H2O_AutoML'].iloc[0]
         
         metrics_data.append({
@@ -115,7 +117,7 @@ def export_performance_metrics(model):
         pass
     
     df_metrics = pd.DataFrame(metrics_data)
-    output_path = os.path.join(ANALYSIS_DIR, 'h2o_performance_metrics.csv')
+    output_path = ANALYSIS_DIR / 'h2o_performance_metrics.csv'
     df_metrics.to_csv(output_path, index=False, encoding='utf-8')
     print(f"✅ Guardado: {output_path}")
     
@@ -157,7 +159,7 @@ def export_base_models_info(model):
         print(f"⚠️ Error al procesar modelos base: {e}")
     
     df_base_models = pd.DataFrame(base_models_data)
-    output_path = os.path.join(ANALYSIS_DIR, 'h2o_base_models.csv')
+    output_path = ANALYSIS_DIR / 'h2o_base_models.csv'
     df_base_models.to_csv(output_path, index=False, encoding='utf-8')
     print(f"✅ Guardado: {output_path}")
     
@@ -200,7 +202,7 @@ def export_leaderboard(metadata):
                 if col in lb_export.columns:
                     lb_export[col] = lb_export[col].round(4)
             
-            output_path = os.path.join(ANALYSIS_DIR, 'h2o_leaderboard.csv')
+            output_path = ANALYSIS_DIR / 'h2o_leaderboard.csv'
             lb_export.to_csv(output_path, index=False, encoding='utf-8')
             print(f"✅ Guardado: {output_path}")
             
@@ -218,7 +220,7 @@ def export_comparison_with_other_models():
     print("📊 Exportando comparación con otros modelos...")
     
     try:
-        results_df = pd.read_csv('../../models/test_evaluation_results.csv')
+        results_df = pd.read_csv(BASE_DIR / 'models' / 'test_evaluation_results.csv')
         
         # Agregar ranking
         results_df['Ranking_RMSE'] = results_df['RMSE'].rank(method='min')
@@ -238,7 +240,7 @@ def export_comparison_with_other_models():
         for col in ['RMSE', 'MAE', 'R²', 'Ranking_Promedio']:
             results_df[col] = results_df[col].round(4)
         
-        output_path = os.path.join(ANALYSIS_DIR, 'comparacion_todos_modelos.csv')
+        output_path = ANALYSIS_DIR / 'comparacion_todos_modelos.csv'
         results_df.to_csv(output_path, index=False, encoding='utf-8')
         print(f"✅ Guardado: {output_path}")
         
@@ -341,7 +343,7 @@ def create_comprehensive_report(df_ensemble, df_metrics, df_base_models, df_lead
     report.append("="*80)
     
     # Guardar reporte
-    output_path = os.path.join(ANALYSIS_DIR, 'h2o_ensemble_reporte_completo.txt')
+    output_path = ANALYSIS_DIR / 'h2o_ensemble_reporte_completo.txt'
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(report))
     
