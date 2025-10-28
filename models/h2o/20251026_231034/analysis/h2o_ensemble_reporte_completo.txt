@@ -54,14 +54,14 @@ Distribución por algoritmo:
 --------------------------------------------------
 🥇 StackedEnsemble (h2o) - 
    RMSE: 5.8538 | MAE: 4.3073 | R²: 0.513
-2° RandomForest
+2° CatBoost
+   RMSE: 5.991 | MAE: 4.4901 | R²: 0.4899
+3° RandomForest
    RMSE: 6.2327 | MAE: 4.6335 | R²: 0.4479
-3° ElasticNet
-   RMSE: 7.2091 | MAE: 5.4685 | R²: 0.2614
-4° LinearRegression
-   RMSE: 7.2094 | MAE: 5.4687 | R²: 0.2613
-5° CatBoost
-   RMSE: 7.4084 | MAE: 5.589 | R²: 0.22
+4° ElasticNet
+   RMSE: 7.2119 | MAE: 5.4531 | R²: 0.2608
+5° LinearRegression
+   RMSE: 7.212 | MAE: 5.4533 | R²: 0.2608
 
 ✅ CONCLUSIONES CLAVE
 --------------------------------------------------
