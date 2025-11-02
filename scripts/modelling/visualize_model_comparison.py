@@ -27,7 +27,7 @@ def load_results():
 
 def create_metrics_comparison(df):
     """Gráfico de barras comparando todas las métricas"""
-    fig, axes = plt.subplots(1, 3, figsize=(20, 8))
+    fig, axes = plt.subplots(1, 4, figsize=(20, 8))
 
     # Crear nombres cortos para las etiquetas del eje X
     short_names = []
@@ -82,6 +82,16 @@ def create_metrics_comparison(df):
     # Agregar valores en las barras
     for i, v in enumerate(df['R²']):
         axes[2].text(i, v + 0.01, f'{v:.3f}', ha='center', va='bottom', fontweight='bold')
+        
+    # R² (mayor es mejor)
+    axes[3].bar(short_names, df['Weighted_MAE'], color=colors)
+    axes[3].set_title('Weighted MAE por Modelo\n(Menor es Mejor)', fontsize=14, fontweight='bold')
+    axes[3].set_ylabel('Weighted MAE')
+    axes[3].tick_params(axis='x', rotation=0, labelsize=10)
+
+    # Agregar valores en las barras
+    for i, v in enumerate(df['Weighted_MAE']):
+        axes[3].text(i, v + 0.01, f'{v:.3f}', ha='center', va='bottom', fontweight='bold')
 
     plt.tight_layout()
     plt.savefig('models/summary/comparacion_metricas.png', dpi=300, bbox_inches='tight')
