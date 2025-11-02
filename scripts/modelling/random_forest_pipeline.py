@@ -15,6 +15,7 @@ sys.path.append(str(project_root))
 
 from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
 from scripts.modelling.base_pipeline import BasePipeline
+from scripts.modelling.weighted_mae_scorer import default_weighted_mae_scorer
 
 class RandomForestPipeline(BasePipeline):
 
@@ -22,6 +23,14 @@ class RandomForestPipeline(BasePipeline):
         self.model_name = "random_forest"
         self.title = "Random Forest"
         super().__init__(random_state)
+        
+        # Sobrescribir SCORING para incluir métrica personalizada
+        self.SCORING = {
+            'rmse': 'neg_mean_squared_error',
+            'mae': 'neg_mean_absolute_error',
+            'r2': 'r2',
+            'weighted_mae': default_weighted_mae_scorer
+        }
 
 
     def _create_pipeline(self) -> Pipeline:
@@ -49,17 +58,19 @@ class RandomForestPipeline(BasePipeline):
         # Pipeline completo con modelo
         pipeline = Pipeline(steps=[
             ('preprocessor', preprocessor),
-            ('regressor', RandomForestRegressor(random_state=self.random_state))
+            ('regressor', RandomForestRegressor(
+                criterion='absolute_error',  # Entrenar minimizando MAE
+                random_state=self.random_state
+            ))
         ])
         return pipeline
 
     def _get_param_grid(self) -> Dict[str, list]:
-        # Define la grilla de hiperparámetros para tuning.
         return {
-            'regressor__n_estimators': [50, 100, 200],
-            'regressor__max_depth': [None, 10, 20, 30],
-            'regressor__min_samples_split': [2, 5, 10],
-            'regressor__min_samples_leaf': [1, 2, 4]
+            'regressor__n_estimators': [100, 200],
+            'regressor__max_depth': [None, 15, 25],
+            'regressor__min_samples_split': [2, 10],
+            'regressor__min_samples_leaf': [1, 3]
         }
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> 'RandomForestPipeline':
@@ -81,7 +92,7 @@ class RandomForestPipeline(BasePipeline):
             param_grid,
             cv=cv_inner,
             scoring=self.SCORING,
-            refit='rmse',
+            refit='weighted_mae',  # Usar métrica personalizada para seleccionar mejor modelo
             n_jobs=-1,
             verbose=1,
             return_train_score=True

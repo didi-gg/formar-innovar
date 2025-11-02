@@ -16,6 +16,12 @@ sys.path.append(str(project_root))
 
 from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
 from scripts.modelling.base_pipeline import BasePipeline
+from scripts.modelling.weighted_mae_scorer import default_weighted_mae_scorer
+
+# Función global para conversión a string (necesaria para serialización)
+def convert_to_string(X):
+    """Convierte todas las columnas a string para CatBoost."""
+    return X.astype(str)
 
 class CatBoostPipeline(BasePipeline):
 
@@ -23,6 +29,14 @@ class CatBoostPipeline(BasePipeline):
         self.model_name = "catboost"
         self.title = "CatBoost"
         super().__init__(random_state)
+        
+        # Sobrescribir SCORING para incluir métrica personalizada
+        self.SCORING = {
+            'rmse': 'neg_mean_squared_error',
+            'mae': 'neg_mean_absolute_error',
+            'r2': 'r2',
+            'weighted_mae': default_weighted_mae_scorer
+        }
 
     def _create_pipeline(self) -> Pipeline:
         # CatBoost maneja nativamente valores faltantes y variables categóricas
@@ -33,11 +47,8 @@ class CatBoostPipeline(BasePipeline):
         numeric_transformer.set_output(transform="pandas")
 
         # Transformador para convertir categóricas a string (requerido por CatBoost)
-        def convert_to_string(X):
-            return X.astype(str)
-        
         categorical_transformer = FunctionTransformer(
-            convert_to_string, 
+            convert_to_string,
             validate=False
         )
 
@@ -57,6 +68,7 @@ class CatBoostPipeline(BasePipeline):
         pipeline = Pipeline(steps=[
             ('preprocessor', preprocessor),
             ('regressor', CatBoostRegressor(
+                loss_function='MAE',  # Entrenar minimizando MAE
                 cat_features=cat_features_indices,
                 random_state=self.random_state,
                 verbose=False, # Silenciar output durante entrenamiento
@@ -67,12 +79,11 @@ class CatBoostPipeline(BasePipeline):
 
 
     def _get_param_grid(self) -> Dict[str, list]:
-        # Define la grilla de hiperparámetros para tuning.
         return {
-            'regressor__iterations': [100, 300, 500],
+            'regressor__iterations': [300, 500],
             'regressor__depth': [4, 6, 8],
-            'regressor__learning_rate': [0.01, 0.1, 0.2],
-            'regressor__l2_leaf_reg': [1, 3, 5]
+            'regressor__learning_rate': [0.03, 0.1],
+            'regressor__l2_leaf_reg': [1, 3]
         }
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> 'CatBoostPipeline':
@@ -94,7 +105,7 @@ class CatBoostPipeline(BasePipeline):
             param_grid,
             cv=cv_inner,
             scoring=self.SCORING,
-            refit='rmse',
+            refit='weighted_mae',
             n_jobs=-1,
             verbose=1,
             return_train_score=True

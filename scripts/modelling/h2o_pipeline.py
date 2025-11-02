@@ -11,6 +11,12 @@ from typing import Dict, Any, Optional
 import h2o
 from h2o.automl import H2OAutoML
 
+import sys
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+
+from scripts.modelling.weighted_mae_scorer import evaluate_h2o_model_with_weighted_mae, weighted_mae
+
 class h2oPipeline():
 
     model_name = "h2o"
@@ -90,15 +96,16 @@ class h2oPipeline():
             max_runtime_secs=300, 
             seed=self.random_state,
             exclude_algos=["DeepLearning"],
+            sort_metric='mae',  # Ordenar leaderboard por MAE
             nfolds=5,  # Validación cruzada con 5 folds
             keep_cross_validation_predictions=True,
             keep_cross_validation_models=True
         )
         self.aml.train(x=x, y=target_column, training_frame=train)
 
-        # 4. Obtener el mejor modelo
-        self.best_model = self.aml.leader
+        # 4. Evaluar modelos con métrica personalizada y seleccionar el mejor
         self.leaderboard = self.aml.leaderboard
+        self.best_model = self._select_best_model_with_weighted_mae(train)
 
         # 5. Mostrar leaderboard
         self._show_leaderboard()
@@ -111,6 +118,80 @@ class h2oPipeline():
 
         self.logger.info("\n✓ Entrenamiento completado exitosamente")
         return self.best_model
+
+    def _select_best_model_with_weighted_mae(self, train_frame):
+        """
+        Evalúa todos los modelos del leaderboard con la métrica Weighted MAE personalizada
+        y selecciona el mejor modelo basado en esta métrica.
+        """
+        self.logger.info("\n=== Evaluando modelos con Weighted MAE personalizada ===")
+        
+        try:
+            # Obtener todos los modelos del leaderboard
+            leaderboard_df = self.leaderboard.as_data_frame()
+            model_ids = leaderboard_df['model_id'].tolist()
+            
+            best_weighted_mae = float('inf')
+            best_model = None
+            model_scores = []
+            
+            # Evaluar cada modelo con la métrica personalizada
+            for i, model_id in enumerate(model_ids[:10]):  # Evaluar top 10 para eficiencia
+                try:
+                    # Obtener el modelo
+                    model = h2o.get_model(model_id)
+                    
+                    # Evaluar con métrica personalizada
+                    metrics = evaluate_h2o_model_with_weighted_mae(
+                        model, train_frame, self.target_column
+                    )
+                    
+                    weighted_mae_score = metrics['weighted_mae']
+                    model_scores.append({
+                        'model_id': model_id,
+                        'weighted_mae': weighted_mae_score,
+                        'mae': metrics['mae'],
+                        'rmse': metrics['rmse'],
+                        'r2': metrics['r2']
+                    })
+                    
+                    # Actualizar mejor modelo si es necesario
+                    if weighted_mae_score < best_weighted_mae:
+                        best_weighted_mae = weighted_mae_score
+                        best_model = model
+                    
+                    self.logger.info(f"  {i+1}. {model_id[:50]}... - Weighted MAE: {weighted_mae_score:.4f}")
+                    
+                except Exception as e:
+                    self.logger.warning(f"Error evaluando modelo {model_id}: {e}")
+                    continue
+            
+            # Mostrar ranking por Weighted MAE
+            if model_scores:
+                self.logger.info("\n--- RANKING POR WEIGHTED MAE ---")
+                model_scores.sort(key=lambda x: x['weighted_mae'])
+                for i, score in enumerate(model_scores[:5]):
+                    self.logger.info(f"  {i+1}. {score['model_id'][:50]}...")
+                    self.logger.info(f"     Weighted MAE: {score['weighted_mae']:.4f} | MAE: {score['mae']:.4f} | RMSE: {score['rmse']:.4f}")
+                
+                # Guardar scores para análisis posterior
+                self.weighted_mae_scores = model_scores
+            
+            # Si no se pudo evaluar ningún modelo, usar el líder original
+            if best_model is None:
+                self.logger.warning("No se pudo evaluar ningún modelo con Weighted MAE, usando líder original")
+                best_model = self.aml.leader
+                best_weighted_mae = "N/A"
+            
+            self.logger.info(f"\n🏆 MEJOR MODELO POR WEIGHTED MAE: {best_model.model_id}")
+            self.logger.info(f"🎯 Weighted MAE Score: {best_weighted_mae}")
+            
+            return best_model
+            
+        except Exception as e:
+            self.logger.error(f"Error en selección por Weighted MAE: {e}")
+            self.logger.info("Usando líder original de H2O AutoML")
+            return self.aml.leader
 
     def _show_leaderboard(self):
         """Muestra el leaderboard de modelos de H2O AutoML con información detallada."""
@@ -517,15 +598,10 @@ class h2oPipeline():
         if best_model is None:
             raise ValueError("No hay modelo disponible. Entrena o carga un modelo primero.")
 
-        performance = best_model.model_performance(test)
+        # Evaluar con métrica personalizada
+        result = evaluate_h2o_model_with_weighted_mae(best_model, test, self.target_column)
 
-        result = {
-            'rmse': performance.rmse(),
-            'mae': performance.mae(),
-            'r2': performance.r2()
-        }
-
-        self.logger.info(f"Métricas de evaluación: {result}")
+        self.logger.info(f"Métricas de evaluación (incluyendo Weighted MAE): {result}")
         return result
 
     # Métodos getter para compatibilidad con BasePipeline

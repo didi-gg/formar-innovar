@@ -17,6 +17,7 @@ sys.path.append(str(project_root))
 from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
 from scripts.preprocessing.outlier_handler import OutlierHandler
 from scripts.modelling.base_pipeline import BasePipeline
+from scripts.modelling.weighted_mae_scorer import default_weighted_mae_scorer
 
 class ElasticNetPipeline(BasePipeline):
 
@@ -24,6 +25,14 @@ class ElasticNetPipeline(BasePipeline):
         self.model_name = "elasticnet"
         self.title = "Elastic Net"
         super().__init__(random_state)
+        
+        # Sobrescribir SCORING para incluir métrica personalizada
+        self.SCORING = {
+            'rmse': 'neg_mean_squared_error',
+            'mae': 'neg_mean_absolute_error',
+            'r2': 'r2',
+            'weighted_mae': default_weighted_mae_scorer
+        }
 
     def _create_pipeline(self) -> Pipeline:
         # Pipeline para variables numéricas
@@ -52,7 +61,11 @@ class ElasticNetPipeline(BasePipeline):
         # Pipeline completo con modelo
         pipeline = Pipeline(steps=[
             ('preprocessor', preprocessor),
-            ('regressor', ElasticNet(random_state=self.random_state))
+            ('regressor', ElasticNet(
+                random_state=self.random_state,
+                max_iter=10000,  # Aumentar iteraciones para convergencia
+                tol=1e-3  # Tolerancia para convergencia
+            ))
         ])
 
         return pipeline
@@ -61,7 +74,9 @@ class ElasticNetPipeline(BasePipeline):
         # Define la grilla de hiperparámetros para tuning.
         return {
             'regressor__alpha': [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 0.1, 0.5, 1.0, 5.0, 10.0, 50.0],
-            'regressor__l1_ratio': [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
+            # Excluir 0.0 y 1.0 para enfocarse en ElasticNet puro (mezcla de L1 y L2)
+            # l1_ratio=0.0 es Ridge puro, l1_ratio=1.0 es Lasso puro
+            'regressor__l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9],
         }
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> 'ElasticNetPipeline':
@@ -83,7 +98,7 @@ class ElasticNetPipeline(BasePipeline):
             param_grid,
             cv=cv_inner,
             scoring=self.SCORING,
-            refit='rmse',
+            refit='weighted_mae',  # Usar métrica personalizada para seleccionar mejor modelo
             n_jobs=-1,
             verbose=1,
             return_train_score=True

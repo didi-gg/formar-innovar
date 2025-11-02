@@ -159,6 +159,12 @@ def run_model(model_class, model_name, X, y, logger):
                 mlflow.log_metric("mae_test_std", float(cv_metrics['mae_test'].std()))
                 mlflow.log_metric("r2_test_mean", float(cv_metrics['r2_test'].mean()))
                 mlflow.log_metric("r2_test_std", float(cv_metrics['r2_test'].std()))
+                
+                # Agregar Weighted MAE si está disponible
+                if 'weighted_mae_test' in cv_metrics:
+                    mlflow.log_metric("weighted_mae_test_mean", float(cv_metrics['weighted_mae_test'].mean()))
+                    mlflow.log_metric("weighted_mae_test_std", float(cv_metrics['weighted_mae_test'].std()))
+                    logger.info(f"Weighted MAE registrado: {cv_metrics['weighted_mae_test'].mean():.4f} ± {cv_metrics['weighted_mae_test'].std():.4f}")
 
             # Análisis específicos por modelo
             if hasattr(model, 'get_vif_analysis') and model.get_vif_analysis() is not None:
