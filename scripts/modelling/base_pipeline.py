@@ -33,7 +33,7 @@ class BasePipeline(ABC):
     vif_analysis = None
     num_cols = None
     cat_cols = None
-    n_splits = 10
+    n_splits = 4
     n_repeats = 5
     feature_importance = None
     best_params = None
@@ -137,12 +137,21 @@ class BasePipeline(ABC):
             'mae_train': -cv_results['train_mae'],
             'r2_train': cv_results['train_r2']
         }
+        
+        # Agregar Weighted MAE si está disponible
+        if 'test_weighted_mae' in cv_results:
+            self.cv_results['weighted_mae_test'] = -cv_results['test_weighted_mae']
+            self.cv_results['weighted_mae_train'] = -cv_results['train_weighted_mae']
 
         # Mostrar resultados
         self.logger.info("--- Resultados Validación Cruzada (5×8) ---")
 
         # Contar y reportar NaN si existen
-        for metric in ['rmse', 'mae', 'r2']:
+        metrics_to_report = ['rmse', 'mae', 'r2']
+        if 'weighted_mae_test' in self.cv_results:
+            metrics_to_report.append('weighted_mae')
+            
+        for metric in metrics_to_report:
             test_scores = self.cv_results[f'{metric}_test']
             train_scores = self.cv_results[f'{metric}_train']
 
@@ -153,7 +162,9 @@ class BasePipeline(ABC):
             if n_nan_test > 0 or n_nan_train > 0:
                 self.logger.warning(f"{metric.upper()} - NaN encontrados: Test={n_nan_test}/{len(test_scores)}, Train={n_nan_train}/{len(train_scores)}")
 
-            self.logger.info(f"{metric.upper()}:")
+            # Formatear nombre de métrica para mostrar
+            metric_display = "WEIGHTED MAE" if metric == 'weighted_mae' else metric.upper()
+            self.logger.info(f"{metric_display}:")
             self.logger.info(f"  Test:  {np.nanmean(test_scores):.4f} ± {np.nanstd(test_scores):.4f}")
             self.logger.info(f"  Train: {np.nanmean(train_scores):.4f} ± {np.nanstd(train_scores):.4f}")
 
@@ -272,7 +283,7 @@ class BasePipeline(ABC):
             val_mae_mean = np.nanmean(val_mae, axis=1)
             val_mae_std = np.nanstd(val_mae, axis=1)
 
-            # Guardar resultados
+            # Guardar resultados base
             self.learning_curve_results = {
                 'train_sizes': train_sizes_abs,
                 'train_mae_mean': train_mae_mean,
@@ -281,7 +292,42 @@ class BasePipeline(ABC):
                 'val_mae_std': val_mae_std
             }
 
-            # Crear y guardar gráfico
+            # Calcular curvas de aprendizaje para Weighted MAE si está disponible
+            if hasattr(self, 'SCORING') and 'weighted_mae' in self.SCORING:
+                try:
+                    self.logger.info("Calculando curvas de aprendizaje para Weighted MAE...")
+                    train_sizes_abs_w, train_scores_w, val_scores_w = learning_curve(
+                        self.pipeline, X, y,
+                        train_sizes=train_sizes,
+                        cv=self.n_splits,
+                        scoring=self.SCORING['weighted_mae'],
+                        n_jobs=-1,
+                        random_state=self.random_state,
+                        error_score=np.nan
+                    )
+
+                    # Convertir a Weighted MAE positivo (scorer devuelve valores negativos)
+                    train_wmae = -train_scores_w
+                    val_wmae = -val_scores_w
+
+                    # Calcular estadísticas
+                    train_wmae_mean = np.nanmean(train_wmae, axis=1)
+                    train_wmae_std = np.nanstd(train_wmae, axis=1)
+                    val_wmae_mean = np.nanmean(val_wmae, axis=1)
+                    val_wmae_std = np.nanstd(val_wmae, axis=1)
+
+                    # Agregar a resultados
+                    self.learning_curve_results.update({
+                        'train_wmae_mean': train_wmae_mean,
+                        'train_wmae_std': train_wmae_std,
+                        'val_wmae_mean': val_wmae_mean,
+                        'val_wmae_std': val_wmae_std
+                    })
+
+                except Exception as e:
+                    self.logger.warning(f"No se pudo calcular curva de aprendizaje para Weighted MAE: {e}")
+
+            # Crear y guardar gráfico(s)
             self._plot_learning_curves()
 
         except Exception as e:
@@ -293,38 +339,94 @@ class BasePipeline(ABC):
             return
 
         lc = self.learning_curve_results
+        
+        # Verificar si tenemos datos de Weighted MAE
+        has_weighted_mae = all(key in lc for key in ['train_wmae_mean', 'val_wmae_mean'])
+        
+        if has_weighted_mae:
+            # Crear figura con subplots para ambas métricas
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+            
+            # Gráfico 1: MAE estándar
+            ax1.plot(lc['train_sizes'], lc['train_mae_mean'], 'o-', color='blue', 
+                    label='Entrenamiento', linewidth=2, markersize=6)
+            ax1.fill_between(lc['train_sizes'], 
+                           lc['train_mae_mean'] - lc['train_mae_std'],
+                           lc['train_mae_mean'] + lc['train_mae_std'],
+                           alpha=0.2, color='blue')
 
-        plt.figure(figsize=(10, 6))
+            ax1.plot(lc['train_sizes'], lc['val_mae_mean'], 'o-', color='red', 
+                    label='Validación', linewidth=2, markersize=6)
+            ax1.fill_between(lc['train_sizes'],
+                           lc['val_mae_mean'] - lc['val_mae_std'],
+                           lc['val_mae_mean'] + lc['val_mae_std'],
+                           alpha=0.2, color='red')
 
-        # Curva de entrenamiento y validación
-        plt.plot(lc['train_sizes'], lc['train_mae_mean'], 'o-', color='blue', 
-                label='Entrenamiento', linewidth=2, markersize=6)
-        plt.fill_between(lc['train_sizes'], 
-                       lc['train_mae_mean'] - lc['train_mae_std'],
-                       lc['train_mae_mean'] + lc['train_mae_std'],
-                       alpha=0.2, color='blue')
+            ax1.set_xlabel('Tamaño del Conjunto de Entrenamiento', fontsize=12)
+            ax1.set_ylabel('MAE (Mean Absolute Error)', fontsize=12)
+            ax1.set_title(f'Curvas de Aprendizaje - MAE Estándar', fontsize=13, fontweight='bold')
+            ax1.legend(fontsize=11)
+            ax1.grid(True, alpha=0.3)
+            
+            # Gráfico 2: Weighted MAE
+            ax2.plot(lc['train_sizes'], lc['train_wmae_mean'], 'o-', color='green', 
+                    label='Entrenamiento', linewidth=2, markersize=6)
+            ax2.fill_between(lc['train_sizes'], 
+                           lc['train_wmae_mean'] - lc['train_wmae_std'],
+                           lc['train_wmae_mean'] + lc['train_wmae_std'],
+                           alpha=0.2, color='green')
 
-        plt.plot(lc['train_sizes'], lc['val_mae_mean'], 'o-', color='red', 
-                label='Validación', linewidth=2, markersize=6)
+            ax2.plot(lc['train_sizes'], lc['val_wmae_mean'], 'o-', color='orange', 
+                    label='Validación', linewidth=2, markersize=6)
+            ax2.fill_between(lc['train_sizes'],
+                           lc['val_wmae_mean'] - lc['val_wmae_std'],
+                           lc['val_wmae_mean'] + lc['val_wmae_std'],
+                           alpha=0.2, color='orange')
 
-        plt.fill_between(lc['train_sizes'],
-                       lc['val_mae_mean'] - lc['val_mae_std'],
-                       lc['val_mae_mean'] + lc['val_mae_std'],
-                       alpha=0.2, color='red')
+            ax2.set_xlabel('Tamaño del Conjunto de Entrenamiento', fontsize=12)
+            ax2.set_ylabel('Weighted MAE', fontsize=12)
+            ax2.set_title(f'Curvas de Aprendizaje - Weighted MAE', fontsize=13, fontweight='bold')
+            ax2.legend(fontsize=11)
+            ax2.grid(True, alpha=0.3)
+            
+            # Ajustar layout y guardar
+            plt.suptitle(f'Curvas de Aprendizaje - {self.title}', fontsize=16, fontweight='bold', y=1.02)
+            plt.tight_layout()
+            save_path = os.path.join(self.model_ts_dir, f"learning_curves_comparison.png")
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            self.logger.info(f"Curvas de aprendizaje comparativas guardadas en: {save_path}")
+            
+        else:
+            # Gráfico simple solo con MAE estándar
+            plt.figure(figsize=(10, 6))
 
-        # Configurar gráfico
-        plt.xlabel('Tamaño del Conjunto de Entrenamiento', fontsize=12)
-        plt.ylabel('MAE (Mean Absolute Error)', fontsize=12)
-        plt.title(f'Curvas de Aprendizaje - {self.title}', fontsize=14, fontweight='bold')
-        plt.legend(fontsize=11)
-        plt.grid(True, alpha=0.3)
+            plt.plot(lc['train_sizes'], lc['train_mae_mean'], 'o-', color='blue', 
+                    label='Entrenamiento', linewidth=2, markersize=6)
+            plt.fill_between(lc['train_sizes'], 
+                           lc['train_mae_mean'] - lc['train_mae_std'],
+                           lc['train_mae_mean'] + lc['train_mae_std'],
+                           alpha=0.2, color='blue')
 
-        # Guardar gráfico
-        save_path = os.path.join(self.model_ts_dir, f"learning_curve.png")
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        plt.close()
+            plt.plot(lc['train_sizes'], lc['val_mae_mean'], 'o-', color='red', 
+                    label='Validación', linewidth=2, markersize=6)
+            plt.fill_between(lc['train_sizes'],
+                           lc['val_mae_mean'] - lc['val_mae_std'],
+                           lc['val_mae_mean'] + lc['val_mae_std'],
+                           alpha=0.2, color='red')
 
-        self.logger.info(f"Curvas de aprendizaje guardadas en: {save_path}")
+            plt.xlabel('Tamaño del Conjunto de Entrenamiento', fontsize=12)
+            plt.ylabel('MAE (Mean Absolute Error)', fontsize=12)
+            plt.title(f'Curvas de Aprendizaje - {self.title}', fontsize=14, fontweight='bold')
+            plt.legend(fontsize=11)
+            plt.grid(True, alpha=0.3)
+
+            save_path = os.path.join(self.model_ts_dir, f"learning_curve.png")
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            self.logger.info(f"Curvas de aprendizaje guardadas en: {save_path}")
 
     def _analyze_multicollinearity(self, X: pd.DataFrame, y: pd.Series):
         try:
