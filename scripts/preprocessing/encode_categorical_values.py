@@ -26,6 +26,10 @@ class CategoricalEncoder(BaseEstimator, TransformerMixin):
 
         self.fitted_ = False
         self.feature_names_in_ = None
+        # Guardar categorías encontradas durante fit para consistencia
+        self.proyeccion_categories_ = None
+        self.jornada_categories_ = None
+        self.dia_categories_ = None
 
     def _setup_logging(self):
         """Configurar logging básico."""
@@ -34,7 +38,7 @@ class CategoricalEncoder(BaseEstimator, TransformerMixin):
             formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
-            self.logger.setLevel(logging.INFO)
+            self.logger.setLevel(logging.ERROR)  # Solo errores
 
     def encode_binary_variables(self, df):
         df_copy = df.copy()
@@ -192,30 +196,70 @@ class CategoricalEncoder(BaseEstimator, TransformerMixin):
 
         return df_copy, new_features
 
-    def encode_onehot_variables(self, df):
+    def encode_onehot_variables(self, df, is_fitting=False):
         df_copy = df.copy()
         new_features = []
 
         # proyeccion_vocacional
         if 'proyección_vocacional' in df_copy.columns:
-            dummies = pd.get_dummies(df_copy['proyección_vocacional'], prefix='proyeccion', dummy_na=False, drop_first=True)
-            df_copy = pd.concat([df_copy, dummies], axis=1)
+            if is_fitting:
+                # Durante fit: guardar todas las categorías
+                self.proyeccion_categories_ = sorted(df_copy['proyección_vocacional'].dropna().unique().tolist())
+                if len(self.proyeccion_categories_) > 0:
+                    # Usar la primera como referencia (drop_first=True)
+                    categories_to_encode = self.proyeccion_categories_[1:]
+                    for cat in categories_to_encode:
+                        col_name = f'proyeccion_{cat}'
+                        df_copy[col_name] = (df_copy['proyección_vocacional'] == cat).astype(int)
+                        new_features.append(col_name)
+            else:
+                # Durante transform: usar categorías guardadas
+                if self.proyeccion_categories_ and len(self.proyeccion_categories_) > 0:
+                    categories_to_encode = self.proyeccion_categories_[1:]
+                    for cat in categories_to_encode:
+                        col_name = f'proyeccion_{cat}'
+                        df_copy[col_name] = (df_copy['proyección_vocacional'] == cat).astype(int)
+                        new_features.append(col_name)
             df_copy.drop('proyección_vocacional', axis=1, inplace=True)
-            new_features.extend(dummies.columns.tolist())
 
         # jornada_preferida
         if 'jornada_preferida' in df_copy.columns:
-            dummies = pd.get_dummies(df_copy['jornada_preferida'], prefix='jornada', dummy_na=False, drop_first=True)
-            df_copy = pd.concat([df_copy, dummies], axis=1)
+            if is_fitting:
+                self.jornada_categories_ = sorted(df_copy['jornada_preferida'].dropna().unique().tolist())
+                if len(self.jornada_categories_) > 0:
+                    categories_to_encode = self.jornada_categories_[1:]
+                    for cat in categories_to_encode:
+                        col_name = f'jornada_{cat}'
+                        df_copy[col_name] = (df_copy['jornada_preferida'] == cat).astype(int)
+                        new_features.append(col_name)
+            else:
+                if self.jornada_categories_ and len(self.jornada_categories_) > 0:
+                    categories_to_encode = self.jornada_categories_[1:]
+                    for cat in categories_to_encode:
+                        col_name = f'jornada_{cat}'
+                        df_copy[col_name] = (df_copy['jornada_preferida'] == cat).astype(int)
+                        new_features.append(col_name)
             df_copy.drop('jornada_preferida', axis=1, inplace=True)
-            new_features.extend(dummies.columns.tolist())
 
         # dia_preferido
         if 'dia_preferido' in df_copy.columns:
-            dummies = pd.get_dummies(df_copy['dia_preferido'], prefix='dia', dummy_na=False, drop_first=True)
-            df_copy = pd.concat([df_copy, dummies], axis=1)
+            if is_fitting:
+                self.dia_categories_ = sorted(df_copy['dia_preferido'].dropna().unique().tolist())
+                if len(self.dia_categories_) > 0:
+                    categories_to_encode = self.dia_categories_[1:]
+                    for cat in categories_to_encode:
+                        col_name = f'dia_{cat}'
+                        df_copy[col_name] = (df_copy['dia_preferido'] == cat).astype(int)
+                        new_features.append(col_name)
+            else:
+                if self.dia_categories_ and len(self.dia_categories_) > 0:
+                    categories_to_encode = self.dia_categories_[1:]
+                    for cat in categories_to_encode:
+                        col_name = f'dia_{cat}'
+                        df_copy[col_name] = (df_copy['dia_preferido'] == cat).astype(int)
+                        new_features.append(col_name)
             df_copy.drop('dia_preferido', axis=1, inplace=True)
-            new_features.extend(dummies.columns.tolist())
+            
         return df_copy, new_features
 
     def keep_numeric_variables(self, df):
@@ -230,9 +274,7 @@ class CategoricalEncoder(BaseEstimator, TransformerMixin):
             df_copy['period'] = pd.to_numeric(df_copy['period'], errors='coerce')
         return df_copy
 
-    def encode_categorical_variables(self, df):
-        self.logger.info(f"Codificando variables categóricas: {df.shape}")
-
+    def encode_categorical_variables(self, df, is_fitting=False):
         all_processed_features = []
 
         df_encoded = df.copy()
@@ -245,20 +287,10 @@ class CategoricalEncoder(BaseEstimator, TransformerMixin):
         df_encoded, dummy_features = self.encode_dummy_variables(df_encoded)
         all_processed_features.extend(dummy_features)
 
-        df_encoded, onehot_features = self.encode_onehot_variables(df_encoded)
+        df_encoded, onehot_features = self.encode_onehot_variables(df_encoded, is_fitting=is_fitting)
         all_processed_features.extend(onehot_features)
 
         df_encoded = self.keep_numeric_variables(df_encoded)
-
-        # Verificar errores críticos
-        non_numeric_final = df_encoded.select_dtypes(include=['object']).columns.tolist()
-        if non_numeric_final:
-            self.logger.error(f"⚠️ COLUMNAS NO NUMÉRICAS EN OUTPUT: {non_numeric_final}")
-
-        # Reportar NaN si existen (solo en caso de error)
-        total_nans = df_encoded.isna().sum().sum()
-        if total_nans > 0:
-            self.logger.warning(f"⚠️ {total_nans} valores NaN después del encoding")
 
         return df_encoded, all_processed_features
 
@@ -282,7 +314,8 @@ class CategoricalEncoder(BaseEstimator, TransformerMixin):
             X_df = X
 
         # Obtener el DataFrame transformado ANTES de convertir a numpy
-        df_encoded, _ = self.encode_categorical_variables(X_df)
+        # Pasar is_fitting=True para guardar categorías
+        df_encoded, _ = self.encode_categorical_variables(X_df, is_fitting=True)
         self.feature_names_out_ = df_encoded.columns.tolist()
 
         return self
@@ -297,7 +330,8 @@ class CategoricalEncoder(BaseEstimator, TransformerMixin):
                 # Si no coincide, usar nombres genéricos (esto puede pasar en pipelines)
                 X = pd.DataFrame(X, columns=[f'feature_{i}' for i in range(X.shape[1])])
 
-        df_encoded, _ = self.encode_categorical_variables(X)
+        # Pasar is_fitting=False para usar categorías guardadas
+        df_encoded, _ = self.encode_categorical_variables(X, is_fitting=False)
 
         # SIEMPRE retornar numpy array float64 para compatibilidad con sklearn
         # Los nombres de columnas se preservan vía get_feature_names_out()

@@ -54,7 +54,7 @@ class OutlierHandler(BaseEstimator, TransformerMixin):
             formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
-            self.logger.setLevel(logging.INFO)
+            self.logger.setLevel(logging.WARNING)
 
     def fit(self, X: Union[pd.DataFrame, np.ndarray], y=None) -> 'OutlierHandler':
         # Convertir a DataFrame si es necesario
