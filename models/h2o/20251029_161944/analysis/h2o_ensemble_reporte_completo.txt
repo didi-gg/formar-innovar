@@ -5,8 +5,8 @@ ANÁLISIS COMPLETO DEL STACKED ENSEMBLE H2O AutoML
 🏆 INFORMACIÓN BÁSICA DEL ENSEMBLE
 --------------------------------------------------
 Tipo de Modelo: H2OStackedEnsembleEstimator
-ID del Modelo: StackedEnsemble_AllModels_5_AutoML_1_20251026_231035
-Timestamp: 20251026_231034
+ID del Modelo: StackedEnsemble_AllModels_5_AutoML_1_20251029_161945
+Timestamp: 20251029_161944
 Número de Modelos Base: 34
 Algoritmo Metalearner: glm
 Tipo Metalearner: Regresión Lineal Generalizada (GLM)
@@ -14,14 +14,14 @@ Tipo Metalearner: Regresión Lineal Generalizada (GLM)
 📊 MÉTRICAS DE RENDIMIENTO
 --------------------------------------------------
 Entrenamiento:
-  • RMSE: 2.0381
-  • MAE: 1.4998
-  • R²: 0.9425
+  • RMSE: 2.0481
+  • MAE: 1.5044
+  • R²: 0.9419
 
 Validación Cruzada (5-fold):
-  • RMSE: 6.0111
-  • MAE: 4.5163
-  • R²: 0.4996
+  • RMSE: 6.0119
+  • MAE: 4.5169
+  • R²: 0.4995
 
 Test Final:
   • RMSE: 5.8538
@@ -30,7 +30,7 @@ Test Final:
 
 📈 ANÁLISIS DE GENERALIZACIÓN
 --------------------------------------------------
-Diferencia R² (Train vs CV): 0.4429
+Diferencia R² (Train vs CV): 0.4424
 ⚠️ Posible overfitting
 
 🏗️ COMPOSICIÓN DEL ENSEMBLE
@@ -45,15 +45,15 @@ Distribución por algoritmo:
 🥇 TOP 5 MODELOS DEL AUTOML
 --------------------------------------------------
 1. Stacked Ensemble
-   RMSE: 6.0111 | MAE: 4.5163
+   RMSE: 6.0119 | MAE: 4.5169
 2. Stacked Ensemble
-   RMSE: 6.1172 | MAE: 4.6041
-3. Stacked Ensemble
-   RMSE: 6.1321 | MAE: 4.6174
-4. Stacked Ensemble
-   RMSE: 6.1345 | MAE: 4.6179
-5. Stacked Ensemble
    RMSE: 6.1438 | MAE: 4.5858
+3. Stacked Ensemble
+   RMSE: 6.1172 | MAE: 4.6041
+4. Stacked Ensemble
+   RMSE: 6.1346 | MAE: 4.6177
+5. Stacked Ensemble
+   RMSE: 6.1342 | MAE: 4.6182
 
 🏆 COMPARACIÓN CON OTROS MODELOS
 --------------------------------------------------
