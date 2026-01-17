@@ -16,4 +16,3 @@ statsmodels==0.14.5
 joblib>=1.4.2
 numpy>=1.24.0,<2.0.0
 catboost==1.2.8
-mlflow==3.5.1
