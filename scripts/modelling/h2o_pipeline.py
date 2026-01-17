@@ -16,6 +16,9 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
 from scripts.modelling.weighted_mae_scorer import evaluate_h2o_model_with_weighted_mae, weighted_mae
+from scripts.preprocessing.g_smote import GSMOTERegressor
+from scripts.modelling.smote_diagnostic import SMOTEDiagnostic
+
 
 class h2oPipeline():
 
@@ -29,10 +32,11 @@ class h2oPipeline():
     train_data = None  # Datos de entrenamiento (H2OFrame)
     target_column = None  # Nombre de la columna objetivo
 
-    def __init__(self, random_state: int = 42):
+    def __init__(self, random_state: int = 42, use_resampling: bool = True):
 
         self.random_state = random_state
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.use_resampling = use_resampling
 
         self._create_directories()
         self._setup_logger()
@@ -79,6 +83,16 @@ class h2oPipeline():
         self.logger.info("=== Entrenando H2O AutoML ===")
         self.logger.info(f"Datos: {train_df.shape[0]} muestras, {train_df.shape[1]} características")
 
+        if (self.use_resampling):
+            resampler = GSMOTERegressor(n_synthetic_multiplier=3.0)
+            X = train_df.drop(columns=[target_column])
+            y = train_df[target_column]
+            X_resampled, y_resampled = resampler.fit_resample(X, y)
+            train_df = pd.concat([X_resampled, y_resampled], axis=1)
+            nfolds = 0  # Disable cross-validation when using resampling
+        else:
+            nfolds = 5
+
         # 1. Convertir a H2OFrame
         self.logger.info("Convirtiendo datos a H2OFrame...")
         train = h2o.H2OFrame(train_df)
@@ -91,13 +105,13 @@ class h2oPipeline():
         self.logger.info(f"Features: {len(x)}, Target: {target_column}")
 
         # 3. Crear y entrenar AutoML para regresión con validación cruzada
-        self.logger.info("Iniciando AutoML (300 segundos)...")
+        self.logger.info("Iniciando AutoML (600 segundos)...")
         self.aml = H2OAutoML(
-            max_runtime_secs=300, 
+            max_runtime_secs=600, 
             seed=self.random_state,
             exclude_algos=["DeepLearning"],
             sort_metric='mae',  # Ordenar leaderboard por MAE
-            nfolds=5,  # Validación cruzada con 5 folds
+            nfolds=nfolds,
             keep_cross_validation_predictions=True,
             keep_cross_validation_models=True
         )
@@ -115,9 +129,52 @@ class h2oPipeline():
 
         # 7. Guardar modelo
         self._save_model()
+        
+        # 8. Generar diagnóstico de SMOTE si se usó resampling
+        if self.use_resampling:
+            self._generate_smote_diagnostic(train_df, target_column)
 
         self.logger.info("\n✓ Entrenamiento completado exitosamente")
         return self.best_model
+    
+    def _generate_smote_diagnostic(self, train_df: pd.DataFrame, target_column: str):
+        """Genera un reporte de diagnóstico sobre SMOTE."""
+        try:
+            self.logger.info("\n=== Generando diagnóstico de SMOTE ===")
+            
+            X = train_df.drop(columns=[target_column])
+            y = train_df[target_column]
+            
+            # Simular resampling para obtener métricas
+            resampler = GSMOTERegressor(n_synthetic_multiplier=3.0)
+            X_resampled, y_resampled = resampler.fit_resample(X, y)
+            
+            # Obtener métricas del resampler
+            resampler_metrics = None
+            if hasattr(resampler, '_last_diversity_metrics'):
+                resampler_metrics = {
+                    'diversity': resampler._last_diversity_metrics,
+                    'distribution': getattr(resampler, '_last_distribution_metrics', None)
+                }
+            
+            # Generar reporte
+            diagnostic = SMOTEDiagnostic()
+            diagnostic.generate_diagnostic_report(
+                model_name=self.model_name,
+                X_original=X,
+                y_original=y,
+                X_resampled=X_resampled,
+                y_resampled=y_resampled,
+                resampler_metrics=resampler_metrics,
+                cv_results_with_resampling=self.cv_results,
+                cv_results_without_resampling=None,
+                model_ts_dir=self.model_ts_dir
+            )
+            
+        except Exception as e:
+            self.logger.warning(f"Error generando diagnóstico de SMOTE: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
 
     def _select_best_model_with_weighted_mae(self, train_frame):
         """

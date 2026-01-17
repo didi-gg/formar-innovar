@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 import os
-import mlflow
-import mlflow.sklearn
 from pathlib import Path
 import logging
 from datetime import datetime
@@ -75,9 +73,19 @@ CATEGORICAL_FEATURES = [
     'time_engagement_level',
     'tipo_vivienda',
     'zona_vivienda',
+    'jornada_preferida',
 ]
 
 NUMERIC_FEATURES = [
+    'horas_semana_estudio_casa',
+    'count_login_mon',
+    'count_login_fri',
+    'intensidad',
+    'total_hermanos',
+    'student_total_views',
+    'substring_similarity',
+    'max_inactividad',
+    'avg_days_from_planned_start',
     'common_bigrams',
     'count_collaboration',
     'age',
@@ -116,81 +124,60 @@ def load_data():
     df[TARGET_FEATURE] = pd.to_numeric(df[TARGET_FEATURE], errors='coerce')
     return df
 
-def run_model(model_class, model_name, X, y, logger):
+def run_model(model_class, model_name, X, y, logger, use_resampling=True):
     logger.info(f"\n=== Ejecutando {model_name} ===")
 
     try:
         # Entrenar modelo
         logger.info(f"🔧 Entrenando {model_name}...")
-        model = model_class(random_state=42)
+        model = model_class(random_state=42, use_resampling=use_resampling)
         model.num_cols = NUMERIC_FEATURES
         model.cat_cols = CATEGORICAL_FEATURES
         model.fit(X, y)
         model.analyze(X, y)
         logger.info(f"✅ {model_name} entrenado exitosamente")
+        
+        logger.info(f"model_type {model_name}")
+        logger.info(f"n_samples {X.shape[0]}")
+        logger.info(f"n_features {X.shape[1]}")
+        logger.info(f"random_state {42}")
 
-        # Registrar todo en MLflow como nested run (como model_runner.py)
-        logger.info(f"Iniciando run de MLflow para {model_name}")
-        with mlflow.start_run(run_name=model_name, nested=True):
-            run_id = mlflow.active_run().info.run_id
-            logger.info(f"✅ Run iniciado: {run_id}")
+        # Mejores parámetros (si tiene tuning)
+        if hasattr(model, 'get_best_params') and model.get_best_params():
+            best_params = model.get_best_params()
+            logger.info(f"Registrando {len(best_params)} hiperparámetros")
+            for param, value in best_params.items():
+                clean_param = param.replace('regressor__', '')
+                logger.info(f"param_{clean_param}: {value}")
 
-            # Parámetros básicos
-            mlflow.log_param("model_type", model_name)
-            mlflow.log_param("n_samples", X.shape[0])
-            mlflow.log_param("n_features", X.shape[1])
-            mlflow.log_param("random_state", 42)
+        # Métricas de validación cruzada
+        if hasattr(model, 'get_metrics') and model.get_metrics():
+            cv_metrics = model.get_metrics()
+            logger.info(f"Registrando métricas de validación cruzada")
+            logger.info(f"rmse_test_mean {float(cv_metrics['rmse_test'].mean())}")
+            logger.info(f"rmse_test_std {float(cv_metrics['rmse_test'].std())}")
+            logger.info(f"mae_test_mean {float(cv_metrics['mae_test'].mean())}")
+            logger.info(f"mae_test_std {float(cv_metrics['mae_test'].std())}")
+            logger.info(f"r2_test_mean {float(cv_metrics['r2_test'].mean())}")
+            logger.info(f"r2_test_std {float(cv_metrics['r2_test'].std())}")
+            
+            # Agregar Weighted MAE si está disponible
+            if 'weighted_mae_test' in cv_metrics:
+                logger.info(f"weighted_mae_test_mean {float(cv_metrics['weighted_mae_test'].mean())}")
+                logger.info(f"weighted_mae_test_std {float(cv_metrics['weighted_mae_test'].std())}")
 
-            # Mejores parámetros (si tiene tuning)
-            if hasattr(model, 'get_best_params') and model.get_best_params():
-                best_params = model.get_best_params()
-                logger.info(f"Registrando {len(best_params)} hiperparámetros")
-                for param, value in best_params.items():
-                    clean_param = param.replace('regressor__', '')
-                    mlflow.log_param(clean_param, value)
+        # Análisis específicos por modelo
+        if hasattr(model, 'get_vif_analysis') and model.get_vif_analysis() is not None:
+            vif_df = model.get_vif_analysis()
+            high_vif_count = len(vif_df[vif_df['VIF'] > 10.0])
+            logger.info(f"VIF: {high_vif_count} características con VIF > 10")
 
-            # Métricas de validación cruzada
-            if hasattr(model, 'get_metrics') and model.get_metrics():
-                cv_metrics = model.get_metrics()
-                logger.info(f"Registrando métricas de validación cruzada")
-                mlflow.log_metric("rmse_test_mean", float(cv_metrics['rmse_test'].mean()))
-                mlflow.log_metric("rmse_test_std", float(cv_metrics['rmse_test'].std()))
-                mlflow.log_metric("mae_test_mean", float(cv_metrics['mae_test'].mean()))
-                mlflow.log_metric("mae_test_std", float(cv_metrics['mae_test'].std()))
-                mlflow.log_metric("r2_test_mean", float(cv_metrics['r2_test'].mean()))
-                mlflow.log_metric("r2_test_std", float(cv_metrics['r2_test'].std()))
-                
-                # Agregar Weighted MAE si está disponible
-                if 'weighted_mae_test' in cv_metrics:
-                    mlflow.log_metric("weighted_mae_test_mean", float(cv_metrics['weighted_mae_test'].mean()))
-                    mlflow.log_metric("weighted_mae_test_std", float(cv_metrics['weighted_mae_test'].std()))
-                    logger.info(f"Weighted MAE registrado: {cv_metrics['weighted_mae_test'].mean():.4f} ± {cv_metrics['weighted_mae_test'].std():.4f}")
-
-            # Análisis específicos por modelo
-            if hasattr(model, 'get_vif_analysis') and model.get_vif_analysis() is not None:
-                vif_df = model.get_vif_analysis()
-                high_vif_count = len(vif_df[vif_df['VIF'] > 10.0])
-                mlflow.log_metric("high_vif_features", high_vif_count)
-                logger.info(f"VIF: {high_vif_count} características con VIF > 10")
-
-            if hasattr(model, 'get_feature_importance') and model.get_feature_importance() is not None:
-                importance_df = model.get_feature_importance()
-                if 'Importance' in importance_df.columns:
-                    mlflow.log_metric("max_feature_importance", float(importance_df['Importance'].max()))
-                    mlflow.log_metric("top_5_importance_sum", float(importance_df.head(5)['Importance'].sum()))
-                    logger.info(f"Importancia: max={importance_df['Importance'].max():.4f}")
-
-            # Registrar modelo
-            if hasattr(model, 'pipeline') and model.pipeline:
-                logger.info(f"Registrando modelo en MLflow")
-                mlflow.sklearn.log_model(
-                    sk_model=model.pipeline,
-                    artifact_path="model",
-                    input_example=X.head(5)
-                )
-            logger.info(f"Run {run_id} completado para {model_name}")
-
-        logger.info(f"{model_name} completado y registrado en MLflow")
+        if hasattr(model, 'get_feature_importance') and model.get_feature_importance() is not None:
+            importance_df = model.get_feature_importance()
+            if 'Importance' in importance_df.columns:
+                logger.info(f"Importancia: max={importance_df['Importance'].max():.4f}")
+                logger.info(f"max_feature_importance {float(importance_df['Importance'].max())}")
+                logger.info(f"top_5_importance_sum {float(importance_df.head(5)['Importance'].sum())}")
 
     except Exception as e:
         logger.error(f"✗ Error en {model_name}: {e}")
@@ -198,8 +185,7 @@ def run_model(model_class, model_name, X, y, logger):
         logger.error(traceback.format_exc())
         raise e
 
-
-def run_h2o_model(train_df: pd.DataFrame, logger):
+def run_h2o_model(train_df: pd.DataFrame, logger, use_resampling=False):
     model_name = "H2O_AutoML"
     logger.info(f"\n=== Ejecutando {model_name} ===")
 
@@ -210,7 +196,9 @@ def run_h2o_model(train_df: pd.DataFrame, logger):
 
         # Crear y entrenar modelo
         logger.info(f"🔧 Entrenando {model_name}...")
-        model = h2oPipeline(random_state=42)
+        model = h2oPipeline(random_state=42, use_resampling=use_resampling)
+        # Only select ALL_FEATURES and TARGET_FEATURE
+        train_df = train_df[ALL_FEATURES + [TARGET_FEATURE]].copy()
         best_model = model.train_and_choose_best_model(train_df, TARGET_FEATURE)
         logger.info(f"✅ {model_name} entrenado exitosamente")
 
@@ -218,43 +206,38 @@ def run_h2o_model(train_df: pd.DataFrame, logger):
         logger.info("Analizando modelo...")
         model.analyze()
 
-        # Registrar en MLflow
-        logger.info(f"Iniciando run de MLflow para {model_name}")
-        with mlflow.start_run(run_name=model_name, nested=True):
-            run_id = mlflow.active_run().info.run_id
-            logger.info(f"✅ Run iniciado: {run_id}")
+        # Parámetros básicos
+        logger.info(f"model_type {model_name}")
+        logger.info(f"n_samples {train_df.shape[0]}")
+        logger.info(f"n_features {train_df.shape[1] - 1}")
+        logger.info(f"random_state 42")
+        logger.info(f"max_runtime_secs 300")
+        logger.info(f"nfolds 5")
 
-            # Parámetros básicos
-            mlflow.log_param("model_type", model_name)
-            mlflow.log_param("n_samples", train_df.shape[0])
-            mlflow.log_param("n_features", train_df.shape[1] - 1)  # -1 por el target
-            mlflow.log_param("random_state", 42)
-            mlflow.log_param("max_runtime_secs", 300)
-            mlflow.log_param("exclude_algos", "DeepLearning")
-            mlflow.log_param("nfolds", 5)
-
-            # Parámetros del mejor modelo
+        # Parámetros del mejor modelo
+        if hasattr(model, 'get_best_params'):
             try:
                 best_params = model.get_best_params()
                 if best_params:
+                    logger.info(f"Registrando {len(best_params)} parámetros del mejor modelo")
                     for param, value in best_params.items():
-                        mlflow.log_param(param, value)
+                        logger.info(f"{param}: {value}")
             except Exception as e:
                 logger.warning(f"No se pudieron registrar parámetros del modelo: {e}")
 
-            # Métricas
+        # Métricas
             try:
                 cv_metrics = model.get_metrics()
                 if cv_metrics and 'rmse_test' in cv_metrics:
                     logger.info(f"Registrando métricas del modelo")
-                    mlflow.log_metric("rmse_test_mean", float(cv_metrics['rmse_test'].mean()))
-                    mlflow.log_metric("mae_test_mean", float(cv_metrics['mae_test'].mean()))
-                    mlflow.log_metric("r2_test_mean", float(cv_metrics['r2_test'].mean()))
+                    logger.info(f"rmse_test_mean {float(cv_metrics['rmse_test'].mean())}")
+                    logger.info(f"mae_test_mean {float(cv_metrics['mae_test'].mean())}")
+                    logger.info(f"r2_test_mean {float(cv_metrics['r2_test'].mean())}")
 
                     # Calcular desviación estándar (será 0 si solo hay un valor)
-                    mlflow.log_metric("rmse_test_std", float(cv_metrics['rmse_test'].std()))
-                    mlflow.log_metric("mae_test_std", float(cv_metrics['mae_test'].std()))
-                    mlflow.log_metric("r2_test_std", float(cv_metrics['r2_test'].std()))
+                    logger.info(f"rmse_test_std {float(cv_metrics['rmse_test'].std())}")
+                    logger.info(f"mae_test_std {float(cv_metrics['mae_test'].std())}")
+                    logger.info(f"r2_test_std {float(cv_metrics['r2_test'].std())}")
             except Exception as e:
                 logger.warning(f"No se pudieron registrar métricas: {e}")
 
@@ -262,16 +245,14 @@ def run_h2o_model(train_df: pd.DataFrame, logger):
             try:
                 importance_df = model.get_feature_importance()
                 if importance_df is not None and len(importance_df) > 0:
-                    mlflow.log_metric("max_feature_importance", float(importance_df['Importance'].max()))
-                    mlflow.log_metric("top_5_importance_sum", float(importance_df.head(5)['Importance'].sum()))
+                    logger.info(f"max_feature_importance {float(importance_df['Importance'].max())}")
+                    logger.info(f"top_5_importance_sum {float(importance_df.head(5)['Importance'].sum())}")
                     logger.info(f"Importancia: max={importance_df['Importance'].max():.4f}")
             except Exception as e:
                 logger.warning(f"No se pudo registrar importancia de características: {e}")
 
-            logger.info(f"Run {run_id} completado para {model_name}")
 
         logger.info(f"{model_name} completado y registrado en MLflow")
-
     except Exception as e:
         logger.error(f"✗ Error en {model_name}: {e}")
         import traceback
@@ -285,47 +266,18 @@ def run_h2o_model(train_df: pd.DataFrame, logger):
         except:
             pass
 
-
 def main():
     """Ejecuta todos los modelos."""
     # Configurar logger
     logger = setup_logger()
     logger.info("🚀 Ejecutando todos los modelos")
 
-    # Configurar MLflow tracking URI usando project_root
-    mlflow_dir = project_root / 'mlruns'
-    mlflow_dir_abs = str(mlflow_dir.absolute())
-
-    # Crear directorio si no existe
-    os.makedirs(mlflow_dir_abs, exist_ok=True)
-    logger.info(f"Directorio MLflow: {mlflow_dir_abs}")
-
-    mlflow_tracking_uri = f"file://{mlflow_dir_abs}"
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
-    logger.info(f"MLflow tracking URI: {mlflow_tracking_uri}")
-
-    # Asegurar que no hay runs activos
-    try:
-        mlflow.end_run()
-    except:
-        pass
-
-    # Configurar experimento único en MLflow
-    try:
-        experiment = mlflow.set_experiment("All_Models_Comparison")
-        logger.info(f"Experimento MLflow configurado: {experiment.name}")
-        logger.info(f"Experiment ID: {experiment.experiment_id}")
-        logger.info(f"Artifact location: {experiment.artifact_location}")
-    except Exception as e:
-        logger.error(f"❌ Error configurando MLflow: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        raise e
-
     # Cargar datos
     logger.info("Cargando dataset...")
     df = load_data()
     logger.info(f"Dataset cargado: {df.shape[0]} filas, {df.shape[1]} columnas")
+
+    use_resampling = True
 
     # Separar features y target
     X = df[ALL_FEATURES]
@@ -334,38 +286,21 @@ def main():
 
     # Lista de modelos
     models = [
-        (LinearRegressionPipeline, "LinearRegression"),
-        (ElasticNetPipeline, "ElasticNet"),
-        (RandomForestPipeline, "RandomForest"),
+        #(LinearRegressionPipeline, "LinearRegression"),
+        #(ElasticNetPipeline, "ElasticNet"),
+        #(RandomForestPipeline, "RandomForest"),
         (CatBoostPipeline, "CatBoost")
     ]
 
-    # Ejecutar todos los modelos dentro de un run padre (como model_runner.py)
-    logger.info("\nIniciando run padre en MLflow...")
-    with mlflow.start_run(run_name="All_Models_Training") as parent_run:
-        logger.info(f"✅ Run padre iniciado: {parent_run.info.run_id}")
+    # Ejecutar cada modelo como nested run
+    for model_class, model_name in models:
+        run_model(model_class, model_name, X, y, logger, use_resampling=use_resampling)
 
-        # Log parámetros del experimento
-        mlflow.log_params({
-            "experiment_type": "model_comparison",
-            "n_models": len(models),
-            "dataset_size": len(X),
-            "n_features": X.shape[1]
-        })
-        logger.info(f"Parámetros del experimento registrados")
-
-        # Ejecutar cada modelo como nested run
-        for model_class, model_name in models:
-            run_model(model_class, model_name, X, y, logger)
-
-        # Ejecutar H2O AutoML
-        logger.info("\nEjecutando H2O AutoML...")
-        run_h2o_model(df, logger)
+    # Ejecutar H2O AutoML
+    logger.info("\nEjecutando H2O AutoML...")
+    run_h2o_model(df, logger, use_resampling=use_resampling)
 
     logger.info("\n✅ Todos los modelos completados (incluyendo H2O AutoML)")
-    logger.info("Ejecuta 'mlflow ui' para ver los resultados en el experimento 'All_Models_Comparison'")
-    logger.info(f"Los experimentos se guardaron en: {mlflow_dir_abs}")
-    logger.info(f"Para ver los experimentos: cd {os.path.dirname(mlflow_dir_abs)} && mlflow ui")
 
 if __name__ == "__main__":
     main()

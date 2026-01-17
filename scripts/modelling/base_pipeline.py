@@ -1,3 +1,4 @@
+from sklearn.base import clone as sk_clone
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -98,6 +99,59 @@ class BasePipeline(ABC):
     def analyze(self, X: pd.DataFrame, y: pd.Series):
         pass
 
+    def _log_cv_configuration(self, cv, X: pd.DataFrame, y: pd.Series):
+        """
+        Registra la configuración de validación cruzada y detalles de cada fold.
+        Maneja tanto objetos CV con método .split() como listas de tuplas pre-computadas.
+        """
+        self.logger.info(f"\n{'='*80}")
+        self.logger.info(f"📊 CONFIGURACIÓN VALIDACIÓN CRUZADA")
+        self.logger.info(f"{'='*80}")
+        
+        # Detectar si cv es una lista de tuplas (splits pre-computados) o un objeto CV
+        is_list_of_tuples = isinstance(cv, list) and len(cv) > 0 and isinstance(cv[0], tuple) and len(cv[0]) == 2
+        
+        # Obtener los splits según el tipo de cv
+        if is_list_of_tuples:
+            # cv es una lista de tuplas pre-computadas: [(train_idx, test_idx), ...]
+            splits_list = cv
+            n_total_splits = len(cv)
+        elif hasattr(cv, 'split'):
+            # cv es un objeto con método split() (RepeatedKFold, StratifiedKFold, etc.)
+            splits_list = list(cv.split(X, y))
+            n_total_splits = len(splits_list)
+        elif hasattr(cv, 'get_n_splits'):
+            # cv tiene método get_n_splits pero no split (caso especial)
+            n_total_splits = cv.get_n_splits(X, y)
+            splits_list = list(cv) if hasattr(cv, '__iter__') else []
+        else:
+            # Intentar convertir a lista
+            splits_list = list(cv) if hasattr(cv, '__iter__') else []
+            n_total_splits = len(splits_list)
+        
+        self.logger.info(f"Esquema: {self.n_splits}-Fold × {self.n_repeats} Repeticiones = {n_total_splits} folds totales")
+        self.logger.info(f"Total de datos: {len(X)} registros\n")
+        
+        # Iterar sobre los splits
+        for i, (train_idx, test_idx) in enumerate(splits_list):
+            
+            n_train = len(train_idx)
+            n_test = len(test_idx)
+            total = n_train + n_test
+            pct_train = 100 * n_train / total
+            pct_test = 100 * n_test / total
+            
+            y_train_fold = y.iloc[train_idx]
+            y_test_fold = y.iloc[test_idx]
+            
+            self.logger.info(f"Fold {i+1:2d}/{n_total_splits}:")
+            self.logger.info(f"  📦 Train: {n_train:5d} registros ({pct_train:5.1f}%) | "
+                           f"y_mean={y_train_fold.mean():.2f}, y_std={y_train_fold.std():.2f}")
+            self.logger.info(f"  🧪 Test:  {n_test:5d} registros ({pct_test:5.1f}%) | "
+                           f"y_mean={y_test_fold.mean():.2f}, y_std={y_test_fold.std():.2f}")
+
+        self.logger.info(f"\n{'='*80}\n")
+
     @abstractmethod
     def _cross_validate(self, X: pd.DataFrame, y: pd.Series):
         pass
@@ -107,9 +161,9 @@ class BasePipeline(ABC):
 
         # Configurar validación cruzada 5×8
         cv = RepeatedKFold(n_splits=self.n_splits, n_repeats=self.n_repeats, random_state=self.random_state)
-        for i, (train_idx, test_idx) in enumerate(cv.split(X, y)):
-            y_test_fold = y.iloc[test_idx]
-            self.logger.info(f"Fold {i+1}: tamaño test={len(test_idx)}, varianza={y_test_fold.var():.6f}, valores únicos={y_test_fold.nunique()}")
+        
+        # Logging detallado de splits
+        self._log_cv_configuration(cv, X, y)
 
         # Realizar validación cruzada con pipeline limpio
         cv_results = cross_validate(
@@ -262,15 +316,24 @@ class BasePipeline(ABC):
         try:
             # Calcular curva de aprendizaje usando MAE
             # Nota: Empezar desde 15% para evitar conjuntos demasiado pequeños
+            estimator = sk_clone(self.pipeline) if self.pipeline is not None else sk_clone(self._create_pipeline())
+            # (opcional) etiqueta de contexto para ver logs del SMOTE en las curvas
+            try:
+                estimator.set_params(resampler__context="learning_curve")
+            except Exception:
+                pass
+
             train_sizes = np.linspace(0.15, 1.0, 10)
             train_sizes_abs, train_scores, val_scores = learning_curve(
-                self.pipeline, X, y,
+                estimator,
+                X, y,
                 train_sizes=train_sizes,
                 cv=self.n_splits,
-                scoring='neg_mean_absolute_error',  # ← MAE en lugar de RMSE
+                scoring='neg_mean_absolute_error',
                 n_jobs=-1,
+                shuffle=True,
                 random_state=self.random_state,
-                error_score=np.nan  # Continuar aunque fallen algunos folds
+                error_score=np.nan
             )
 
             # Convertir a MAE positivo
@@ -604,20 +667,38 @@ class BasePipeline(ABC):
         regressor = self.pipeline.named_steps['regressor']
         importances = regressor.feature_importances_
 
-        # Obtener nombres reales de las características del preprocessor
+        # 1) Mejor opción: si CatBoost conoce los nombres
+        feature_names = None
         try:
-            preprocessor = self.pipeline.named_steps['preprocessor']
-            feature_names = preprocessor.get_feature_names_out()
-            self.logger.info(f"✅ Obtenidos {len(feature_names)} nombres reales de características")
-        except Exception as e:
-            self.logger.warning(f"⚠️  No se pudieron obtener nombres reales: {e}")
-            feature_names = [f'feature_{i}' for i in range(len(importances))]
+            if hasattr(regressor, "feature_names_"):
+                fn = list(regressor.feature_names_)
+                if len(fn) == len(importances):
+                    feature_names = fn
+        except Exception:
+            pass
 
-        # Crear DataFrame con importancia
-        self.feature_importance = pd.DataFrame({
-            'Feature': feature_names,
-            'Importance': importances
-        }).sort_values('Importance', ascending=False)
+        # 2) Segunda opción: del preprocessor
+        if feature_names is None:
+            try:
+                pre = self.pipeline.named_steps['preprocessor']
+                fn = pre.get_feature_names_out()
+                # ColumnTransformer con verbose_feature_names_out=False suele devolver nombres originales
+                if len(fn) == len(importances):
+                    feature_names = list(fn)
+            except Exception:
+                feature_names = None
+
+        # 3) Fallback seguro: orden ColumnTransformer = [num, cat]
+        if feature_names is None:
+            feature_names = list(self.num_cols) + list(self.cat_cols)
+
+        # Crear DataFrame ordenado
+        self.feature_importance = (
+            pd.DataFrame({"Feature": feature_names, "Importance": importances})
+            .sort_values("Importance", ascending=False)
+            .reset_index(drop=True)
+        )
+
         self._show_feature_importance()
         self._plot_feature_importance()
 

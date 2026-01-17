@@ -1,19 +1,15 @@
 """
 Script para evaluar todos los modelos entrenados en el conjunto de test.
-Carga modelos guardados por timestamp y registra métricas en MLflow.
 """
 
 import numpy as np
 import pandas as pd
 import os
-import mlflow
-import mlflow.sklearn
 from pathlib import Path
 import logging
 from datetime import datetime
 import traceback
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-
 
 import sys
 project_root = Path(__file__).parent.parent.parent
@@ -412,6 +408,11 @@ def _analyze_errors_by_range_detailed(y_test, y_pred, output_dir: Path, logger):
     
     logger.info(f"✅ Gráfico comparativo guardado en: {save_path}")
     
+    # Guardar análisis en CSV
+    csv_path = output_dir / 'errores_por_rango_analisis.csv'
+    df_analysis.to_csv(csv_path, index=False)
+    logger.info(f"✅ Análisis detallado guardado en: {csv_path}")
+    
     # Crear gráfico adicional: Comparación directa de promedios por rango
     _create_mae_comparison_by_range(df_analysis, labels, output_dir, logger)
 
@@ -538,9 +539,19 @@ CATEGORICAL_FEATURES = [
     'time_engagement_level',
     'tipo_vivienda',
     'zona_vivienda',
+    'jornada_preferida',
 ]
 
 NUMERIC_FEATURES = [
+    'horas_semana_estudio_casa',
+    'count_login_mon',
+    'count_login_fri',
+    'intensidad',
+    'total_hermanos',
+    'student_total_views',
+    'substring_similarity',
+    'max_inactividad',
+    'avg_days_from_planned_start',
     'common_bigrams',
     'count_collaboration',
     'age',
@@ -841,26 +852,18 @@ def evaluate_model(model_class, model_name, ts, X_test, y_test, logger):
         logger.info(f"   Weighted MAE: {metrics['weighted_mae']:.4f}")
         logger.info(f"   R²:           {metrics['r2']:.4f}")
 
-        # Registrar en MLflow como nested run
-        logger.info(f"📊 Registrando resultados en MLflow para {model_name}")
-        with mlflow.start_run(run_name=f"{model_name}_Test", nested=True):
-            run_id = mlflow.active_run().info.run_id
-            logger.info(f"✅ Run iniciado: {run_id}")
-
             # Parámetros básicos
-            mlflow.log_param("model_type", model_name)
-            mlflow.log_param("timestamp", ts)
-            mlflow.log_param("n_test_samples", X_test.shape[0])
-            mlflow.log_param("n_features", X_test.shape[1])
+        logger.info(f"model_type: {model_name}")
+        logger.info(f"timestamp {ts}")
+        logger.info(f"n_test_samples: {X_test.shape[0]}")
+        logger.info(f"n_features: {X_test.shape[1]}")
 
-            # Métricas de test
-            mlflow.log_metric("rmse_test", float(metrics['rmse']))
-            mlflow.log_metric("mae_test", float(metrics['mae']))
-            mlflow.log_metric("weighted_mae_test", float(metrics['weighted_mae']))
-            mlflow.log_metric("r2_test", float(metrics['r2']))
+        # Métricas de test
+        logger.info(f"rmse_test: {float(metrics['rmse'])}")
+        logger.info(f"mae_test: {float(metrics['mae'])}")
+        logger.info(f"weighted_mae_test: {float(metrics['weighted_mae'])}")
+        logger.info(f"r2_test: {float(metrics['r2'])}")
 
-            logger.info(f"Run {run_id} completado para {model_name}")
-        logger.info(f"{model_name} evaluación completada y registrada en MLflow")
         return metrics, y_pred
 
     except Exception as e:
@@ -912,27 +915,17 @@ def evaluate_h2o_model(test_df, ts, logger):
         logger.info(f"   Weighted MAE: {metrics['weighted_mae']:.4f}")
         logger.info(f"   R²:           {metrics['r2']:.4f}")
 
-        # Registrar en MLflow
-        logger.info(f"📊 Registrando resultados en MLflow para {model_name}")
-        with mlflow.start_run(run_name=f"{model_name}_Test", nested=True):
-            run_id = mlflow.active_run().info.run_id
-            logger.info(f"✅ Run iniciado: {run_id}")
+        # Parámetros básicos
+        logger.info(f"model_type: {model_name}")
+        logger.info(f"timestamp: {ts}")
+        logger.info(f"n_test_samples: {test_df.shape[0]}")
+        logger.info(f"n_features: {test_df.shape[1] - 1}")  # -1 por el target
 
-            # Parámetros básicos
-            mlflow.log_param("model_type", model_name)
-            mlflow.log_param("timestamp", ts)
-            mlflow.log_param("n_test_samples", test_df.shape[0])
-            mlflow.log_param("n_features", test_df.shape[1] - 1)  # -1 por el target
-
-            # Métricas de test
-            mlflow.log_metric("rmse_test", float(metrics['rmse']))
-            mlflow.log_metric("mae_test", float(metrics['mae']))
-            mlflow.log_metric("weighted_mae_test", float(metrics['weighted_mae']))
-            mlflow.log_metric("r2_test", float(metrics['r2']))
-
-            logger.info(f"Run {run_id} completado para {model_name}")
-
-        logger.info(f"{model_name} evaluación completada y registrada en MLflow")
+        # Métricas de test
+        logger.info(f"rmse_test: {float(metrics['rmse'])}")
+        logger.info(f"mae_test: {float(metrics['mae'])}")
+        logger.info(f"weighted_mae_test: {float(metrics['weighted_mae'])}")
+        logger.info(f"r2_test: {float(metrics['r2'])}")
         return metrics, y_pred
 
     except Exception as e:
@@ -953,34 +946,6 @@ def main():
     logger = setup_logger()
     logger.info("🚀 Evaluando todos los modelos en conjunto de test")
 
-    # Configurar MLflow tracking URI
-    mlflow_dir = project_root / 'mlruns'
-    mlflow_dir_abs = str(mlflow_dir.absolute())
-
-    os.makedirs(mlflow_dir_abs, exist_ok=True)
-    logger.info(f"Directorio MLflow: {mlflow_dir_abs}")
-
-    mlflow_tracking_uri = f"file://{mlflow_dir_abs}"
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
-    logger.info(f"MLflow tracking URI: {mlflow_tracking_uri}")
-
-    # Asegurar que no hay runs activos
-    try:
-        mlflow.end_run()
-    except:
-        pass
-
-    # Configurar experimento único en MLflow
-    try:
-        experiment = mlflow.set_experiment("All_Models_Test_Evaluation")
-        logger.info(f"Experimento MLflow configurado: {experiment.name}")
-        logger.info(f"Experiment ID: {experiment.experiment_id}")
-        logger.info(f"Artifact location: {experiment.artifact_location}")
-    except Exception as e:
-        logger.error(f"❌ Error configurando MLflow: {e}")
-        logger.error(traceback.format_exc())
-        raise e
-
     # Cargar datos de test
     logger.info("📊 Cargando dataset de test...")
     df_test = load_test_data()
@@ -993,97 +958,94 @@ def main():
 
     # Definir modelos con sus timestamps
     models_config = [
-        (LinearRegressionPipeline, "LinearRegression", "20251029_014923"),
-        (ElasticNetPipeline, "ElasticNet", "20251030_115639"),  # Modelo con weighted_mae
-        (RandomForestPipeline, "RandomForest", "20251030_115706"),
-        (CatBoostPipeline, "CatBoost", "20251030_123954")
+        #(LinearRegressionPipeline, "LinearRegression", "20251111_143601"),
+        #(ElasticNetPipeline, "ElasticNet", "20251111_143606"),  # Modelo con weighted_mae
+        #(RandomForestPipeline, "RandomForest", "20251111_143630"),
+        (CatBoostPipeline, "CatBoost", "20251115_144440") # SMOTE
+        #(CatBoostPipeline, "CatBoost", "20251111_151445"),
     ]
 
     # Diccionario para almacenar resultados
     results = {}
     predictions = {}  # Guardar predicciones para análisis posterior
 
-    logger.info("\nIniciando run padre en MLflow...")
-    with mlflow.start_run(run_name="All_Models_Test_Evaluation") as parent_run:
-        logger.info(f"✅ Run padre iniciado: {parent_run.info.run_id}")
 
-        # Log parámetros del experimento
-        mlflow.log_params({
-            "experiment_type": "test_evaluation",
-            "n_models": len(models_config) + 1,  # +1 por H2O
-            "test_dataset_size": len(X_test),
-            "n_features": X_test.shape[1]
-        })
-        logger.info(f"Parámetros del experimento registrados")
+    logger.info(f"Parámetros del experimento registrados")
+    logger.info(f"experiment_type: test_evaluation")
+    logger.info(f"n_models: {len(models_config) + 1}")  # +1 por H2O
+    logger.info(f"test_dataset_size: {len(X_test)}")
+    logger.info(f"n_features: {X_test.shape[1]}")
 
-        # Cargar y_train para comparación con baseline en diagnósticos
-        logger.info("\n📊 Cargando datos de entrenamiento para baseline...")
-        train_df = pd.read_csv('data/processed/train_moodle.csv')
-        y_train = train_df[TARGET_FEATURE]
-        logger.info(f"✅ Train set cargado: {len(y_train)} muestras")
-        
-        for model_class, model_name, ts in models_config:
-            try:
-                metrics, y_pred = evaluate_model(model_class, model_name, ts, X_test, y_test, logger)
-                results[model_name] = metrics
-                predictions[model_name] = y_pred
-                
-                # Realizar diagnóstico completo para este modelo
-                # Guardar en el directorio timestamp del modelo
-                logger.info(f"\n{'='*80}")
-                logger.info(f"🔬 EJECUTANDO DIAGNÓSTICO COMPLETO PARA {model_name}")
-                logger.info(f"{'='*80}")
-                
-                # Crear instancia del modelo para obtener el nombre del directorio
-                model_instance = model_class(random_state=42)
-                model_dir = project_root / 'models' / model_instance.model_name / ts
-                
-                diagnose_model_predictions(
-                    model_name=model_name,
-                    y_train=y_train,
-                    y_test=y_test.values,
-                    y_pred=y_pred,
-                    model_dir=model_dir,
-                    logger=logger
-                )
-                
-            except Exception as e:
-                logger.error(f"Error evaluando {model_name}, continuando con el siguiente...")
-                logger.error(traceback.format_exc())
-                results[model_name] = None
-                predictions[model_name] = None
-
-        # Evaluar H2O AutoML
-        logger.info("\nEvaluando H2O AutoML...")
-        h2o_timestamp = "20251030_155646"
+    # Cargar y_train para comparación con baseline en diagnósticos
+    logger.info("\n📊 Cargando datos de entrenamiento para baseline...")
+    train_df = pd.read_csv('data/processed/train_moodle.csv')
+    y_train = train_df[TARGET_FEATURE]
+    logger.info(f"✅ Train set cargado: {len(y_train)} muestras")
+    
+    for model_class, model_name, ts in models_config:
         try:
-            h2o_metrics, h2o_pred = evaluate_h2o_model(df_test, h2o_timestamp, logger)
-            results["H2O_AutoML"] = h2o_metrics
-            predictions["H2O_AutoML"] = h2o_pred
+            metrics, y_pred = evaluate_model(model_class, model_name, ts, X_test, y_test, logger)
+            results[model_name] = metrics
+            predictions[model_name] = y_pred
             
-            # Realizar diagnóstico completo para H2O
-            # Guardar en el directorio timestamp del modelo H2O
+            # Realizar diagnóstico completo para este modelo
+            # Guardar en el directorio timestamp del modelo
             logger.info(f"\n{'='*80}")
-            logger.info(f"🔬 EJECUTANDO DIAGNÓSTICO COMPLETO PARA H2O_AutoML")
+            logger.info(f"🔬 EJECUTANDO DIAGNÓSTICO COMPLETO PARA {model_name}")
             logger.info(f"{'='*80}")
             
-            h2o_model_dir = project_root / 'models' / 'h2o' / h2o_timestamp
+            # Crear instancia del modelo para obtener el nombre del directorio
+            model_instance = model_class(random_state=42)
+            model_dir = project_root / 'models' / model_instance.model_name / ts
             
             diagnose_model_predictions(
-                model_name="H2O_AutoML",
+                model_name=model_name,
                 y_train=y_train,
                 y_test=y_test.values,
-                y_pred=h2o_pred,
-                model_dir=h2o_model_dir,
+                y_pred=y_pred,
+                model_dir=model_dir,
                 logger=logger
             )
             
         except Exception as e:
-            logger.error(f"Error evaluando H2O AutoML, continuando...")
+            logger.error(f"Error evaluando {model_name}, continuando con el siguiente...")
             logger.error(traceback.format_exc())
-            results["H2O_AutoML"] = None
-            predictions["H2O_AutoML"] = None
+            results[model_name] = None
+            predictions[model_name] = None
 
+    # Evaluar H2O AutoML
+    logger.info("\nEvaluando H2O AutoML...")
+    #h2o_timestamp = "20251115_003958" # Smote
+    h2o_timestamp = "20251030_155646"  # Sin SMOTE
+    
+    try:
+        h2o_metrics, h2o_pred = evaluate_h2o_model(df_test, h2o_timestamp, logger)
+        results["H2O_AutoML"] = h2o_metrics
+        predictions["H2O_AutoML"] = h2o_pred
+        
+        # Realizar diagnóstico completo para H2O
+        # Guardar en el directorio timestamp del modelo H2O
+        logger.info(f"\n{'='*80}")
+        logger.info(f"🔬 EJECUTANDO DIAGNÓSTICO COMPLETO PARA H2O_AutoML")
+        logger.info(f"{'='*80}")
+        
+        h2o_model_dir = project_root / 'models' / 'h2o' / h2o_timestamp
+        
+        diagnose_model_predictions(
+            model_name="H2O_AutoML",
+            y_train=y_train,
+            y_test=y_test.values,
+            y_pred=h2o_pred,
+            model_dir=h2o_model_dir,
+            logger=logger
+        )
+        
+    except Exception as e:
+        logger.error(f"Error evaluando H2O AutoML, continuando...")
+        logger.error(traceback.format_exc())
+        results["H2O_AutoML"] = None
+        predictions["H2O_AutoML"] = None
+    
     # Resumen de resultados
     logger.info("\n" + "="*70)
     logger.info("📊 RESUMEN DE RESULTADOS EN TEST")
@@ -1139,7 +1101,6 @@ def main():
 
     logger.info("\n✅ Evaluación de todos los modelos completada")
     logger.info(f"Los resultados se guardaron en el experimento: All_Models_Test_Evaluation")
-    logger.info(f"Para ver los resultados: cd {os.path.dirname(mlflow_dir_abs)} && mlflow ui")
     
     # Resumen final de archivos generados
     logger.info("\n" + "="*80)

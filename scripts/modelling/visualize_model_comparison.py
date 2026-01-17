@@ -34,6 +34,8 @@ def create_metrics_comparison(df):
     for modelo in df['Modelo']:
         if 'Stacked Ensemble' in modelo:
             short_names.append('Stacked\nEnsemble')
+        elif 'H2O' in modelo:
+            short_names.append('Stacked\nEnsemble')
         elif 'RandomForest' in modelo:
             short_names.append('Random\nForest')
         elif 'ElasticNet' in modelo:

@@ -2,11 +2,14 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Optional
+from sklearn.model_selection import ParameterGrid
+from tqdm.auto import tqdm
+from tqdm_joblib import tqdm_joblib
 
 from sklearn.linear_model import ElasticNet
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
+from imblearn.pipeline import Pipeline
 from sklearn.model_selection import RepeatedKFold, GridSearchCV
 from sklearn.compose import ColumnTransformer
 
@@ -18,12 +21,15 @@ from scripts.preprocessing.encode_categorical_values import CategoricalEncoder
 from scripts.preprocessing.outlier_handler import OutlierHandler
 from scripts.modelling.base_pipeline import BasePipeline
 from scripts.modelling.weighted_mae_scorer import default_weighted_mae_scorer
+from scripts.preprocessing.g_smote import GSMOTERegressor
+
 
 class ElasticNetPipeline(BasePipeline):
 
-    def __init__(self, random_state: int = 42):
+    def __init__(self, random_state: int = 42, use_resampling: bool = True):
         self.model_name = "elasticnet"
         self.title = "Elastic Net"
+        self.use_resampling = use_resampling
         super().__init__(random_state)
         
         # Sobrescribir SCORING para incluir métrica personalizada
@@ -35,7 +41,7 @@ class ElasticNetPipeline(BasePipeline):
         }
 
     def _create_pipeline(self) -> Pipeline:
-        # Pipeline para variables numéricas
+        # --- Pipeline para variables numéricas ---
         numeric_transformer = Pipeline(steps=[
             ('imputer', SimpleImputer(strategy='median')),
             ('outlier_handler', OutlierHandler(iqr_factor=1.5)),
@@ -43,13 +49,14 @@ class ElasticNetPipeline(BasePipeline):
         ])
         numeric_transformer.set_output(transform="pandas")
 
-        # Pipeline para variables categóricas
+        # --- Pipeline para variables categóricas ---
         categorical_transformer = Pipeline(steps=[
             ('imputer', SimpleImputer(strategy='most_frequent')),
-            ('encoder', CategoricalEncoder())  # ← CategoricalEncoder NECESITA nombres de columnas
+            ('encoder', CategoricalEncoder())  # Usa nombres de columnas
         ])
         categorical_transformer.set_output(transform="pandas")
 
+        # --- Combinación de ambos ---
         preprocessor = ColumnTransformer(
             transformers=[
                 ('num', numeric_transformer, self.num_cols),
@@ -57,17 +64,28 @@ class ElasticNetPipeline(BasePipeline):
             ],
             verbose_feature_names_out=False
         )
+        preprocessor.set_output(transform="pandas")
+
+        # --- Definir pasos del pipeline completo ---
+        steps = [('preprocessor', preprocessor)]
+
+        if self.use_resampling:
+            steps.append(('resampler', GSMOTERegressor(
+                n_synthetic_multiplier=3.0,
+                selection_strategy="combined",
+                random_state=self.random_state,
+            )))
 
         # Pipeline completo con modelo
-        pipeline = Pipeline(steps=[
-            ('preprocessor', preprocessor),
-            ('regressor', ElasticNet(
-                random_state=self.random_state,
-                max_iter=10000,  # Aumentar iteraciones para convergencia
-                tol=1e-3  # Tolerancia para convergencia
-            ))
-        ])
+        regressor = ElasticNet(
+            random_state=self.random_state,
+            max_iter=10000,  # Aumentar iteraciones para convergencia
+            tol=1e-3  # Tolerancia para convergencia
+        )
 
+        steps.append(('regressor', regressor))
+
+        pipeline = Pipeline(steps=steps)
         return pipeline
 
     def _get_param_grid(self) -> Dict[str, list]:
@@ -93,6 +111,9 @@ class ElasticNetPipeline(BasePipeline):
         self.logger.info("Realizando tuning de hiperparámetros...")
         self.logger.info(f"Parámetros a optimizar: {list(param_grid.keys())}")
 
+        # === Logging de configuración de CV ===
+        self._log_cv_configuration(cv_inner, X, y)
+
         grid_search = GridSearchCV(
             base_pipeline,
             param_grid,
@@ -100,12 +121,19 @@ class ElasticNetPipeline(BasePipeline):
             scoring=self.SCORING,
             refit='weighted_mae',  # Usar métrica personalizada para seleccionar mejor modelo
             n_jobs=-1,
-            verbose=1,
+            verbose=False,
             return_train_score=True
         )
 
-        # Entrenar con tuning
-        grid_search.fit(X, y)
+        # Entrenar con tuning (con barra de progreso)
+        n_candidates = len(list(ParameterGrid(param_grid)))
+        n_splits_total = cv_inner.get_n_splits(X, y)  # RepeatedKFold ya incluye repeats
+        total_fits = n_candidates * n_splits_total
+
+        self.logger.info(f"Total de combinaciones: {n_candidates} | Splits totales: {n_splits_total} | Fits: {total_fits}")
+
+        with tqdm_joblib(tqdm(total=total_fits, desc="GridSearchCV", unit="fit")):
+            grid_search.fit(X, y)
 
         # Guardar mejor modelo y parámetros
         self.pipeline = grid_search.best_estimator_
